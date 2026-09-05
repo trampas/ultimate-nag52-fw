@@ -126,7 +126,7 @@ void CanEndpoint::iso_tp_server_loop() {
                     this->is_sending = true; // We are sending now
                     this->clear_to_send = false; // And not clear to send
                     this->tx_pci = 0x21;
-                    tx_can.data[0] = 0x10 | ((tx_msg.max_pos >> 8) & 0x0F);
+                    tx_can.data[0] = (uint8_t)(0x10 | ((tx_msg.max_pos >> 8) & 0x0F));
                     tx_can.data[1] = tx_msg.max_pos & 0xFF; // Only one byte for len
                     memcpy(&tx_can.data[2], &tx_msg.data, 6); // Copy first 6 bytes
                     tx_msg.curr_pos = 6;
@@ -216,7 +216,7 @@ void CanEndpoint::process_start_frame(DiagCanMessage msg) {
         send_to_twai(const_cast<uint8_t*>(FLOW_CONTROL_BUSY));
         return;
     }
-    uint16_t size = (msg[0] & 0x0F) << 8 | msg[1];
+    uint16_t size = (uint16_t)(((msg[0] & 0x0F) << 8) | msg[1]);
     if (!isotp_first_frame_size_valid(size, DIAG_CAN_MAX_SIZE)) {
         send_to_twai(const_cast<uint8_t*>(FLOW_CONTROL_OVERFLOW));
         return;

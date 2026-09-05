@@ -24,21 +24,6 @@ typedef struct {
     uint8_t week;
 } ECU_Date;
 
-uint8_t decToBcd(uint8_t val)
-{
-  return ( (val/10*16) + (val%10) );
-}
-
-uint8_t bcd_to_hex(char c) {
-    if (c >= 0x48 && c<= 0x57) { // 0-9
-        return c - 48;
-    } else if (c >= 0x64 && c <= 0x70) { // A-F
-        return c - 65 + 10;
-    } else {
-        return 0x0F;
-    }
-}
-
 const ECU_Date pcb_ver_to_date(TCM_EFUSE_CONFIG* cfg) {
     switch (cfg->board_ver) {
         case 1:
@@ -105,21 +90,21 @@ ECU_Date fw_date_to_bcd(char* date) {
         month = 0x00;
     }
 
-    uint8_t day  =((date[0] - '0') * 10) + (date[1]-'0');
-    uint8_t year =((date[9] - '0') * 10) + (date[10]-'0');
+    uint8_t day = (uint8_t)(((date[0] - '0') * 10) + (date[1] - '0'));
+    uint8_t year = (uint8_t)(((date[9] - '0') * 10) + (date[10] - '0'));
     struct tm time;
     memset(&time, 0, sizeof(time));
     char timebuf[4];
     time.tm_mday = day;
     time.tm_year = 100 + year;
-    time.tm_mon = month-1;
+    time.tm_mon = month - 1;
     mktime(&time);
     strftime(timebuf, 4, "%02W", &time);
     return ECU_Date {
         .day = day,
         .month = month,
         .year = year,
-        .week = (uint8_t)(((timebuf[0] - '0') * 10) + (timebuf[1]-'0')) // Hacky way
+        .week = (uint8_t)(((timebuf[0] - '0') * 10) + (timebuf[1] - '0')) // Hacky way
     };
 }
 
@@ -271,7 +256,7 @@ void Kwp2000_server::server_loop() {
             read_msg = true;
         }
         if (read_msg) {
-            this->next_tp_time = timestamp+KWP_TP_TIMEOUT_MS;
+            this->next_tp_time = timestamp + KWP_TP_TIMEOUT_MS;
             if (this->rx_msg.data_size == 0) {
                 continue; // Huh?
             }
@@ -396,7 +381,7 @@ void Kwp2000_server::process_start_diag_session(const uint8_t* args, uint16_t ar
         case SESSION_EXTENDED:
         case SESSION_REPROGRAMMING:
         case SESSION_CUSTOM_UN52:
-            this->next_tp_time = GET_CLOCK_TIME()+KWP_TP_TIMEOUT_MS;
+            this->next_tp_time = GET_CLOCK_TIME() + KWP_TP_TIMEOUT_MS;
             break;
         default:
             // Not supported session mode!
@@ -531,10 +516,10 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
     }
     if (args[0] >= 0x80 && args[0] <= 0x9F) { // ECU Ident
         this->process_read_ecu_ident(args, arg_len); // Modify the SID byte in pos/neg response to be SID_READ_DATA_LOCAL_IDENT
-        if(this->tx_msg.data[0] == 0x7F) {
+        if (this->tx_msg.data[0] == 0x7F) {
             this->tx_msg.data[1] = SID_READ_DATA_LOCAL_IDENT;
         } else {
-            this->tx_msg.data[0] = SID_READ_DATA_LOCAL_IDENT+0x40;
+            this->tx_msg.data[0] = SID_READ_DATA_LOCAL_IDENT + 0x40;
         }
     } else if (args[0] == 0xE1) { // ECU Serial number
         uint8_t mac[6] = {0};
@@ -561,15 +546,15 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
         }
         uint8_t map_id = args[1];
         uint8_t cmd = args[2];
-        uint16_t map_len_bytes = args[3] << 8 | args[4];
-        if (arg_len-5 != map_len_bytes) {
+        uint16_t map_len_bytes = (uint16_t)(((uint16_t)args[3] << 8) | (uint16_t)args[4]);
+        if ((arg_len - 5) != map_len_bytes) {
             make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
             return;
         }
         uint8_t ret;
         uint8_t* buffer = nullptr;
         uint16_t read_bytes_size = 0;
-        if ( cmd == MAP_CMD_READ || cmd == MAP_CMD_READ_DEFAULT || cmd == MAP_CMD_READ_EEPROM) {
+        if (cmd == MAP_CMD_READ || cmd == MAP_CMD_READ_DEFAULT || cmd == MAP_CMD_READ_EEPROM) {
             uint8_t c;
             if (cmd == MAP_CMD_READ) {
                 c = MAP_READ_TYPE_MEM;
@@ -592,7 +577,7 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
                 make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_GENERAL_REJECT);
                 return;
             }
-            uint8_t* buf = static_cast<uint8_t*>(TCU_HEAP_ALLOC(2+read_bytes_size));
+            uint8_t* buf = static_cast<uint8_t*>(TCU_HEAP_ALLOC(2 + read_bytes_size));
             if (buf == nullptr) {
                 TCU_FREE(buffer); // DELETE MapEditor allocation
                 make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_GENERAL_REJECT);
@@ -601,7 +586,7 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
             buf[0] = read_bytes_size & 0xFF;
             buf[1] = read_bytes_size >> 8;
             memcpy(&buf[2], buffer, read_bytes_size);
-            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, buf, 2+read_bytes_size);
+            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, buf, 2 + read_bytes_size);
             TCU_FREE(buf);
             TCU_FREE(buffer); // DELETE MapEditor allocation
             return;
@@ -698,7 +683,7 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
             } else if (args[0] == 0xD1) {
                 char x[48];
                 memset(&x, 0, 48);
-                memcpy(&x,&BOARD_CONFIG, sizeof(BOARD_CONFIG));
+                memcpy(&x, &BOARD_CONFIG, sizeof(BOARD_CONFIG));
                 return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0xD1, (uint8_t*)&x, 48);
             }
         }
@@ -1116,15 +1101,15 @@ void Kwp2000_server::process_write_data_by_local_ident(uint8_t* args, uint16_t a
             }
             uint8_t map_id = args[1];
             uint8_t cmd = args[2];
-            uint16_t map_len_bytes = args[4] << 8 | args[3];
-            if (arg_len-5 != map_len_bytes) {
+            uint16_t map_len_bytes = (uint16_t)(((uint16_t)args[4] << 8) | (uint16_t)args[3]);
+            if ((arg_len - 5) != map_len_bytes) {
                 make_diag_neg_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
                 return;
             }
             uint8_t ret;
             switch (cmd) {
                 case MAP_CMD_WRITE:
-                    ret = MapEditor::write_map_data(map_id, map_len_bytes/2, (int16_t*)&args[5]); // len_bytes /2 = sizeof(int16)
+                    ret = MapEditor::write_map_data(map_id, (uint16_t)(map_len_bytes / 2u), (int16_t*)&args[5]); // len_bytes / 2 = sizeof(int16)
                     break;
                 case MAP_CMD_UNDO:
                     ret = MapEditor::undo_changes(map_id);
@@ -1145,7 +1130,7 @@ void Kwp2000_server::process_write_data_by_local_ident(uint8_t* args, uint16_t a
                 make_diag_neg_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, ret);
             }
         } else if (args[0] == RLI_TCM_CONFIG) {
-            if (arg_len-1 != sizeof(TCM_CORE_CONFIG)) {
+            if ((arg_len - 1) != sizeof(TCM_CORE_CONFIG)) {
                 make_diag_neg_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
             } else {
                 // TCM Core config size ok
@@ -1159,7 +1144,7 @@ void Kwp2000_server::process_write_data_by_local_ident(uint8_t* args, uint16_t a
                 }
             }
         } else if (args[0] == RLI_EFUSE_CONFIG) {
-            if (arg_len-1 != sizeof(TCM_EFUSE_CONFIG)) {
+            if ((arg_len - 1) != sizeof(TCM_EFUSE_CONFIG)) {
                 make_diag_neg_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
             } else {
                 // TCM Core config size ok
@@ -1177,7 +1162,7 @@ void Kwp2000_server::process_write_data_by_local_ident(uint8_t* args, uint16_t a
             if (arg_len < 3) {
                 make_diag_neg_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
             } else {
-                kwp_result_t res = set_module_settings(args[1], arg_len-2, &args[2]);
+                kwp_result_t res = set_module_settings(args[1], (uint16_t)(arg_len - 2), &args[2]);
                 if (res == NRC_OK) {
                     make_diag_pos_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, RLI_SETTINGS_EDIT, nullptr, 0);
                 } else {
@@ -1202,7 +1187,7 @@ void Kwp2000_server::process_write_mem_by_address(uint8_t* args, uint16_t arg_le
     }
     uint32_t start = kwp_read_u24_be(args); // Raw address to read from
     uint8_t len = args[3];
-    if (arg_len-4 != len) { // Length mismatch between message write data, and actual data to write
+    if ((arg_len - 4) != len) { // Length mismatch between message write data, and actual data to write
         make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
         return;
     }
@@ -1210,8 +1195,8 @@ void Kwp2000_server::process_write_mem_by_address(uint8_t* args, uint16_t arg_le
     uint32_t end = start + len;
     if (start >= 0x800000 && end <= 0x87D000) {
         #define SECTOR_SIZE (4096)
-        int phys_address = 0x349000 + (start-0x800000);
-        int sec_start_addr = (phys_address/SECTOR_SIZE)*SECTOR_SIZE;
+        int phys_address = 0x349000 + (start - 0x800000);
+        int sec_start_addr = (phys_address / SECTOR_SIZE) * SECTOR_SIZE;
         int offset_into_start_sector = phys_address - sec_start_addr;
         if ((offset_into_start_sector + len) > SECTOR_SIZE) {
             make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
@@ -1235,13 +1220,13 @@ void Kwp2000_server::process_write_mem_by_address(uint8_t* args, uint16_t arg_le
     } else {
         uint32_t start_ptr = 0;
         // Address is somewhere in memory
-        if(end <= 0x2FFFF) { // and start >= 0x000000
+        if (end <= 0x2FFFF) { // and start >= 0x000000
             start_ptr = 0x40070000; // SRAM0
-        } else if(start >= 0x030000 && end <= 0x04FFFF) {
+        } else if (start >= 0x030000 && end <= 0x04FFFF) {
             start_ptr = 0x400A0000; // SRAM1
-        } else if(start >= 0x050000 && end <= 0x071FFF) {
+        } else if (start >= 0x050000 && end <= 0x071FFF) {
             start_ptr = 0x3FFAE000; // SRAM2
-        } else if(start >= 0x100000 && end <= 0x4FFFFF) {
+        } else if (start >= 0x100000 && end <= 0x4FFFFF) {
             start_ptr = 0x3F800000; // PSRAM
         }
         if (0 == start_ptr) { // Invalid address range
@@ -1338,7 +1323,7 @@ typedef struct {
     SolenoidTestReading on_readings[6];
 } __attribute__((packed)) SolRtRes;
 
-static_assert(sizeof(SolRtRes) == 1+2+6*6);
+static_assert(sizeof(SolRtRes) == (1 + 2 + (6 * 6)));
 
 void Kwp2000_server::run_solenoid_test() {
     bool inhibited_control = false;

@@ -7,6 +7,7 @@
 #include "shifter/shifter_trrs.h"
 #include "shifter/shifter_ewm.h"
 #include "can_egs51_logic.h"
+#include "tcu_maths.h"
 
 Egs51Can::Egs51Can(const char *name, uint8_t tx_time_ms, uint32_t baud, Shifter *shifter) : EgsBaseCan(name, tx_time_ms, baud, shifter) 
 {
@@ -225,7 +226,7 @@ ProfileSwitchPos Egs51Can::get_profile_switch_pos(const uint32_t expire_time_ms)
 uint16_t Egs51Can::get_fuel_flow_rate(const uint32_t expire_time_ms) {
     MS_608_EGS51 ms608;
     if (this->ms51.get_MS_608(GET_CLOCK_TIME(), expire_time_ms, &ms608)) {
-        return (uint16_t)((float)ms608.VB * 0.868f);
+        return TCU_ROUND_TO_U16_SAT((float)ms608.VB * 0.868f);
     } else {
         return 0;
     }

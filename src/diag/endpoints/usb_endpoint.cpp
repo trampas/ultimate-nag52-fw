@@ -83,7 +83,7 @@ bool UsbEndpoint::read_data(DiagMessage *dest)
         }
         else
         {
-            uint16_t read_size = (static_cast<uint8_t>(this->read_buffer[0]) << 8) | static_cast<uint8_t>(this->read_buffer[1]);
+            uint16_t read_size = (uint16_t)((static_cast<uint8_t>(this->read_buffer[0]) << 8) | static_cast<uint8_t>(this->read_buffer[1]));
             if (read_size != this->read_pos - 2)
             {
                 ESP_LOG_LEVEL(ESP_LOG_ERROR, "USBEndpoint", "Corrupt incoming msg. Msg size is %d bytes, buffer has %d bytes", read_size, this->read_pos - 2);

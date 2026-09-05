@@ -109,7 +109,7 @@ void Sensors::update(SensorDataRaw* dest) {
             int resistance = 0;
             if (sensors_try_calc_atf_resistance(adc_voltage, pcb_gpio_matrix->sensor_data.atf_r2_resistance, &resistance)) {
                 float out_x10 = interpolate_linear_array((int16_t)resistance, NUM_TEMP_POINTS, TFT_RESISTANCE_TAB[0], TFT_RESISTANCE_TAB[1]);
-                dest->atf_temp_c = (int16_t)(out_x10 / 10.0f);
+                dest->atf_temp_c = TCU_ROUND_TO_I16_SAT(out_x10 / 10.0f);
             } else {
                 dest->atf_temp_c = INT_MAX;
             }

@@ -73,8 +73,8 @@ void test_engine_limp_inference_heuristic() {
 
 void test_max_torque_factor_scaling() {
     expect_eq_i16("max factor unavailable keeps base", egs51_apply_max_torque_factor(300, 0xFF), 300);
-    expect_eq_i16("max factor half scale", egs51_apply_max_torque_factor(300, 64), 149);
-    expect_eq_i16("max factor full scale", egs51_apply_max_torque_factor(300, 128), 299);
+    expect_eq_i16("max factor half scale", egs51_apply_max_torque_factor(300, 64), 150);
+    expect_eq_i16("max factor full scale", egs51_apply_max_torque_factor(300, 128), 300);
 }
 
 void test_rli31_mapping_uses_n3_and_validity() {

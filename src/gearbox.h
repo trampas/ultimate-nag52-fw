@@ -54,7 +54,7 @@ public:
     PressureManager* pressure_mgr = nullptr;
 
     bool isShifting(void);
-    uint8_t get_targ_curr_gear(void) const { return (((uint8_t)this->target_gear) & 0x0F) << 4 | ((uint8_t)this->actual_gear & 0x0F); }
+    uint8_t get_targ_curr_gear(void) const { return (uint8_t)(((((uint8_t)this->target_gear) & 0x0F) << 4) | (((uint8_t)this->actual_gear) & 0x0F)); }
     uint8_t get_profile_id(void) const {
         if (this->current_profile) {
             return this->current_profile->get_profile_id();

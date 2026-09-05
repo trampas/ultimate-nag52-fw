@@ -7,6 +7,7 @@
 #include "../shifter/shifter_trrs.h"
 #include "ioexpander.h"
 #include "egs_calibration/calibration_structs.h"
+#include "tcu_maths.h"
 
 Egs52Can::Egs52Can(const char *name, uint8_t tx_time_ms, uint32_t baud, Shifter *shifter) : EgsBaseCan(name, tx_time_ms, baud, shifter) {
     // Set default values
@@ -332,7 +333,7 @@ ProfileSwitchPos Egs52Can::get_profile_switch_pos(const uint32_t expire_time_ms)
 uint16_t Egs52Can::get_fuel_flow_rate(const uint32_t expire_time_ms) {
     MS_608_EGS52 ms608;
     if (this->ecu_ms.get_MS_608(GET_CLOCK_TIME(), expire_time_ms, &ms608)) {
-        return (uint16_t)((float)ms608.VB * 0.868f);
+        return TCU_ROUND_TO_U16_SAT((float)ms608.VB * 0.868f);
     } else {
         return 0;
     }
@@ -576,7 +577,7 @@ void Egs52Can::set_safe_start(bool can_start) {
 }
 
 void Egs52Can::set_gearbox_temperature(int16_t temp) {
-    this->gs418.T_GET = (MAX(temp, -50) + 50) & 0xFF;
+    this->gs418.T_GET = (uint8_t)(((MAX(temp, -50) + 50) & 0xFF));
 }
 
 void Egs52Can::set_input_shaft_speed(uint16_t rpm) {

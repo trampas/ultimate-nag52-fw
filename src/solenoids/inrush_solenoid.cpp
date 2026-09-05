@@ -233,7 +233,7 @@ void InrushControlSolenoid::__write_pwm(float vref_compensation, float temperatu
         if (inrush_time == 0) {
             on_pwm_ratio = 0.5f;
         }
-        this->pwm_on_time = (int)(TOTAL_PERIOD_PWM * on_pwm_ratio);
+        this->pwm_on_time = TCU_ROUND_TO_U32_SAT(TOTAL_PERIOD_PWM * on_pwm_ratio);
         this->pwm_off_time = TOTAL_PERIOD_PWM - this->pwm_on_time;
     }
     if (GPIO_NUM_NC == this->zener_pin && this->deferred_ledc_pwm_pending) {

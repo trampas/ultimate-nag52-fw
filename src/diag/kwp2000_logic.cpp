@@ -6,6 +6,23 @@ bool kwp_has_arg0(const uint8_t* args, uint16_t arg_len) {
     return args != nullptr && arg_len > 0u;
 }
 
+uint8_t decToBcd(uint8_t val) {
+    return (uint8_t)(((val / 10u) * 16u) + (val % 10u));
+}
+
+uint8_t bcd_to_hex(char c) {
+    if (c >= '0' && c <= '9') {
+        return (uint8_t)(c - '0');
+    }
+    if (c >= 'A' && c <= 'F') {
+        return (uint8_t)(c - 'A' + 10);
+    }
+    if (c >= 'a' && c <= 'f') {
+        return (uint8_t)(c - 'a' + 10);
+    }
+    return 0x0Fu;
+}
+
 bool kwp_is_valid_ecu_reset_subfn(const uint8_t* args, uint16_t arg_len) {
     if (!kwp_has_arg0(args, arg_len) || arg_len != 1u) {
         return false;

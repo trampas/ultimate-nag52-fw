@@ -6,6 +6,8 @@
 // Core maths and calculation stuff this the TCM uses
 
 #ifdef __cplusplus
+#include <type_traits>
+
 namespace tcu_math_detail {
     template <typename A, typename B>
     constexpr auto max_once(A a, B b) {
@@ -16,12 +18,80 @@ namespace tcu_math_detail {
     constexpr auto min_once(A a, B b) {
         return (b < a) ? b : a;
     }
+
+    template <typename V, typename L, typename H>
+    constexpr auto clamp_once(V value, L low, H high) {
+        using C = typename std::common_type<V, L, H>::type;
+        const C v = static_cast<C>(value);
+        const C lo = static_cast<C>(low);
+        const C hi = static_cast<C>(high);
+        return (v < lo) ? lo : ((v > hi) ? hi : v);
+    }
+
+    // Round to nearest integer, with ties moving away from zero.
+    inline int32_t round_to_i32(float value) {
+        if (value >= (float)INT32_MAX) {
+            return INT32_MAX;
+        }
+        if (value <= (float)INT32_MIN) {
+            return INT32_MIN;
+        }
+        return (value >= 0.0f) ? (int32_t)(value + 0.5f) : (int32_t)(value - 0.5f);
+    }
+
+    inline int16_t round_to_i16_sat(float value) {
+        if (value >= (float)INT16_MAX) {
+            return INT16_MAX;
+        }
+        if (value <= (float)INT16_MIN) {
+            return INT16_MIN;
+        }
+        return (int16_t)round_to_i32(value);
+    }
+
+    inline uint8_t round_to_u8_sat(float value) {
+        if (value <= 0.0f) {
+            return 0u;
+        }
+        if (value >= (float)UINT8_MAX) {
+            return UINT8_MAX;
+        }
+        return (uint8_t)(value + 0.5f);
+    }
+
+    inline uint16_t round_to_u16_sat(float value) {
+        if (value <= 0.0f) {
+            return 0u;
+        }
+        if (value >= (float)UINT16_MAX) {
+            return UINT16_MAX;
+        }
+        return (uint16_t)(value + 0.5f);
+    }
+
+    inline uint32_t round_to_u32_sat(float value) {
+        if (value <= 0.0f) {
+            return 0u;
+        }
+        if (value >= (float)UINT32_MAX) {
+            return UINT32_MAX;
+        }
+        return (uint32_t)(value + 0.5f);
+    }
+
+    // Inspired by MIT-licensed round-up style used by libuv.
+    template <typename T>
+    constexpr T round_up_multiple_once(T a, T b) {
+        return (b == 0) ? a : ((a % b) ? ((a + b) - (a % b)) : a);
+    }
 }
 #endif
 
 #ifndef MAX
     #ifdef __cplusplus
         #define MAX(a, b) (tcu_math_detail::max_once((a), (b)))
+    #elif defined(__GNUC__)
+        #define MAX(a, b) ({ __auto_type _a = (a); __auto_type _b = (b); (_a > _b) ? _a : _b; })
     #else
         #define MAX(a, b) (((a) > (b)) ? (a) : (b))
     #endif
@@ -30,8 +100,66 @@ namespace tcu_math_detail {
 #ifndef MIN
     #ifdef __cplusplus
         #define MIN(a, b) (tcu_math_detail::min_once((a), (b)))
+    #elif defined(__GNUC__)
+        #define MIN(a, b) ({ __auto_type _a = (a); __auto_type _b = (b); (_a < _b) ? _a : _b; })
     #else
         #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+    #endif
+#endif
+
+#ifndef CLAMP
+    #ifdef __cplusplus
+        #define CLAMP(v, lo, hi) (tcu_math_detail::clamp_once((v), (lo), (hi)))
+    #else
+        #define CLAMP(v, lo, hi) (MIN(MAX((v), (lo)), (hi)))
+    #endif
+#endif
+
+#ifndef TCU_ROUND_UP_MULTIPLE
+    #ifdef __cplusplus
+        #define TCU_ROUND_UP_MULTIPLE(a, b) (tcu_math_detail::round_up_multiple_once((a), (b)))
+    #else
+        #define TCU_ROUND_UP_MULTIPLE(a, b) (((b) == 0) ? (a) : (((a) % (b)) ? (((a) + (b)) - ((a) % (b))) : (a)))
+    #endif
+#endif
+
+#ifndef TCU_ROUND_TO_I32
+    #ifdef __cplusplus
+        #define TCU_ROUND_TO_I32(v) (tcu_math_detail::round_to_i32((v)))
+    #else
+        #define TCU_ROUND_TO_I32(v) ((int32_t)(((v) >= 0.0f) ? ((v) + 0.5f) : ((v) - 0.5f)))
+    #endif
+#endif
+
+#ifndef TCU_ROUND_TO_I16_SAT
+    #ifdef __cplusplus
+        #define TCU_ROUND_TO_I16_SAT(v) (tcu_math_detail::round_to_i16_sat((v)))
+    #else
+        #define TCU_ROUND_TO_I16_SAT(v) ((int16_t)CLAMP(TCU_ROUND_TO_I32(v), INT16_MIN, INT16_MAX))
+    #endif
+#endif
+
+#ifndef TCU_ROUND_TO_U8_SAT
+    #ifdef __cplusplus
+        #define TCU_ROUND_TO_U8_SAT(v) (tcu_math_detail::round_to_u8_sat((v)))
+    #else
+        #define TCU_ROUND_TO_U8_SAT(v) ((uint8_t)CLAMP(TCU_ROUND_TO_I32(v), 0, UINT8_MAX))
+    #endif
+#endif
+
+#ifndef TCU_ROUND_TO_U16_SAT
+    #ifdef __cplusplus
+        #define TCU_ROUND_TO_U16_SAT(v) (tcu_math_detail::round_to_u16_sat((v)))
+    #else
+        #define TCU_ROUND_TO_U16_SAT(v) ((uint16_t)CLAMP(TCU_ROUND_TO_I32(v), 0, UINT16_MAX))
+    #endif
+#endif
+
+#ifndef TCU_ROUND_TO_U32_SAT
+    #ifdef __cplusplus
+        #define TCU_ROUND_TO_U32_SAT(v) (tcu_math_detail::round_to_u32_sat((v)))
+    #else
+        #define TCU_ROUND_TO_U32_SAT(v) ((uint32_t)(((v) <= 0.0f) ? 0u : (((v) >= (float)UINT32_MAX) ? UINT32_MAX : ((v) + 0.5f))))
     #endif
 #endif
 

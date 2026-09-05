@@ -228,7 +228,7 @@ void CustomCan::set_target_gear(GearboxGear target) {
 }
 
 void CustomCan::set_gearbox_temperature(int16_t temp) {
-    this->tx_400.T_OEL = (MAX(temp, -50) + 50) & 0xFF;
+    this->tx_400.T_OEL = (uint8_t)(((MAX(temp, -50) + 50) & 0xFF));
 }
 
 void CustomCan::set_input_shaft_speed(uint16_t rpm) {

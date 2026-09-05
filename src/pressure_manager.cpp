@@ -624,9 +624,9 @@ PrefillData PressureManager::make_fill_data(Clutch applying) {
         };
     } else {
         PrefillData ret =  PrefillData {
-            .fill_cycles = (uint16_t)(fill_time_map->get_value(this->sensor_data->atf_temp, (uint8_t)applying) / 20.0f),
-            .fill_pressure_on_clutch = (uint16_t)fill_pressure_map->get_value(1, (uint8_t)applying),
-            .low_fill_pressure_on_clutch = (uint16_t)fill_low_pressure_map->get_value(1, (uint8_t)applying),
+            .fill_cycles = TCU_ROUND_TO_U16_SAT(fill_time_map->get_value(this->sensor_data->atf_temp, (uint8_t)applying) / 20.0f),
+            .fill_pressure_on_clutch = TCU_ROUND_TO_U16_SAT(fill_pressure_map->get_value(1, (uint8_t)applying)),
+            .low_fill_pressure_on_clutch = TCU_ROUND_TO_U16_SAT(fill_low_pressure_map->get_value(1, (uint8_t)applying)),
         };
         return ret;
     }

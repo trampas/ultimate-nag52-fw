@@ -76,6 +76,11 @@ add_executable(host_kwp_utils_guard_tests
     ../src/diag/kwp_utils.cpp
 )
 
+add_executable(host_kwp2000_bcd_to_hex_tests
+    test_kwp2000_bcd_to_hex.cpp
+    ../src/diag/kwp2000_logic.cpp
+)
+
 target_include_directories(host_kwp_utils_guard_tests PRIVATE
     ../src
     ../src/diag
@@ -86,6 +91,10 @@ target_compile_definitions(host_kwp_utils_guard_tests PRIVATE
     KWP_UTILS_HOST_STUB=1
 )
 
+target_include_directories(host_kwp2000_bcd_to_hex_tests PRIVATE
+    ../src/diag
+)
+
 enable_testing()
 add_test(NAME host_math_tests COMMAND host_math_tests)
 add_test(NAME host_egs51_bugfix_tests COMMAND host_egs51_bugfix_tests)
@@ -93,3 +102,4 @@ add_test(NAME host_lowlevel_logic_tests COMMAND host_lowlevel_logic_tests)
 add_test(NAME host_diag_rli33_logic_tests COMMAND host_diag_rli33_logic_tests)
 add_test(NAME host_inrush_logic_tests COMMAND host_inrush_logic_tests)
 add_test(NAME host_kwp_utils_guard_tests COMMAND host_kwp_utils_guard_tests)
+add_test(NAME host_kwp2000_bcd_to_hex_tests COMMAND host_kwp2000_bcd_to_hex_tests)

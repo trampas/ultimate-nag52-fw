@@ -543,7 +543,7 @@ void ShiftingAlgorithm::adaptation_step() {
                     int old_v = sid->adaptation_mgr->get_adapt_spc_offset(this->adapt_p_map_idx());
 
                     float scalar = interpolate_float(time, 0.25f, 0.5f, 4.0f, 8.0f, InterpType::Linear);
-                    int new_v = (int)((float)old_v + (float)correction_p * scalar);
+                    int new_v = TCU_ROUND_TO_I32((float)old_v + ((float)correction_p * scalar));
                     int lim = (2000*sid->inf.pressure_multi_spc_int)/1000;
                     if (new_v > sid->inf.pressure_multi_spc_int) {
                         new_v = lim;
@@ -642,7 +642,7 @@ void ShiftingAlgorithm::adaptation_step() {
             float clamped_pid = MAX(-VEHICLE_CONFIG.engine_drag_torque / 10.0f, MIN(avg_pid_torque, VEHICLE_CONFIG.engine_drag_torque / 10.0f));
             clamped_pid *= scalar;
 
-            int new_v = (int)((float)old_v + clamped_pid);
+            int new_v = TCU_ROUND_TO_I32((float)old_v + clamped_pid);
             ESP_LOGI("ADAPT", "T_ADAPT end. Avg PID: %.1f Nm, Avg input: %.1f Nm", avg_pid_torque, avg_abs_torque);
             if (is_release_shift()) {
                 sid->adaptation_mgr->offset_freeing_trq(sid->inf.map_idx, new_v-old_v);

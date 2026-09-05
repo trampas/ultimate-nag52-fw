@@ -93,7 +93,7 @@ void Flasher::on_request_download(const uint8_t* args, uint16_t arg_len, DiagMes
     }
     this->block_counter = 0;
     uint8_t resp[2] =  { 0x00, 0x00 };
-    resp[0] = (using_can ? CHUNK_SIZE_CAN : CHUNK_SIZE_USB) >> 8 & 0xFF;
+    resp[0] = ((using_can ? CHUNK_SIZE_CAN : CHUNK_SIZE_USB) >> 8) & 0xFF;
     resp[1] = (using_can ? CHUNK_SIZE_CAN : CHUNK_SIZE_USB) & 0xFF;
     this->written_data = 0;
     this->is_ota = (fmt & FMT_OTA) != 0;
@@ -139,7 +139,7 @@ void Flasher::on_request_upload(const uint8_t* args, uint16_t arg_len, DiagMessa
     }
     this->block_counter = 0;
     uint8_t resp[2] =  { 0x00, 0x00 };
-    resp[0] = (using_can ? CHUNK_SIZE_CAN : CHUNK_SIZE_USB) >> 8 & 0xFF;
+    resp[0] = ((using_can ? CHUNK_SIZE_CAN : CHUNK_SIZE_USB) >> 8) & 0xFF;
     resp[1] = (using_can ? CHUNK_SIZE_CAN : CHUNK_SIZE_USB) & 0xFF;
     this->data_dir = DATA_DIR_UPLOAD;
     this->read_base_addr = src_mem_address;

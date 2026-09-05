@@ -182,8 +182,8 @@ void EgsBaseCan::task_loop() {
                             }
                         } else { // Normal message
                             tmp = 0;
-                            for(uint8_t idx = 0; idx < rx.data_length_code; idx++) {
-                                tmp |= (uint64_t)rx.data[idx] << (8*(7-idx));
+                            for (uint8_t idx = 0; idx < rx.data_length_code; idx++) {
+                                tmp |= ((uint64_t)rx.data[idx]) << (8u * (7u - idx));
                             }
                             if (CHECK_MODE_BIT_ENABLED(DEVICE_MODE_SLAVE)) {
                                 // Slave mode handling

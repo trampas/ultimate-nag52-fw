@@ -56,8 +56,8 @@ DATA_SOLENOIDS get_solenoid_data(Gearbox* gb_ptr) {
     ret.y3_current = sol_y3->get_current() & 0xFFFF;//sol_y3->get_current_estimate();
     ret.y4_current = sol_y4->get_current() & 0xFFFF;//sol_y4->get_current_estimate();
     ret.y5_current = sol_y5->get_current() & 0xFFFF;//sol_y5->get_current_estimate();
-    ret.adjustment_mpc = (uint16_t)(sol_mpc->get_trim()*1000) & 0xFFFF;
-    ret.adjustment_spc = (uint16_t)(sol_spc->get_trim()*1000) & 0xFFFF;
+    ret.adjustment_mpc = (uint16_t)((uint16_t)(sol_mpc->get_trim() * 1000.0f) & 0xFFFFu);
+    ret.adjustment_spc = (uint16_t)((uint16_t)(sol_spc->get_trim() * 1000.0f) & 0xFFFFu);
     ret.mpc_pwm = sol_mpc->get_pwm_compensated();
     ret.spc_pwm = sol_spc->get_pwm_compensated();
     ret.tcc_pwm = sol_tcc->get_pwm_compensated();
@@ -142,18 +142,18 @@ DATA_CANBUS_RX get_rx_can_data(EgsBaseCan* can_layer) {
 
     int torque = 0xFFFF;
     torque = gearbox->sensor_data.max_torque;
-    ret.max_torque = (torque+500)*4;
+    ret.max_torque = (torque + 500) * 4;
     torque = gearbox->sensor_data.min_torque;
-    ret.min_torque = (torque+500)*4;
-    ret.driver_torque = (gearbox->sensor_data.converted_driver_torque+500)*4;
-    ret.static_torque = (gearbox->sensor_data.converted_torque+500)*4;
+    ret.min_torque = (torque + 500) * 4;
+    ret.driver_torque = (gearbox->sensor_data.converted_driver_torque + 500) * 4;
+    ret.static_torque = (gearbox->sensor_data.converted_torque + 500) * 4;
     ret.profile_input_raw = can_layer->shifter->diag_get_profile_input();
     ret.shifter_position = can_layer->get_shifter_position(250);
     ret.engine_rpm = can_layer->get_engine_rpm(250);
     ret.fuel_rate = can_layer->get_fuel_flow_rate(250);
     ret.torque_req_ctrl_type = gearbox->output_data.ctrl_type;
     ret.torque_req_bounds = gearbox->output_data.bounds;
-    ret.torque_req_amount = ret.torque_req_ctrl_type == TorqueRequestControlType::None ? 0xFFFF : (gearbox->output_data.torque_req_amount+500)*4;
+    ret.torque_req_amount = ret.torque_req_ctrl_type == TorqueRequestControlType::None ? 0xFFFF : (gearbox->output_data.torque_req_amount + 500) * 4;
     // Temps
     ret.e_coolant_temp = egs_can_hal->get_engine_coolant_temp(250);
     ret.e_iat_temp = egs_can_hal->get_engine_iat_temp(250);
@@ -195,7 +195,7 @@ SHIFT_LIVE_INFO get_shift_live_Data(const EgsBaseCan* can_layer, Gearbox* g) {
     ret.mpc_pressure = g->pressure_mgr->get_corrected_modulating_pressure();
     ret.tcc_pressure = g->pressure_mgr->get_targ_tcc_pressure();
     // Hack. As we can guarantee only one solenoid will be on, we can do a fast bitwise OR on all 3 to get the application state
-    ret.ss_pos = (sol_y3->get_pwm_raw() | sol_y4->get_pwm_raw() | sol_y5->get_pwm_raw()) >> 8;
+    ret.ss_pos = (uint8_t)(((sol_y3->get_pwm_raw() | sol_y4->get_pwm_raw() | sol_y5->get_pwm_raw()) >> 8));
 
     ret.input_rpm = g->sensor_data.input_rpm;
     ret.engine_rpm = g->sensor_data.engine_rpm;
@@ -203,7 +203,7 @@ SHIFT_LIVE_INFO get_shift_live_Data(const EgsBaseCan* can_layer, Gearbox* g) {
     ret.engine_torque = g->sensor_data.converted_driver_torque;
     ret.input_torque = g->sensor_data.input_torque;
     ret.req_engine_torque = g->output_data.ctrl_type == TorqueRequestControlType::None ? INT16_MAX : g->output_data.torque_req_amount;
-    ret.atf_temp = g->sensor_data.atf_temp+40;
+    ret.atf_temp = g->sensor_data.atf_temp + 40;
     ret.profile = g->get_profile_id();
     ret.targ_act_gear = g->get_targ_curr_gear();
     return ret;   
