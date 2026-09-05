@@ -14,5 +14,18 @@ target_include_directories(host_math_tests PRIVATE
     ../lib/core
 )
 
+add_executable(host_egs51_bugfix_tests
+    test_egs51_bugfixes.cpp
+    ../src/canbus/can_egs51_logic.cpp
+    ../src/diag/egs_emulation_logic.cpp
+)
+
+target_include_directories(host_egs51_bugfix_tests PRIVATE
+    ../src/canbus
+    ../src/diag
+    ../lib/egs51_ecus/src
+)
+
 enable_testing()
 add_test(NAME host_math_tests COMMAND host_math_tests)
+add_test(NAME host_egs51_bugfix_tests COMMAND host_egs51_bugfix_tests)
