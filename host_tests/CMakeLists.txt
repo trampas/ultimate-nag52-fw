@@ -26,6 +26,22 @@ target_include_directories(host_egs51_bugfix_tests PRIVATE
     ../lib/egs51_ecus/src
 )
 
+add_executable(host_lowlevel_logic_tests
+    test_lowlevel_logic.cpp
+    ../src/ioexpander_logic.cpp
+    ../src/inputcomponents/kickdownswitch_logic.cpp
+    ../src/canbus/can_custom_logic.cpp
+    ../src/sensors_logic.cpp
+)
+
+target_include_directories(host_lowlevel_logic_tests PRIVATE
+    ../src
+    ../src/canbus
+    ../src/inputcomponents
+    ../lib/customcan_ecus/src
+)
+
 enable_testing()
 add_test(NAME host_math_tests COMMAND host_math_tests)
 add_test(NAME host_egs51_bugfix_tests COMMAND host_egs51_bugfix_tests)
+add_test(NAME host_lowlevel_logic_tests COMMAND host_lowlevel_logic_tests)
