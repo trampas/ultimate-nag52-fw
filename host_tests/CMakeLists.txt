@@ -31,13 +31,25 @@ add_executable(host_lowlevel_logic_tests
     ../src/ioexpander_logic.cpp
     ../src/inputcomponents/kickdownswitch_logic.cpp
     ../src/canbus/can_custom_logic.cpp
+    ../src/canbus/can_egs_scaling_logic.cpp
+    ../src/diag/diag_data_logic.cpp
+    ../src/diag/kwp2000_logic.cpp
+    ../src/diag/flasher_logic.cpp
+    ../src/diag/endpoints/isotp_logic.cpp
+    ../src/models/input_torque_logic.cpp
+    ../src/pressure_manager_logic.cpp
+    ../src/tcu_io/tcu_io_logic.cpp
     ../src/sensors_logic.cpp
 )
 
 target_include_directories(host_lowlevel_logic_tests PRIVATE
     ../src
     ../src/canbus
+    ../src/diag/endpoints
+    ../src/models
+    ../src/tcu_io
     ../src/inputcomponents
+    ../src/diag
     ../lib/customcan_ecus/src
 )
 
@@ -50,8 +62,34 @@ target_include_directories(host_diag_rli33_logic_tests PRIVATE
     ../src/diag
 )
 
+add_executable(host_inrush_logic_tests
+    test_inrush_logic.cpp
+    ../src/solenoids/inrush_solenoid_logic.cpp
+)
+
+target_include_directories(host_inrush_logic_tests PRIVATE
+    ../src/solenoids
+)
+
+add_executable(host_kwp_utils_guard_tests
+    test_kwp_utils_guards.cpp
+    ../src/diag/kwp_utils.cpp
+)
+
+target_include_directories(host_kwp_utils_guard_tests PRIVATE
+    ../src
+    ../src/diag
+    ../lib/core
+)
+
+target_compile_definitions(host_kwp_utils_guard_tests PRIVATE
+    KWP_UTILS_HOST_STUB=1
+)
+
 enable_testing()
 add_test(NAME host_math_tests COMMAND host_math_tests)
 add_test(NAME host_egs51_bugfix_tests COMMAND host_egs51_bugfix_tests)
 add_test(NAME host_lowlevel_logic_tests COMMAND host_lowlevel_logic_tests)
 add_test(NAME host_diag_rli33_logic_tests COMMAND host_diag_rli33_logic_tests)
+add_test(NAME host_inrush_logic_tests COMMAND host_inrush_logic_tests)
+add_test(NAME host_kwp_utils_guard_tests COMMAND host_kwp_utils_guard_tests)

@@ -17,6 +17,10 @@ RLI_30_DATA get_rli_30(EgsBaseCan* can_layer) {
 
 RLI_31_DATA get_rli_31(EgsBaseCan* can_layer) {
     RLI_31_DATA ret = {};
+    if (can_layer == nullptr) {
+        memset(&ret, 0x00, sizeof(RLI_31_DATA));
+        return ret;
+    }
     uint16_t n2 = TCUIO::n2_rpm();
     uint16_t n3 = TCUIO::n3_rpm();
     Egs51Rli31DerivedData derived = egs51_build_rli31_derived(
