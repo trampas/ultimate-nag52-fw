@@ -41,7 +41,17 @@ target_include_directories(host_lowlevel_logic_tests PRIVATE
     ../lib/customcan_ecus/src
 )
 
+add_executable(host_diag_rli33_logic_tests
+    test_diag_rli33_logic.cpp
+    ../src/diag/egs_emulation_rli33_logic.cpp
+)
+
+target_include_directories(host_diag_rli33_logic_tests PRIVATE
+    ../src/diag
+)
+
 enable_testing()
 add_test(NAME host_math_tests COMMAND host_math_tests)
 add_test(NAME host_egs51_bugfix_tests COMMAND host_egs51_bugfix_tests)
 add_test(NAME host_lowlevel_logic_tests COMMAND host_lowlevel_logic_tests)
+add_test(NAME host_diag_rli33_logic_tests COMMAND host_diag_rli33_logic_tests)
