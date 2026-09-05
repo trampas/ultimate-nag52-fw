@@ -122,17 +122,17 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
         m_esp = MIN(m_esp, ret.m_max); // Limit ESP torque to max torque
         m_esp = MAX(ret.m_min, m_esp); // Floor ESP torque to min torque
 
-        int16_t driver_converted = ret.m_ind;
-        int16_t static_converted = ret.m_ind;
+        int16_t converted_torque = ret.m_ind;
+        int16_t static_converted = converted_torque;
 
-        if (m_esp > ret.m_ind) {
-            driver_converted = m_esp;
+        if (m_esp > converted_torque) {
+            converted_torque = m_esp;
         }
 
         bool freeze = this->gs218.TORQUE_REQ_EN;
         Egs51FreezeResult freeze_result = egs51_apply_freeze_logic(
             freeze,
-            driver_converted,
+            converted_torque,
             static_converted,
             this->req_static_torque_delta
         );
@@ -225,7 +225,7 @@ ProfileSwitchPos Egs51Can::get_profile_switch_pos(const uint32_t expire_time_ms)
 uint16_t Egs51Can::get_fuel_flow_rate(const uint32_t expire_time_ms) {
     MS_608_EGS51 ms608;
     if (this->ms51.get_MS_608(GET_CLOCK_TIME(), expire_time_ms, &ms608)) {
-        return (uint16_t)((float)ms608.VB*0.868);
+        return (uint16_t)((float)ms608.VB * 0.868f);
     } else {
         return 0;
     }
