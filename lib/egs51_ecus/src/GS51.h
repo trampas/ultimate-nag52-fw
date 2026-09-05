@@ -13,7 +13,7 @@
 
 #include <stdint.h>
     
-#define GS_218_EGS51_CAN_ID 0x0218
+#define GS_218_EGS51_CAN_ID (0x0218)
 
 /** Target gear */
 enum class GS_218h_GZC_EGS51 : uint16_t {
