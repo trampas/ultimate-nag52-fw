@@ -79,13 +79,13 @@ ShiftCharacteristics AbstractProfile::get_shift_characteristics(GearChange reque
         case GearChange::_2_3:
         case GearChange::_3_4:
         case GearChange::_4_5:
-            result.target_shift_time = this->get_upshift_time(sensors->input_rpm, ((float)sensors->pedal_pos*100.0)/250.0);
+            result.target_shift_time = this->get_upshift_time(sensors->input_rpm, ((float)sensors->pedal_pos * 100.0f) / 250.0f);
             break;
         case GearChange::_5_4:
         case GearChange::_4_3:
         case GearChange::_3_2:
         case GearChange::_2_1:
-            result.target_shift_time = this->get_downshift_time(sensors->input_rpm, ((float)sensors->pedal_pos*100.0)/250.0);
+            result.target_shift_time = this->get_downshift_time(sensors->input_rpm, ((float)sensors->pedal_pos * 100.0f) / 250.0f);
             break;
         default:
             result.target_shift_time = 500;
@@ -144,7 +144,7 @@ bool AgilityProfile::should_upshift(GearboxGear current_gear, SensorData* sensor
         return false;
     }
     if (this->upshift_table != nullptr) { // TEST TABLE
-        return (int)sensors->input_rpm > this->upshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
+        return (int)sensors->input_rpm > this->upshift_table->get_value(sensors->pedal_pos / 2.5f, (float)current_gear);
     } else {
         return false;
     }
@@ -155,7 +155,7 @@ bool AgilityProfile::should_downshift(GearboxGear current_gear, SensorData* sens
         return false;
     }
     if (this->downshift_table != nullptr) { // TEST TABLE
-        return (int)sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
+        return (int)sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos / 2.5f, (float)current_gear);
     } else {
         return false;
     }
@@ -209,7 +209,7 @@ bool ComfortProfile::should_upshift(GearboxGear current_gear, SensorData* sensor
         return false;
     }
     if (this->upshift_table != nullptr) { // TEST TABLE
-        bool can_upshift = sensors->input_rpm > this->upshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
+        bool can_upshift = sensors->input_rpm > this->upshift_table->get_value(sensors->pedal_pos / 2.5f, (float)current_gear);
         if (sensors->brake_pressed) { can_upshift = false; }
         //if (can_upshift) {
         //    if (sensors->max_torque != 0) {
@@ -230,7 +230,7 @@ bool ComfortProfile::should_downshift(GearboxGear current_gear, SensorData* sens
         return false;
     }
     if (this->downshift_table != nullptr) { // TEST TABLE
-        return sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
+        return sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos / 2.5f, (float)current_gear);
     } else {
         return false;
     }
@@ -338,7 +338,7 @@ bool StandardProfile::should_upshift(GearboxGear current_gear, SensorData* senso
     if (current_gear == GearboxGear::Fifth) { return false; }
     if (this->upshift_table != nullptr) { // TEST TABLE
         // RPM where we will upshift based on the current load
-        uint16_t upshift_map_val = this->upshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
+        uint16_t upshift_map_val = this->upshift_table->get_value(sensors->pedal_pos / 2.5f, (float)current_gear);
         // Add some extra RPM for catalyst warm up (+1000RPM at -10C, negated at 40C and higher)
         upshift_map_val += interpolate_float(sensors->atf_temp, 1000, 0, -10, 40, InterpType::Linear);
         int time_since_last_shift = GET_CLOCK_TIME() - sensors->last_shift_time; // ms
@@ -349,7 +349,7 @@ bool StandardProfile::should_upshift(GearboxGear current_gear, SensorData* senso
         if (0 != mmax) {
             // Score of 0-1
             float engine_load_percent = (float)sensors->converted_driver_torque / (float)sensors->max_torque;
-            upshift_map_val += interpolate_float(engine_load_percent, 1000, 0, 0.8, 0.2, InterpType::Linear);
+            upshift_map_val += interpolate_float(engine_load_percent, 1000, 0, 0.8f, 0.2f, InterpType::Linear);
         }
         bool can_upshift = sensors->input_rpm > upshift_map_val;
         if (sensors->pedal_pos == 0) {
@@ -362,14 +362,14 @@ bool StandardProfile::should_upshift(GearboxGear current_gear, SensorData* senso
     }
 }
 
-void StandardProfile::update(SensorData* sensors) {
+void StandardProfile::update(SensorData* sd) {
     // Every 250ms we check sensor inputs
     if (GET_CLOCK_TIME() - this->last_check > 250) {
         this->last_check = GET_CLOCK_TIME();
-        if (sensors->pedal_pos - last_sensors.pedal_pos > 64) { // More than a 25% jump in pedal in 250ms
-            accel_delta_factor += (sensors->pedal_pos - last_sensors.pedal_pos) * 10;
+        if (sd->pedal_pos - last_sensors.pedal_pos > 64) { // More than a 25% jump in pedal in 250ms
+            accel_delta_factor += (sd->pedal_pos - last_sensors.pedal_pos) * 10;
         }
-        last_sensors = *sensors;
+        last_sensors = *sd;
     }
     if (this->accel_delta_factor > 0) {
         this->accel_delta_factor-=5;
@@ -379,7 +379,7 @@ void StandardProfile::update(SensorData* sensors) {
 bool StandardProfile::should_downshift(GearboxGear current_gear, SensorData* sensors) {
     if (current_gear == GearboxGear::First) { return false; }
     if (this->upshift_table != nullptr) { // TEST TABLE
-        return sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
+        return sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos / 2.5f, (float)current_gear);
     } else {
         return false;
     }

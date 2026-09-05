@@ -3,11 +3,12 @@
 //
 
 #include "tcu_io.hpp"
+#include "tcu_io_logic.h"
 #include "sensors.h"
 #include <limits>
 
-float RATIO_2_1 = 1.61;
-float DIFF_RATIO_F = 1.00;
+float RATIO_2_1 = 1.61f;
+float DIFF_RATIO_F = 1.00f;
 bool INPUT_RPM_SANITY_CHECK = true;
 
 TCUIO::SmoothedSensor smoothed_sensor_n2_rpm;
@@ -31,6 +32,9 @@ TransferCaseState last_transfer_case_pos = TransferCaseState::SNA;
 bool block_shifting = false;
 
 void init_smoothed_sensor(TCUIO::SmoothedSensor* dest, uint8_t buffer_size, int reset_value = 0) {
+    if (dest == nullptr) {
+        return;
+    }
     dest->e_counter = 0;
     dest->sample_count = buffer_size;
     dest->last_value = reset_value*100;
@@ -38,12 +42,18 @@ void init_smoothed_sensor(TCUIO::SmoothedSensor* dest, uint8_t buffer_size, int 
 
 template <typename T>
 void init_onepoll(TCUIO::OnePollSensor<T>* dest, T reset_value = 0) {
+    if (dest == nullptr) {
+        return;
+    }
     dest->e_counter = 0;
     dest->current_value = reset_value;
 }
 
 template <typename T>
 void add_to_smoothed_sensor(TCUIO::SmoothedSensor* dest, T value, bool force_reset = false) {
+    if (dest == nullptr) {
+        return;
+    }
     if (std::numeric_limits<T>::max() == value) {
         // Error condition
         if (dest->e_counter < 254) {
@@ -64,6 +74,9 @@ void add_to_smoothed_sensor(TCUIO::SmoothedSensor* dest, T value, bool force_res
 
 template <typename T>
 void add_to_onepoll_sensor(TCUIO::OnePollSensor<T>* dest, T value) {
+    if (dest == nullptr) {
+        return;
+    }
     if (std::numeric_limits<T>::max() == value) {
         // Error condition
         if (dest->e_counter < 254) {
@@ -80,10 +93,16 @@ void add_to_onepoll_sensor(TCUIO::OnePollSensor<T>* dest, T value) {
 
 template <typename T>
 inline T get_onepoll_sensor_val(TCUIO::OnePollSensor<T>* src, uint8_t ecounter_max) {
+    if (src == nullptr) {
+        return std::numeric_limits<T>::max();
+    }
     return (src->e_counter <= ecounter_max) ? src->current_value : std::numeric_limits<T>::max();
 } 
 
 inline uint16_t get_smoothed_sensor_val_unsigned(TCUIO::SmoothedSensor* src, uint8_t ecounter_max) {
+    if (src == nullptr) {
+        return UINT16_MAX;
+    }
     uint16_t ret;
     if (likely(src->e_counter <= ecounter_max)) {
         ret = MIN(UINT16_MAX, src->last_value/100);
@@ -94,6 +113,9 @@ inline uint16_t get_smoothed_sensor_val_unsigned(TCUIO::SmoothedSensor* src, uin
 } 
 
 inline int16_t get_smoothed_sensor_val_signed(TCUIO::SmoothedSensor* src, uint8_t ecounter_max) {
+    if (src == nullptr) {
+        return INT16_MAX;
+    }
     int16_t ret;
     if (likely(src->e_counter <= ecounter_max)) {
         ret = MIN(INT16_MAX, src->last_value/100);
@@ -130,7 +152,7 @@ esp_err_t TCUIO::setup_io_layer() {
     init_onepoll(&onepoll_motor_temperature);
     init_onepoll(&onepoll_motor_oil_temperature);
 
-    DIFF_RATIO_F = (float)VEHICLE_CONFIG.diff_ratio / 1000.0;
+    DIFF_RATIO_F = (float)VEHICLE_CONFIG.diff_ratio / 1000.0f;
     return ret;
 }
 
@@ -161,7 +183,6 @@ void update_tft_sensor() {
 
 void update_rpm_sensors() {
     // INPUT SHAFT CALCULATION
-    uint16_t calc_rpm = UINT16_MAX;
     add_to_smoothed_sensor(&smoothed_sensor_n2_rpm, raw_sensors.rpm_n2);
     add_to_smoothed_sensor(&smoothed_sensor_n3_rpm, raw_sensors.rpm_n3);
     
@@ -169,12 +190,12 @@ void update_rpm_sensors() {
     if (Sensors::using_dedicated_output_rpm()) {
         add_to_smoothed_sensor(&smoothed_sensor_out_rpm, raw_sensors.rpm_out);
     } else {
+        uint16_t calc_rpm = UINT16_MAX;
         // Poll CANBUS
         add_to_onepoll_sensor(&onepoll_rl_speed, egs_can_hal->get_rear_left_wheel(100));
         add_to_onepoll_sensor(&onepoll_rr_speed, egs_can_hal->get_rear_right_wheel(100));
         uint16_t rl = TCUIO::wheel_rl_2x_rpm();
         uint16_t rr = TCUIO::wheel_rr_2x_rpm();
-        calc_rpm = UINT16_MAX;
         if (UINT16_MAX != rl || UINT16_MAX != rr) {
             if (unlikely(UINT16_MAX == rl)) {
                 // RL signal is faulty
@@ -198,7 +219,7 @@ void update_rpm_sensors() {
                     // NOTE: I have never seen a vehicle with locked ratios that are not 1.0,
                     //       but, we still multiply by one of the ratios, just in case
                     //       this configuration exists somewhere
-                    calc_rpm *= ((float)(VEHICLE_CONFIG.transfer_case_high_ratio) / 1000.0);
+                    calc_rpm *= ((float)(VEHICLE_CONFIG.transfer_case_high_ratio) / 1000.0f);
                 } else {
                     TransferCaseState state = egs_can_hal->get_transfer_case_state(500);
                     if (TransferCaseState::Switching == state) {
@@ -211,11 +232,11 @@ void update_rpm_sensors() {
                     switch (state)
                     {
                     case TransferCaseState::Hi:
-                        calc_rpm *= ((float)(VEHICLE_CONFIG.transfer_case_high_ratio) / 1000.0);
+                        calc_rpm *= ((float)(VEHICLE_CONFIG.transfer_case_high_ratio) / 1000.0f);
                         last_transfer_case_pos = state;
                         break;
                     case TransferCaseState::Low:
-                        calc_rpm *= ((float)(VEHICLE_CONFIG.transfer_case_low_ratio) / 1000.0);
+                        calc_rpm *= ((float)(VEHICLE_CONFIG.transfer_case_low_ratio) / 1000.0f);
                         last_transfer_case_pos = state;
                         break;
                     case TransferCaseState::Neither:
@@ -275,7 +296,7 @@ void TCUIO::set_2_1_ratio(float ratio) {
 }
 
 uint16_t TCUIO::calc_turbine_rpm(const uint16_t n2, const uint16_t n3) {
-    return MAX(0,((float)n2 * RATIO_2_1) + ((float)n3 - (RATIO_2_1*(float)n3)));
+    return tcuio_calc_turbine_rpm_safe(n2, n3, RATIO_2_1);
 }
 
 uint8_t TCUIO::parking_lock() { return get_onepoll_sensor_val(&onepoll_parking_lock, 0); }
