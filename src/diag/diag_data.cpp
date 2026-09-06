@@ -24,8 +24,8 @@ DATA_GEARBOX_SENSORS get_gearbox_sensors(Gearbox* g) {
     if (UINT8_MAX != pll) {
         ret.parking_lock = pll;
         if (pll == 0) {
-            int16_t tft = TCUIO::atf_temperature();
-            ret.atf_temp_c = tft;
+            // DATA_GEARBOX_SENSORS is a packed wire struct, so unwrap to plain Celsius here.
+            ret.atf_temp_c = Temp::celsius_i16(TCUIO::atf_temperature());
         }
     } else {
         ret.parking_lock = 0xFF;
@@ -104,8 +104,9 @@ DATA_TCC_PROGRAM get_tcc_program_data(Gearbox* gb_ptr) {
     ret.target_pressure = gb_ptr->tcc->get_target_pressure();
     ret.slip_filtered = gb_ptr->tcc->get_slip_filtered();
     ret.slip_now = (int16_t)gb_ptr->sensor_data.engine_rpm - (int16_t)gb_ptr->sensor_data.input_rpm;
-    ret.pedal_filtered = gb_ptr->sensor_data.pedal_pos_smoothed;
-    ret.pedal_now = gb_ptr->sensor_data.pedal_pos;
+    // Wire struct fields stay raw - convert at the boundary
+    ret.pedal_filtered = Pedal::raw_u8(gb_ptr->sensor_data.pedal_pos_smoothed);
+    ret.pedal_now = Pedal::raw_u8(gb_ptr->sensor_data.pedal_pos);
     ret.slip_target = gb_ptr->tcc->get_slip_targ();
     ret.targ_state = gb_ptr->tcc->get_target_state();
     ret.current_state = gb_ptr->tcc->get_current_state();
@@ -128,36 +129,35 @@ DATA_CANBUS_RX get_rx_can_data(EgsBaseCan* can_layer) {
         return ret;
     }
     
-    ret.left_rear_rpm = TCUIO::wheel_rl_2x_rpm();
-    if (UINT16_MAX != ret.left_rear_rpm) {
-        ret.left_rear_rpm /= 2;
-    }
-    ret.right_rear_rpm = TCUIO::wheel_rr_2x_rpm();
-    if (UINT16_MAX != ret.right_rear_rpm) {
-        ret.right_rear_rpm /= 2;
-    }
+    // This RLI reports real wheel RPM, not the doubled bus value.
+    const wheel_rpm_2x_t rl = TCUIO::wheel_rl_2x_rpm();
+    const wheel_rpm_2x_t rr = TCUIO::wheel_rr_2x_rpm();
+    ret.left_rear_rpm = WheelSpeed::is_valid(rl) ? WheelSpeed::to_rpm_u16(rl) : UINT16_MAX;
+    ret.right_rear_rpm = WheelSpeed::is_valid(rr) ? WheelSpeed::to_rpm_u16(rr) : UINT16_MAX;
 
     ret.paddle_position = can_layer->get_paddle_position(250);
-    ret.pedal_pos = can_layer->get_pedal_value(250);
+    ret.pedal_pos = Pedal::raw_u8(can_layer->get_pedal_value(250));
 
-    int torque = 0xFFFF;
-    torque = gearbox->sensor_data.max_torque;
-    ret.max_torque = (torque + 500) * 4;
-    torque = gearbox->sensor_data.min_torque;
-    ret.min_torque = (torque + 500) * 4;
-    ret.driver_torque = (gearbox->sensor_data.converted_driver_torque + 500) * 4;
-    ret.static_torque = (gearbox->sensor_data.converted_torque + 500) * 4;
+    // These RLI fields carry the same (Nm + 500) * 4 encoding the engine bus
+    // uses, so the diag client decodes them the same way.
+    ret.max_torque = Torque::to_can_raw((float)Torque::nm_i16(gearbox->sensor_data.max_torque), UINT16_MAX);
+    ret.min_torque = Torque::to_can_raw((float)Torque::nm_i16(gearbox->sensor_data.min_torque), UINT16_MAX);
+    ret.driver_torque = (int16_t)Torque::to_can_raw((float)Torque::nm_i16(gearbox->sensor_data.converted_driver_torque), INT16_MAX);
+    ret.static_torque = (int16_t)Torque::to_can_raw((float)Torque::nm_i16(gearbox->sensor_data.converted_torque), INT16_MAX);
     ret.profile_input_raw = can_layer->shifter->diag_get_profile_input();
     ret.shifter_position = can_layer->get_shifter_position(250);
     ret.engine_rpm = can_layer->get_engine_rpm(250);
     ret.fuel_rate = can_layer->get_fuel_flow_rate(250);
     ret.torque_req_ctrl_type = gearbox->output_data.ctrl_type;
     ret.torque_req_bounds = gearbox->output_data.bounds;
-    ret.torque_req_amount = ret.torque_req_ctrl_type == TorqueRequestControlType::None ? 0xFFFF : (gearbox->output_data.torque_req_amount + 500) * 4;
+    ret.torque_req_amount = ret.torque_req_ctrl_type == TorqueRequestControlType::None
+        ? 0xFFFF
+        : Torque::to_can_raw(gearbox->output_data.torque_req_amount, UINT16_MAX);
     // Temps
-    ret.e_coolant_temp = egs_can_hal->get_engine_coolant_temp(250);
-    ret.e_iat_temp = egs_can_hal->get_engine_iat_temp(250);
-    ret.e_oil_temp = egs_can_hal->get_engine_oil_temp(250);
+    // RLI structs are packed wire formats - unwrap the strong type to raw Celsius.
+    ret.e_coolant_temp = Temp::celsius_i16(egs_can_hal->get_engine_coolant_temp(250));
+    ret.e_iat_temp = Temp::celsius_i16(egs_can_hal->get_engine_iat_temp(250));
+    ret.e_oil_temp = Temp::celsius_i16(egs_can_hal->get_engine_oil_temp(250));
     return ret;
 }
 
@@ -200,10 +200,10 @@ SHIFT_LIVE_INFO get_shift_live_Data(const EgsBaseCan* can_layer, Gearbox* g) {
     ret.input_rpm = g->sensor_data.input_rpm;
     ret.engine_rpm = g->sensor_data.engine_rpm;
     ret.output_rpm = g->sensor_data.output_rpm;
-    ret.engine_torque = g->sensor_data.converted_driver_torque;
-    ret.input_torque = g->sensor_data.input_torque;
+    ret.engine_torque = Torque::nm_i16(g->sensor_data.converted_driver_torque);
+    ret.input_torque = Torque::nm_i16(g->sensor_data.input_torque);
     ret.req_engine_torque = g->output_data.ctrl_type == TorqueRequestControlType::None ? INT16_MAX : g->output_data.torque_req_amount;
-    ret.atf_temp = g->sensor_data.atf_temp + 40;
+    ret.atf_temp = (uint8_t)(Temp::celsius_i16(g->sensor_data.atf_temp) + 40);
     ret.profile = g->get_profile_id();
     ret.targ_act_gear = g->get_targ_curr_gear();
     return ret;   
@@ -256,16 +256,26 @@ PARTITION_INFO get_coredump_info(void) {
 }
 
 PARTITION_INFO get_current_sw_info(void) {
+    const esp_partition_t* part = esp_ota_get_running_partition();
+    if (nullptr == part) {
+        return PARTITION_INFO { .address = 0, .size = 0 };
+    }
     return PARTITION_INFO {
-        .address = esp_ota_get_running_partition()->address,
-        .size = esp_ota_get_running_partition()->size
+        .address = part->address,
+        .size = part->size
     };
 }
 
 PARTITION_INFO get_next_sw_info(void) {
+    // Returns null when the partition table has no free OTA slot. This RLI is
+    // reachable from the default diagnostic session, so it must not fault.
+    const esp_partition_t* part = esp_ota_get_next_update_partition(NULL);
+    if (nullptr == part) {
+        return PARTITION_INFO { .address = 0, .size = 0 };
+    }
     return PARTITION_INFO {
-        .address = esp_ota_get_next_update_partition(NULL)->address,
-        .size = esp_ota_get_next_update_partition(NULL)->size
+        .address = part->address,
+        .size = part->size
     };
 }
 

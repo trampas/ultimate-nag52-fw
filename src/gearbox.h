@@ -94,7 +94,7 @@ private:
         static_cast<Gearbox*>(_this)->controller_loop();
     }
     uint16_t temp_raw = 0;
-    uint8_t pedal_last = 0;
+    pedal_pos_t pedal_last = Pedal::ZERO;
     uint16_t input_last = 0;
     TaskHandle_t shift_task = nullptr;
     bool ask_upshift = false;

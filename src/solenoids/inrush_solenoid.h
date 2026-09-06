@@ -38,8 +38,13 @@ private:
     uint32_t hold_phase_elapsed = 0;
     bool pwm_phase_enable = false;
 
-    volatile uint16_t deferred_ledc_pwm = 0;
-    volatile bool deferred_ledc_pwm_pending = false;
+    // Not volatile and not atomic on purpose: every access to this pair is
+    // already inside phase_lock (portENTER_CRITICAL_ISR on the producer side in
+    // on_timer_interrupt(), portENTER_CRITICAL on the consumer side in
+    // __write_pwm()). The critical section supplies both the mutual exclusion
+    // and the ordering that publishes the value before the pending flag.
+    uint16_t deferred_ledc_pwm = 0;
+    bool deferred_ledc_pwm_pending = false;
 
     gptimer_handle_t timer;
     bool off = false;

@@ -24,11 +24,11 @@
 #include "../profiles.h"
 
 const CanTorqueData TORQUE_NDEF = {
-    .m_min = INT16_MAX,
-    .m_max = INT16_MAX,
-    .m_ind = INT16_MAX,
-    .m_converted_static = INT16_MAX,
-    .m_converted_driver = INT16_MAX
+    .m_min = Torque::INVALID,
+    .m_max = Torque::INVALID,
+    .m_ind = Torque::INVALID,
+    .m_converted_static = Torque::INVALID,
+    .m_converted_driver = Torque::INVALID
 };
 
 class EgsBaseCan {
@@ -51,8 +51,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return front right wheel data
          */
-        virtual uint16_t get_front_right_wheel(const uint32_t expire_time_ms) {
-            return UINT16_MAX;
+        virtual wheel_rpm_2x_t get_front_right_wheel(const uint32_t expire_time_ms) {
+            return WheelSpeed::INVALID;
         }
         
         /**
@@ -60,8 +60,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return front left wheel data
          */
-        virtual uint16_t get_front_left_wheel(const uint32_t expire_time_ms) {
-            return UINT16_MAX;
+        virtual wheel_rpm_2x_t get_front_left_wheel(const uint32_t expire_time_ms) {
+            return WheelSpeed::INVALID;
         }
         
         /**
@@ -69,8 +69,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return rear right wheel data
          */
-        virtual uint16_t get_rear_right_wheel(const uint32_t expire_time_ms) {
-            return UINT16_MAX;
+        virtual wheel_rpm_2x_t get_rear_right_wheel(const uint32_t expire_time_ms) {
+            return WheelSpeed::INVALID;
         }
         
         /**
@@ -78,8 +78,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return rear right left data
          */
-        virtual uint16_t get_rear_left_wheel(const uint32_t expire_time_ms) {
-            return UINT16_MAX;
+        virtual wheel_rpm_2x_t get_rear_left_wheel(const uint32_t expire_time_ms) {
+            return WheelSpeed::INVALID;
         }
         
 
@@ -132,8 +132,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return Pedal position (0 = 0%, 250 = 100%)
          */
-        virtual uint8_t get_pedal_value(const uint32_t expire_time_ms) {
-            return 0;
+        virtual pedal_pos_t get_pedal_value(const uint32_t expire_time_ms) {
+            return Pedal::ZERO;
         }
         
         /**
@@ -160,8 +160,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return Engine coolant temperature (In Grad. C)
          */
-        virtual int16_t get_engine_coolant_temp(const uint32_t expire_time_ms) {
-            return INT16_MAX;
+        virtual temp_c_t get_engine_coolant_temp(const uint32_t expire_time_ms) {
+            return Temp::INVALID;
         }
         
         /**
@@ -169,8 +169,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return Engine oil temperature (In Grad. C)
          */
-        virtual int16_t get_engine_oil_temp(const uint32_t expire_time_ms) {
-            return INT16_MAX;
+        virtual temp_c_t get_engine_oil_temp(const uint32_t expire_time_ms) {
+            return Temp::INVALID;
         }
         
         /**
@@ -178,8 +178,8 @@ class EgsBaseCan {
          * @param expire_time_ms data expiration period
          * @return Engine intake air temperature (In Grad. C)
          */
-        virtual int16_t get_engine_iat_temp(const uint32_t expire_time_ms) {
-            return INT16_MAX;
+        virtual temp_c_t get_engine_iat_temp(const uint32_t expire_time_ms) {
+            return Temp::INVALID;
         }
        
         /**
@@ -236,7 +236,7 @@ class EgsBaseCan {
          * @brief OPTIONAL DATA - Returns fuel consumption rate of the engine
          * 
          * @param expire_time_ms data expiration period
-         * @return Fuel consumption of the engine (In μL/250ms)
+         * @return Fuel consumption of the engine (In Î¼L/250ms)
          */
         virtual uint16_t get_fuel_flow_rate(const uint32_t expire_time_ms) {
             return 0;
@@ -284,7 +284,7 @@ class EgsBaseCan {
         // Sets the status bit indicating the car is safe to start
         virtual void set_safe_start(bool can_start){};
         // Sets the gerabox ATF temperature. Offset by +50C
-        virtual void set_gearbox_temperature(int16_t temp){};
+        virtual void set_gearbox_temperature(temp_c_t temp){};
         // Sets the RPM of the input shaft of the gearbox on CAN
         virtual void set_input_shaft_speed(uint16_t rpm){};
         // Sets 4WD activated toggle bit
@@ -397,10 +397,25 @@ class EgsBaseCan {
             }
         }
 
-        ECU_TESTER egs_slave_mode_tester;
-        SOLENOID_REPORT_EGS_SLAVE solenoid_slave_resp;
-        SENSOR_REPORT_EGS_SLAVE sensors_slave_resp;
-        UN52_REPORT_EGS_SLAVE un52_slave_resp;
+        // Value initialised on purpose. The generated ECU classes leave
+        // FRAME_DATA and LAST_FRAME_TIMES indeterminate under DEFAULT
+        // initialisation, and EgsBaseCan is heap allocated - so this member
+        // would otherwise start life holding malloc garbage.
+        //
+        // That matters because get_tester_req() passes UINT32_MAX as the expiry
+        // time, so the only remaining staleness guard is
+        // "LAST_FRAME_TIMES[0] <= now". Garbage below the current uptime passes
+        // it, and gearbox.cpp feeds the result straight into MPC/SPC current
+        // and the Y3/Y4/Y5 outputs in slave mode.
+        //
+        // Every other CAN layer already declares its ECU objects this way -
+        // this was the one that was missed.
+        ECU_TESTER egs_slave_mode_tester = ECU_TESTER();
+        // Read and transmitted every CAN cycle in slave mode, including before
+        // the gearbox task has populated them.
+        SOLENOID_REPORT_EGS_SLAVE solenoid_slave_resp = {0};
+        SENSOR_REPORT_EGS_SLAVE sensors_slave_resp = {0};
+        UN52_REPORT_EGS_SLAVE un52_slave_resp = {0};
         uint64_t bus_reset_time = 0;
         uint8_t bus_reset_count = 0;
 };

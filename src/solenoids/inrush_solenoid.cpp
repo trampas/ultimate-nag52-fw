@@ -3,6 +3,54 @@
 #include "esp_check.h"
 #include "tcu_maths.h"
 #include "soc/gpio_struct.h"
+#include "sdkconfig.h"
+
+// cppcheck-suppress-file noValidConfiguration
+
+// ---------------------------------------------------------------------------
+// ISR CACHE-SAFETY CONTRACT - read before touching anything in this file
+// ---------------------------------------------------------------------------
+// The TCC solenoid is driven from a gptimer alarm interrupt. Any flash
+// operation (an NVS write, a map burn, an OTA transfer) disables the CPU cache
+// on BOTH cores for its duration. While the cache is off, every flash-backed
+// region becomes unreachable: IROM instructions, DROM read-only data, and
+// PSRAM. An interrupt that is still serviced in that window and touches any of
+// them takes an immediate "Cache disabled but cached memory region accessed"
+// panic and the TCU reboots.
+//
+// This is not theoretical - it is the crash seen when the timer fired during a
+// flash read/write. Note that EEPROM::ewm_btn_save_profile() performs an NVS
+// write on every shift into Park, so the two overlap in normal driving.
+//
+// CONFIG_GPTIMER_ISR_IRAM_SAFE is the option that actually makes this safe. It
+// allocates the interrupt with ESP_INTR_FLAG_IRAM, forces the driver's whole
+// ISR path into IRAM, and keeps the driver object out of PSRAM.
+//
+// BEWARE: CONFIG_GPTIMER_ISR_HANDLER_IN_IRAM and CONFIG_GPTIMER_CTRL_FUNC_IN_IRAM
+// are PERFORMANCE options. They place code in IRAM but do NOT keep the
+// interrupt alive with the cache disabled. Having only those two set is exactly
+// what produced the original bug - the ISR looked "IRAM safe" but was not.
+//
+// Consequences for anything reached from on_timer_interrupt*():
+//   * must be IRAM_ATTR (or an inlined/constant-folded expression),
+//   * must not call into flash-resident driver code (this is why the LEDC
+//     writes are deferred to task context - see __write_pwm below),
+//   * must not read non-inlined const data, which lands in DROM,
+//   * must not use ESP_LOG*, and must only use *FromISR FreeRTOS APIs,
+//   * must not dispatch virtually - vtables live in DROM. on_timer_interrupt()
+//     and on_timer_interrupt_new() are deliberately NON virtual for this reason.
+//
+// Currently on that path, and all verified IRAM resident:
+//   * InrushControlSolenoid::on_timer_interrupt{,_new}()  (IRAM_ATTR below)
+//   * inrush_plan_hold_step()  (INRUSH_LOGIC_IRAM, see inrush_solenoid_logic.h)
+//   * gptimer_set_alarm_action()  (CONFIG_GPTIMER_CTRL_FUNC_IN_IRAM)
+//   * portENTER/EXIT_CRITICAL_ISR and direct GPIO register writes
+#if !defined(CONFIG_GPTIMER_ISR_IRAM_SAFE)
+#error "CONFIG_GPTIMER_ISR_IRAM_SAFE must be enabled: the TCC solenoid gptimer ISR runs while flash writes have the cache disabled, and will panic the TCU without it. See the ISR CACHE-SAFETY CONTRACT above."
+#endif
+#if !defined(CONFIG_GPTIMER_CTRL_FUNC_IN_IRAM)
+#error "CONFIG_GPTIMER_CTRL_FUNC_IN_IRAM must be enabled: the TCC solenoid ISR calls gptimer_set_alarm_action(), which would otherwise live in flash. See the ISR CACHE-SAFETY CONTRACT above."
+#endif
 
 // AT 12.0V
 const uint16_t INRUSH_START_PWM = 224; // Any PWM below this will just write 0 to solenoid (Not enough open time for arm to move)
@@ -14,6 +62,43 @@ const uint16_t HOLD_PWM = 1300;
 const uint32_t TOTAL_PERIOD_TIME_US = 100000; // Timer runs at 10MHz, Hydralic PWM is 100Hz, so 10_000_000/100
 
 
+/**
+ * @brief Sets or clears a GPIO straight from the ISR, without going through the
+ *        driver (which is not guaranteed to be IRAM resident).
+ *
+ * The ESP32 splits its GPIO output registers into two banks: out_w1ts/out_w1tc
+ * cover GPIO 0-31, and out1_w1ts/out1_w1tc cover GPIO 32-39 using bit (pin-32).
+ * The previous code only ever wrote the first bank as `1 << pin`, which for any
+ * pin >= 32 is a shift wider than the uint32_t operand - undefined behaviour,
+ * and in practice it would set a completely unrelated GPIO.
+ *
+ * No current board maps the TCC pins that high (tcc_pwm is 13, io_pin is 4), so
+ * this is future proofing rather than a live fault - but board_config.cpp is
+ * exactly the kind of file that gets a new revision added to it.
+ *
+ * MUST stay IRAM safe - see the ISR CACHE-SAFETY CONTRACT above.
+ */
+static inline void IRAM_ATTR isr_gpio_write(gpio_num_t pin, bool level) {
+    if (pin < GPIO_NUM_32) {
+        const uint32_t mask = (uint32_t)1u << (uint32_t)pin;
+        if (level) {
+            GPIO.out_w1ts = mask;
+        } else {
+            GPIO.out_w1tc = mask;
+        }
+    } else {
+        // Bank 2. Note GPIO 34-39 are input only on the ESP32, so only 32/33
+        // are actually drivable here.
+        const uint32_t mask = (uint32_t)1u << ((uint32_t)pin - 32u);
+        if (level) {
+            GPIO.out1_w1ts.val = mask;
+        } else {
+            GPIO.out1_w1tc.val = mask;
+        }
+    }
+}
+
+// MUST stay IRAM safe - see the ISR CACHE-SAFETY CONTRACT at the top of this file.
 static bool IRAM_ATTR inrush_solenoid_timer_isr(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_data) {
     InrushControlSolenoid* solenoid = reinterpret_cast<InrushControlSolenoid*>(user_data);
     uint32_t next_alarm_in = solenoid->on_timer_interrupt();
@@ -25,9 +110,14 @@ static bool IRAM_ATTR inrush_solenoid_timer_isr(gptimer_handle_t timer, const gp
         }
     };
     gptimer_set_alarm_action(timer, &alarm_config);
-    return true;
+    // The return value means "did this ISR wake a higher priority task", NOT
+    // "was the callback handled". This path wakes nothing - it only mutates
+    // solenoid state and reprograms the alarm - so returning true forced a
+    // needless context switch on every single alarm.
+    return false;
 }
 
+// MUST stay IRAM safe - see the ISR CACHE-SAFETY CONTRACT at the top of this file.
 static bool IRAM_ATTR inrush_solenoid_timer_isr_new(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_data) {
     InrushControlSolenoid* solenoid = reinterpret_cast<InrushControlSolenoid*>(user_data);
     uint32_t next_alarm_in = solenoid->on_timer_interrupt_new();
@@ -39,7 +129,9 @@ static bool IRAM_ATTR inrush_solenoid_timer_isr_new(gptimer_handle_t timer, cons
         }
     };
     gptimer_set_alarm_action(timer, &alarm_config);
-    return true;
+    // No task is woken here (see the note in inrush_solenoid_timer_isr), so no
+    // yield is requested.
+    return false;
 }
 
 InrushControlSolenoid::InrushControlSolenoid(const char *name, ledc_timer_t ledc_timer, gpio_num_t pwm_pin, gpio_num_t zener_pin, ledc_channel_t channel, adc_channel_t read_channel, uint16_t period_hz, uint16_t target_hold_current_ma, uint16_t phase_duration_ms)
@@ -65,14 +157,12 @@ InrushControlSolenoid::InrushControlSolenoid(const char *name, ledc_timer_t ledc
         return; // Error trying to init base class, so skip
     }
 
-    const gptimer_config_t timer_config = {
-        .clk_src = GPTIMER_CLK_SRC_DEFAULT,
-        .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = (10u * 1000u * 1000u), // 10MHz
-        .flags = {
-            .intr_shared = 0
-        }
-    };
+    gptimer_config_t timer_config = {};
+    timer_config.clk_src = GPTIMER_CLK_SRC_DEFAULT;
+    timer_config.direction = GPTIMER_COUNT_UP;
+    timer_config.resolution_hz = (10u * 1000u * 1000u); // 10MHz
+    timer_config.intr_priority = 0;
+    timer_config.flags.intr_shared = 0;
 
     this->ready = gptimer_new_timer(&timer_config, &this->timer);
     if (ESP_OK == ready) {
@@ -171,11 +261,9 @@ uint32_t IRAM_ATTR InrushControlSolenoid::on_timer_interrupt_new() {
     this->zener_phase_on = zener_out;
     portEXIT_CRITICAL_ISR(&this->phase_lock);
 
-    volatile uint32_t* reg_pwm = this->pwm_phase_on ? &GPIO.out_w1ts : &GPIO.out_w1tc;
-    *reg_pwm = (uint32_t)1 << (this->pwm_pin);
+    isr_gpio_write(this->pwm_pin, this->pwm_phase_on);
     if (GPIO_NUM_NC != this->zener_pin) {
-        volatile uint32_t* reg_zen = this->zener_phase_on ? &GPIO.out_w1ts : &GPIO.out_w1tc;
-        *reg_zen = (uint32_t)1 << (this->zener_pin);
+        isr_gpio_write(this->zener_pin, this->zener_phase_on);
     }
     return ret;
 }
@@ -211,11 +299,14 @@ uint32_t IRAM_ATTR InrushControlSolenoid::on_timer_interrupt() {
             ret = this->off_time_this_cycle;
         }
     }
-    // Maintain this deferral on purpose:
+    // Maintain this deferral on purpose. It is REQUIRED, not an optimisation:
+    // - CONFIG_LEDC_CTRL_FUNC_IN_IRAM is disabled, so the LEDC control functions
+    //   live in flash. This ISR is IRAM safe and therefore still runs while a
+    //   flash write has the cache disabled - calling them here would panic.
+    //   (See the ISR CACHE-SAFETY CONTRACT at the top of this file.)
     // - ESP-IDF explicitly allows ledc_update_duty() in ISR, but not ledc_set_duty().
     // - Our duty update needs ledc_set_duty() + ledc_update_duty() on the same channel.
     // - These APIs are not thread-safe across tasks for one channel, so we centralize writes.
-    // - This project also has CONFIG_LEDC_CTRL_FUNC_IN_IRAM disabled, so task-context is safer.
     this->deferred_ledc_pwm = write_pwm;
     this->deferred_ledc_pwm_pending = true;
     portEXIT_CRITICAL_ISR(&this->phase_lock);

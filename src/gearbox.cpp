@@ -11,6 +11,7 @@
 #include "shifting_algo/shift_crossover.h"
 #include "shifting_algo/shift_release.h"
 #include "tcu_io/tcu_io.hpp"
+#include "tcu_scaling.h"
 
 #define SBS (SBS_CURRENT_SETTINGS)
 
@@ -53,17 +54,20 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
         .input_rpm = 0,
         .engine_rpm = 0,
         .output_rpm = 0,
-        .pedal_pos = 0,
-        .pedal_pos_smoothed = 0,
-        .atf_temp = 0,
-        .input_torque = 0,
-        .converted_torque = 0,
-        .converted_driver_torque = 0,
-        .indicated_torque = 0,
-        .max_torque = 0,
-        .min_torque = 0,
+        .pedal_pos = Pedal::ZERO,
+        .pedal_pos_smoothed = Pedal::ZERO,
+        .atf_temp = Temp::from_celsius(0),
+        .input_torque = Torque::ZERO,
+        .converted_torque = Torque::ZERO,
+        .converted_driver_torque = Torque::ZERO,
+        .indicated_torque = Torque::ZERO,
+        .max_torque = Torque::ZERO,
+        .min_torque = Torque::ZERO,
+        .pump_torque = Torque::ZERO,
         .last_shift_time = 0,
         .gear_ratio = 0.0F,
+        .targ_gear_ratio = 0.0F,
+        .tcc_trq_multiplier = 1.0F,
         .kickdown_pressed = false,
         .brake_pressed = false,
     };
@@ -135,11 +139,8 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
     pressure_manager = this->pressure_mgr;
     adaptation_manager = this->shift_adapter;
     // Startup test runs in a background task: wait briefly so we do not race it.
-    uint32_t wait_start = GET_CLOCK_TIME();
-    while (!Solenoids::init_routine_completed() && (GET_CLOCK_TIME() - wait_start) < 1000)
-    {
-        vTaskDelay(1);
-    }
+    // The pass/fail verdict is consumed during POST, here we only need it done.
+    (void)Solenoids::wait_for_boot_test(1000u);
     if (VEHICLE_CONFIG.engine_type == 1)
     {
         this->redline_rpm = VEHICLE_CONFIG.red_line_rpm_petrol;
@@ -344,8 +345,8 @@ ClutchSpeeds Gearbox::diag_get_clutch_speeds()
 
 ShiftReportSegment Gearbox::collect_report_segment(uint64_t start_time) {
     return ShiftReportSegment{
-        .static_torque = sensor_data.converted_torque,
-        .driver_torque = sensor_data.converted_driver_torque,
+        .static_torque = Torque::nm_i16(sensor_data.converted_torque),
+        .driver_torque = Torque::nm_i16(sensor_data.converted_driver_torque),
         .egs_req_torque = (int16_t)((this->output_data.ctrl_type == TorqueRequestControlType::None) ? INT16_MAX : (int16_t)(this->output_data.torque_req_amount)),
         .engine_rpm = sensor_data.engine_rpm,
         .input_rpm = sensor_data.input_rpm,
@@ -449,7 +450,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
         float threshold_torque = VEHICLE_CONFIG.engine_drag_torque / 10.0f;
         ShiftingAlgorithm* algo;
         if (is_upshift) {
-            if (sensor_data.converted_torque <= -threshold_torque/2) {
+            if ((float)Torque::nm_i16(sensor_data.converted_torque) <= -threshold_torque/2) {
                 algo = new ReleasingShift(&sid);
             }
             else {
@@ -459,7 +460,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
         else {
             bool is_release = true;
             if (
-                (sensor_data.converted_torque < threshold_torque && (sid.shift_flags & SHIFT_FLAG_COAST) != 0) ||
+                ((float)Torque::nm_i16(sensor_data.converted_torque) < threshold_torque && (sid.shift_flags & SHIFT_FLAG_COAST) != 0) ||
                 ((sid.shift_flags & SHIFT_FLAG_COAST_54_43) != 0)
             ) {
                 is_release = false;
@@ -481,7 +482,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
                 break;
             }
 
-            int abs_input_torque = abs(sensor_data.input_torque);
+            int abs_input_torque = abs((int)Torque::nm_i16(sensor_data.input_torque));
             now_cs = ClutchSpeedModel::get_shifting_clutch_speeds(this->speed_sensors, req_lookup, this->gearboxConfig.bounds);
 
             // Shift reporting
@@ -639,13 +640,15 @@ void Gearbox::shift_thread()
             uint16_t ramp = 0;
             uint16_t spc_step;
             uint16_t prefill_cycles;
+            // The calibration curves are indexed in plain Celsius, so unwrap once here.
+            const float atf_c = (float)Temp::celsius_i16(sensor_data.atf_temp);
             if (into_reverse) {
-                prefill_cycles = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.prefill_time_b3, InterpType::Linear);
-                spc_step = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.p_ramp_b3, InterpType::Linear);
+                prefill_cycles = interpolate_float(atf_c, &GAR_CURRENT_SETTINGS.prefill_time_b3, InterpType::Linear);
+                spc_step = interpolate_float(atf_c, &GAR_CURRENT_SETTINGS.p_ramp_b3, InterpType::Linear);
             }
             else {
-                prefill_cycles = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.prefill_time_b2, InterpType::Linear);
-                spc_step = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.p_ramp_b2, InterpType::Linear);
+                prefill_cycles = interpolate_float(atf_c, &GAR_CURRENT_SETTINGS.prefill_time_b2, InterpType::Linear);
+                spc_step = interpolate_float(atf_c, &GAR_CURRENT_SETTINGS.p_ramp_b2, InterpType::Linear);
             }
 
             int p_apply_clutch = 0;
@@ -656,13 +659,13 @@ void Gearbox::shift_thread()
                 }
                 if (into_reverse) {
                     if (cycle_count > prefill_cycles) {
-                        prefill = pressure_manager->p_clutch_with_coef(GearboxGear::Reverse_Second, Clutch::B3, abs(sensor_data.input_torque), CoefficientTy::Sliding);
+                        prefill = pressure_manager->p_clutch_with_coef(GearboxGear::Reverse_Second, Clutch::B3, abs((int)Torque::nm_i16(sensor_data.input_torque)), CoefficientTy::Sliding);
                         ramp += spc_step;
                     }
                 }
                 else {
                     if (cycle_count > prefill_cycles) {
-                        prefill = pressure_manager->p_clutch_with_coef(GearboxGear::Second, Clutch::B2, abs(sensor_data.input_torque), CoefficientTy::Sliding);
+                        prefill = pressure_manager->p_clutch_with_coef(GearboxGear::Second, Clutch::B2, abs((int)Torque::nm_i16(sensor_data.input_torque)), CoefficientTy::Sliding);
                         ramp += spc_step;
                     }
                 }
@@ -884,47 +887,40 @@ void Gearbox::controller_loop()
         TCUIO::update_io_layer();
         if (CHECK_MODE_BIT_ENABLED(DEVICE_MODE_SLAVE)) {
             SOLENOID_CONTROL_EGS_SLAVE slave_rq = egs_can_hal->get_tester_req();
-            sol_mpc->set_current_target(__builtin_bswap16(slave_rq.MPC_REQ));
-            sol_spc->set_current_target(__builtin_bswap16(slave_rq.SPC_REQ));
-            sol_tcc->set_duty(slave_rq.TCC_REQ * 16); // x16 to go from 8 bit (0-255) to 12bit (0-4096)
-            if (slave_rq.Y3_EN) {
-                sol_y3->on();
-            }
-            else {
-                sol_y3->off();
-            }
-            if (slave_rq.Y4_EN) {
-                sol_y4->on();
-            }
-            else {
-                sol_y4->off();
-            }
-            if (slave_rq.Y5_EN) {
-                sol_y5->on();
-            }
-            else {
-                sol_y5->off();
-            }
-            SENSOR_REPORT_EGS_SLAVE sensor_rpt;
+            TCUIO::TcuIoActuatorFrame slave_cmd{};
+            TCUIO::get_last_actuator_frame(&slave_cmd);
+            slave_cmd.mpc_current_target_ma = __builtin_bswap16(slave_rq.MPC_REQ);
+            slave_cmd.spc_current_target_ma = __builtin_bswap16(slave_rq.SPC_REQ);
+            slave_cmd.tcc_pwm_12bit = slave_rq.TCC_REQ * 16; // x16 to go from 8 bit (0-255) to 12bit (0-4096)
+            slave_cmd.y3_on = slave_rq.Y3_EN;
+            slave_cmd.y4_on = slave_rq.Y4_EN;
+            slave_cmd.y5_on = slave_rq.Y5_EN;
+            TCUIO::apply_actuator_frame(slave_cmd);
+            // Zero initialised: these are transmitted whole, so any field we do
+            // not set below would otherwise go out on the bus as stack garbage.
+            SENSOR_REPORT_EGS_SLAVE sensor_rpt{};
 
             this->process_speed_sensors();
 
 
             uint8_t pll = TCUIO::parking_lock();
-            int16_t tft = TCUIO::atf_temperature();
+            temp_c_t tft = TCUIO::atf_temperature();
             uint16_t vbatt = TCUIO::battery_mv();
 
             sensor_rpt.N2_RAW = __builtin_bswap16(this->speed_sensors.n2);
             sensor_rpt.N3_RAW = __builtin_bswap16(this->speed_sensors.n3);
-            sensor_rpt.TFT = pll ? 0xFF : tft + 50;
-            sensor_rpt.VBATT = (vbatt / 100) & 0xFF;
+            sensor_rpt.TFT = (0 != pll || !Temp::is_valid(tft)) ? 0xFF : Temp::to_can_u8_offset50(tft);
+            sensor_rpt.VBATT = (UINT16_MAX == vbatt) ? 0xFF : (uint8_t)MIN(0xFF, vbatt / 100);
 
-            SOLENOID_REPORT_EGS_SLAVE sol_rpt;
+            SOLENOID_REPORT_EGS_SLAVE sol_rpt{};
             sol_rpt.MPC_CURR = __builtin_bswap16(sol_mpc->get_current());
             sol_rpt.SPC_CURR = __builtin_bswap16(sol_spc->get_current());
-            sol_rpt.TCC_PWM = (sol_tcc->get_pwm_raw() / 16) & 0xFF;
+            // 12 bit duty -> 8 bit report. Full scale is 4096, and 4096/16 is
+            // 256, which wrapped to 0 under a plain & 0xFF - so a fully on TCC
+            // was reported as fully off. Saturate instead.
+            sol_rpt.TCC_PWM = (uint8_t)MIN(255u, (uint32_t)sol_tcc->get_pwm_raw() / 16u);
 
-            UN52_REPORT_EGS_SLAVE un52_rpt;
+            UN52_REPORT_EGS_SLAVE un52_rpt{};
             un52_rpt.Y3_CURR = __builtin_bswap16(sol_y3->get_current());
             un52_rpt.Y4_CURR = __builtin_bswap16(sol_y4->get_current());
             un52_rpt.Y5_CURR = __builtin_bswap16(sol_y5->get_current());
@@ -945,7 +941,8 @@ void Gearbox::controller_loop()
         }
 
         // Set sensors Motor temperature (Always ran)
-        int16_t coolant_temp = egs_can_hal->get_engine_coolant_temp(50);
+        temp_c_t coolant_temp = egs_can_hal->get_engine_coolant_temp(50);
+        (void)coolant_temp;
 
         bool speeds_valid = this->process_speed_sensors();
         if (speeds_valid)
@@ -955,7 +952,9 @@ void Gearbox::controller_loop()
             this->cached_output_rpm = first_order_filter(3, speed_sensors.output * 100, this->cached_output_rpm);
             this->sensor_data.output_rpm = this->cached_output_rpm / 100;
             bool stationary = this->is_stationary();
-            if (!stationary)
+            // is_stationary() requires BOTH shafts to be slow, so the output can
+            // still be 0 here (eg. stalled converter, engine revving, car held).
+            if (!stationary && 0 != this->sensor_data.output_rpm)
             {
                 // Store our ratio
                 this->sensor_data.gear_ratio = (float)this->sensor_data.input_rpm / (float)this->sensor_data.output_rpm;
@@ -1014,22 +1013,26 @@ void Gearbox::controller_loop()
                 // ESP_LOG_LEVEL(ESP_LOG_ERROR, "GEARBOX", "GEAR RATIO IMPLAUSIBLE");
             }
         }
-        uint8_t p_tmp = egs_can_hal->get_pedal_value(1000);
+        pedal_pos_t p_tmp = egs_can_hal->get_pedal_value(1000);
         this->pedal_last = this->sensor_data.pedal_pos;
-        if (p_tmp != 0xFF)
+        if (Pedal::is_valid(p_tmp))
         {
             this->sensor_data.pedal_pos = p_tmp;
         }
         else {
-            p_tmp = 250 / 4; // 25% as a fallback
+            p_tmp = Pedal::percent(25.0f); // Fallback when the pedal is unreadable
         }
-        this->sensor_data.pedal_pos_smoothed = linear_interp_with_percentage(80, p_tmp, this->sensor_data.pedal_pos_smoothed);
+        this->sensor_data.pedal_pos_smoothed = Pedal::from_raw(
+            linear_interp_with_percentage(80, Pedal::raw_u8(p_tmp), Pedal::raw_u8(this->sensor_data.pedal_pos_smoothed)));
 
-        if (GET_CLOCK_TIME() - start > 100) {
+        // NOTE: this must compare against the last update, not against 'start'.
+        // 'start' is the timestamp of the current iteration, so the difference
+        // is only the few ms spent in this pass and the trackers never updated.
+        if (GET_CLOCK_TIME() - this->last_delta_time > 100) {
             // Update every 100ms, not every EGS cycle, values multiplied by 10
             // to get them in terms of 1 second (1s/100ms = 10)
             if (this->pedal_delta) {
-                this->pedal_delta->update(this->sensor_data.pedal_pos * 10);
+                this->pedal_delta->update(Pedal::raw_u8(this->sensor_data.pedal_pos) * 10);
             }
             if (this->input_rpm_delta) {
                 this->input_rpm_delta->update(this->sensor_data.input_rpm * 10);
@@ -1275,44 +1278,48 @@ void Gearbox::controller_loop()
         }
         else if (!this->isShifting())
         {
-            sol_mpc->set_current_target(0);
-            sol_spc->set_current_target(0);
-            sol_tcc->set_duty(0);
+            TCUIO::TcuIoActuatorFrame shutdown_cmd{};
+            TCUIO::get_last_actuator_frame(&shutdown_cmd);
+            shutdown_cmd.mpc_current_target_ma = 0;
+            shutdown_cmd.spc_current_target_ma = 0;
+            shutdown_cmd.tcc_pwm_12bit = 0;
+            TCUIO::apply_actuator_frame(shutdown_cmd);
             this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_1_2, false);
             this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
             this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
         }
 
-        int16_t tmp_atf = TCUIO::atf_temperature();
-        if (INT16_MAX != tmp_atf)
+        temp_c_t tmp_atf = TCUIO::atf_temperature();
+        if (Temp::is_valid(tmp_atf))
         {
             this->sensor_data.atf_temp = tmp_atf;
-        }
-        else
-        {
-            bool calibrated = false;
-            float spc_res_now = 0.0f;
-            float mpc_res_now = 0.0f;
-            int16_t temp_cal_now = 25;
-            Solenoids::get_calibration_adjusted_resistance(&spc_res_now, &mpc_res_now, &calibrated, &temp_cal_now);
-            if (!calibrated)
-            {
-                temp_cal_now = tmp_atf;
-                if (temp_cal_now != 25)
-                {
-                    mpc_res_now = mpc_res_now + (mpc_res_now * (((25.0f - (float)temp_cal_now) * 0.393f) / 100.0f));
-                    spc_res_now = spc_res_now + (spc_res_now * (((25.0f - (float)temp_cal_now) * 0.393f) / 100.0f));
-                }
-                Solenoids::set_calibration_adjusted_resistance(spc_res_now, mpc_res_now, temp_cal_now);
-                ESP_LOGI("GB", "Calibrated solenoids at %d C. Adjusted for 25C: SPC %.2f MPC %.2f", tmp_atf, spc_res_now, mpc_res_now);
-            }
-            // SPC and MPC can cause voltage swing on the ATF line, so disable
-            // monitoring when shifting gears!
+            // One time solenoid resistance calibration, referenced back to 25C.
+            // This only means anything with a real temperature reading, and SPC
+            // and MPC cause voltage swing on the ATF line, so skip it whilst
+            // shifting gears.
             if (!this->isShifting())
             {
-                this->sensor_data.atf_temp = tmp_atf;
+                bool calibrated = false;
+                float spc_res_now = 0.0f;
+                float mpc_res_now = 0.0f;
+                int16_t temp_cal_now = 25;
+                Solenoids::get_calibration_adjusted_resistance(&spc_res_now, &mpc_res_now, &calibrated, &temp_cal_now);
+                if (!calibrated)
+                {
+                    temp_cal_now = Temp::celsius_i16(tmp_atf);
+                    if (temp_cal_now != 25)
+                    {
+                        mpc_res_now = mpc_res_now + (mpc_res_now * (((25.0f - (float)temp_cal_now) * 0.393f) / 100.0f));
+                        spc_res_now = spc_res_now + (spc_res_now * (((25.0f - (float)temp_cal_now) * 0.393f) / 100.0f));
+                    }
+                    Solenoids::set_calibration_adjusted_resistance(spc_res_now, mpc_res_now, temp_cal_now);
+                    ESP_LOGI("GB", "Calibrated solenoids at %d C. Adjusted for 25C: SPC %.2f MPC %.2f", (int)Temp::celsius_i16(tmp_atf), spc_res_now, mpc_res_now);
+                }
             }
         }
+        // else: the sensor is faulty (INT16_MAX is the error sentinel). Hold the
+        // last good reading rather than publishing the sentinel as a real
+        // temperature - it feeds the pressure maps and the instrument cluster.
         egs_can_hal->set_gearbox_temperature(this->sensor_data.atf_temp);
         egs_can_hal->set_shifter_position(this->shifter_pos);
         egs_can_hal->set_input_shaft_speed(this->sensor_data.input_rpm);
@@ -1330,24 +1337,25 @@ void Gearbox::controller_loop()
 
         CanTorqueData trqs = egs_can_hal->get_torque_data(100);
         // CALC TORQUES
-        if (INT16_MAX != trqs.m_min) { sensor_data.min_torque = trqs.m_min; }
-        if (INT16_MAX != trqs.m_max) { sensor_data.max_torque = trqs.m_max; }
-        if (INT16_MAX != trqs.m_ind) { sensor_data.indicated_torque = trqs.m_ind; }
-        if (INT16_MAX != trqs.m_converted_static) { sensor_data.converted_torque = trqs.m_converted_static; }
-        if (INT16_MAX != trqs.m_converted_driver) {
+        if (Torque::is_valid(trqs.m_min)) { sensor_data.min_torque = trqs.m_min; }
+        if (Torque::is_valid(trqs.m_max)) { sensor_data.max_torque = trqs.m_max; }
+        if (Torque::is_valid(trqs.m_ind)) { sensor_data.indicated_torque = trqs.m_ind; }
+        if (Torque::is_valid(trqs.m_converted_static)) { sensor_data.converted_torque = trqs.m_converted_static; }
+        if (Torque::is_valid(trqs.m_converted_driver)) {
             int input_trq = InputTorqueModel::get_input_torque(
                 sensor_data.engine_rpm,
                 sensor_data.input_rpm,
-                trqs.m_converted_driver
+                Torque::nm_i16(trqs.m_converted_driver)
             );
-            sensor_data.input_torque = input_trq;
+            sensor_data.input_torque = Torque::from_nm((int16_t)input_trq);
             sensor_data.converted_driver_torque = trqs.m_converted_driver;
         }
-        sensor_data.pump_torque = InputTorqueModel::get_pump_torque(sensor_data.engine_rpm, sensor_data.input_rpm);
+        sensor_data.pump_torque = Torque::from_nm((int16_t)InputTorqueModel::get_pump_torque(sensor_data.engine_rpm, sensor_data.input_rpm));
 
         if (this->isShifting() && is_controllable_gear(this->target_gear) && !is_controllable_gear(this->actual_gear)) {
-            if (INT16_MAX != sensor_data.pump_torque) {
-                sensor_data.input_torque = sensor_data.pump_torque * sensor_data.tcc_trq_multiplier;
+            if (Torque::is_valid(sensor_data.pump_torque)) {
+                sensor_data.input_torque = Torque::from_nm(
+                    (int16_t)((float)Torque::nm_i16(sensor_data.pump_torque) * sensor_data.tcc_trq_multiplier));
             }
         }
 
@@ -1434,11 +1442,19 @@ void Gearbox::controller_loop()
             egs_can_hal->set_display_msg(GearboxMessage::None);
         }
 
-        // Lastly, set display gear
+        // Lastly, set display gear.
+        // Take a copy of the profile pointer and release the spinlock before
+        // doing anything with it. portENTER_CRITICAL disables interrupts on this
+        // core, so calling into the CAN layer or a profile's virtual methods
+        // while holding it risks the interrupt watchdog, and blocking inside a
+        // critical section is not allowed at all.
+        AbstractProfile* display_profile = nullptr;
         portENTER_CRITICAL(&this->profile_mutex);
-        if (this->current_profile != nullptr)
+        display_profile = this->current_profile;
+        portEXIT_CRITICAL(&this->profile_mutex);
+        if (display_profile != nullptr)
         {
-            egs_can_hal->set_drive_profile(this->current_profile->get_profile());
+            egs_can_hal->set_drive_profile(display_profile->get_profile());
             if (this->flaring && SBS.f_shown_if_flare)
             {
                 // Takes president
@@ -1453,10 +1469,10 @@ void Gearbox::controller_loop()
                 shift_arrow_enable = this->fwd_gear_shift;
                 shift_arrow_up = this->is_upshift;
                 portEXIT_CRITICAL(&this->state_mutex);
-                if (this->current_profile == race && shift_arrow_enable && SBS.debug_show_up_down_arrows_in_r) {
+                if (display_profile == race && shift_arrow_enable && SBS.debug_show_up_down_arrows_in_r) {
                     egs_can_hal->set_display_msg(shift_arrow_up ? GearboxMessage::Upshift : GearboxMessage::Downshift);
                 }
-                else if ((this->current_profile == manual || this->current_profile == race) &&
+                else if ((display_profile == manual || display_profile == race) &&
                     sensor_data.engine_rpm > this->redline_rpm - 1000
                     ) {
                     egs_can_hal->set_display_msg(GearboxMessage::Upshift);
@@ -1464,10 +1480,9 @@ void Gearbox::controller_loop()
                 else {
                     egs_can_hal->set_display_msg(GearboxMessage::None);
                 }
-                egs_can_hal->set_display_gear(this->current_profile->get_display_gear(this->target_gear, this->actual_gear), this->current_profile == manual);
+                egs_can_hal->set_display_gear(display_profile->get_display_gear(this->target_gear, this->actual_gear), display_profile == manual);
             }
         }
-        portEXIT_CRITICAL(&this->profile_mutex);
         pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
         uint32_t time = GET_CLOCK_TIME() - start;
         if (time < 20) {
@@ -1515,6 +1530,11 @@ bool Gearbox::process_speed_sensors()
 
 bool Gearbox::calcGearFromRatio(bool is_reverse)
 {
+    if (0 == this->sensor_data.output_rpm) {
+        // No output speed, so there is no ratio to derive a gear from
+        this->est_gear_idx = 0;
+        return false;
+    }
     float ratio = (float)this->sensor_data.input_rpm / (float)this->sensor_data.output_rpm;
     //ESP_LOGI("CGFR", "R %.3f", ratio);
     if (is_reverse)

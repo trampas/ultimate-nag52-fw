@@ -1,4 +1,5 @@
 #include "shift_release.h"
+#include "tcu_scaling.h"
 #include <egs_calibration/calibration_structs.h>
 #include "nvs/module_settings.h"
 
@@ -50,9 +51,14 @@ uint16_t ReleasingShift::calc_threshold_rpm_2() {
         // 1 20ms. Calc Trq req
         // 2 20ms. Tx Trq req
         // 3 20ms. Engine to implement Trq req
-        float cycles_can = 3.0f;
         float inertia = ShiftHelpers::get_shift_intertia(sid->inf.map_idx);
-        float threshold = torque * (float)(this->cycles_mod_ramp_to_sync + (cycles_can * 2)) * (float)MECH_PTR->turbine_drag[sid->inf.map_idx] / inertia;
+        // See the note in CrossoverShift::get_rpm_threshold - inertia comes from
+        // calibration data and can be 0, and inf would survive the MAX() below.
+        float threshold = 0.0f;
+        if (inertia > 0.0f) {
+            const float cycles_can = 3.0f;
+            threshold = torque * (float)(this->cycles_mod_ramp_to_sync + (cycles_can * 2)) * (float)MECH_PTR->turbine_drag[sid->inf.map_idx] / inertia;
+        }
         ret = MAX(threshold, REL_CURRENT_SETTINGS.clutch_stationary_rpm);
     }
     else if ((sid->shift_flags & SHIFT_FLAG_COAST_32_21) == 0) {
@@ -99,6 +105,8 @@ uint8_t ReleasingShift::step_internal(
 
     // Do torque request stuff here
     this->torque_req_out = 0;
+    // Unwrap once - everything below is plain Nm arithmetic.
+    const int indicated_nm = Torque::nm_i16(sd->indicated_torque);
     if (sd->indicated_torque > sd->min_torque && sd->converted_torque > sd->min_torque && sd->engine_rpm > 1100) {
         // LIMIT TORQUE - Max torque clutch exceeded
         bool emergency_limit = false;
@@ -126,8 +134,8 @@ uint8_t ReleasingShift::step_internal(
             const float factors[8] = { 1.0f, 1.0f, 1.0f, 1.0f, 0.8f, 0.8f, 1.0f, 1.0f };
             float freeing = this->freeing_trq * factors[sid->inf.map_idx];
             intervension_out = MAX(freeing, protection) / tcc_mult;
-            if (sd->indicated_torque * 0.8f < intervension_out) {
-                intervension_out = sd->indicated_torque * 0.8f;
+            if ((float)indicated_nm * 0.8f < intervension_out) {
+                intervension_out = (float)indicated_nm * 0.8f;
             }
         }
 
@@ -162,8 +170,8 @@ uint8_t ReleasingShift::step_internal(
 
     // Output to CAN
     if (0 != torque_req_out && sid->trq_req_en) {
-        torque_req_out = MIN(torque_req_out, sd->indicated_torque);
-        sid->ptr_w_trq_req->amount = sd->indicated_torque - torque_req_out;
+        torque_req_out = MIN(torque_req_out, indicated_nm);
+        sid->ptr_w_trq_req->amount = indicated_nm - torque_req_out;
         sid->ptr_w_trq_req->bounds = TorqueRequestBounds::LessThan;
         sid->ptr_w_trq_req->ty = this->trq_req_up_ramp ? TorqueRequestControlType::BackToDemandTorque : TorqueRequestControlType::NormalSpeed;
     }
@@ -304,7 +312,7 @@ uint8_t ReleasingShift::phase_fill_release_mpc() {
     }
     else if (3 == this->subphase_mod) {
         // Reducing until off clutch releases
-        float x1 = interpolate_float(sd->pedal_pos, &REL_CURRENT_SETTINGS.torque_loss_speed_pedal_pos, InterpType::Linear) * this->loss_torque_tmp;
+        float x1 = interpolate_float(Pedal::raw_u8(sd->pedal_pos), &REL_CURRENT_SETTINGS.torque_loss_speed_pedal_pos, InterpType::Linear) * this->loss_torque_tmp;
         float x2 = (this->calculate_freeing_trq_multiplier() * 2) + x1;
         this->loss_torque_tmp += x2;
         this->loss_torque = this->loss_torque_tmp / 2.0f;
@@ -438,7 +446,7 @@ uint8_t ReleasingShift::phase_overlap() {
 uint16_t ReleasingShift::calc_mod_overlap() {
     if (sid->change == GearChange::_3_2 || sid->change == GearChange::_2_1) {
         int trq_req = (this->emergency_trq_val * sd->tcc_trq_multiplier);
-        if (((sid->shift_flags & SHIFT_FLAG_COAST) != 0) && sd->pedal_pos < 10) {
+        if (((sid->shift_flags & SHIFT_FLAG_COAST) != 0) && sd->pedal_pos < Pedal::percent(4.0f)) {
             int trq = MAX(this->trq_adder + this->correction_trq - this->loss_torque - trq_req, this->minimum_mod_reduction_trq);
             float p_mod = pm->p_clutch_with_coef_signed(sid->curr_g, sid->releasing, trq, CoefficientTy::Sliding) + sid->release_spring_off_clutch - centrifugal_force_off_clutch;
             p_mod = MAX(p_mod, 0);
@@ -537,7 +545,9 @@ float ReleasingShift::calculate_freeing_trq_multiplier() {
     float output = 1.0f;
 
     if (!this->upshifting) {
-        float adder_pedal = interpolate_float(sd->pedal_pos_smoothed, 0.0f, 0.3f, 125.0f, 250.0f, InterpType::Linear);
+        // Ramps in between 50% and 100% pedal
+        float adder_pedal = interpolate_float(Pedal::raw_u8(sd->pedal_pos_smoothed), 0.0f, 0.3f,
+            (float)Pedal::raw_u8(Pedal::percent(50.0f)), (float)Pedal::raw_u8(Pedal::MAX), InterpType::Linear);
         float adder_style = interpolate_float(sid->chars.target_shift_time, 0.5f, 1.5f, 1000.0f, 100.0f, InterpType::Linear);
         output = MIN(2.5f, 1.0f + adder_pedal + adder_style);
     }
@@ -550,12 +560,19 @@ uint16_t ReleasingShift::calc_cycles_mod_phase1() {
     if (sid->change != GearChange::_2_1 && sid->change != GearChange::_3_2) {
         float max_cycles = this->cycles_high_filling + this->cycles_ramp_filling + this->cycles_low_filling;
         float rpm_on_abs = abs(sid->ptr_r_clutch_speeds->on_clutch_speed);
-        float calc = (rpm_on_abs * ShiftHelpers::get_shift_intertia(sid->inf.map_idx) / (float)MECH_PTR->turbine_drag[sid->inf.map_idx]);
+        // turbine_drag is calibration data, so it can legitimately be 0 on a
+        // corrupt or partially populated calibration. Dividing by it yields inf,
+        // which then propagates into the cycle count below.
+        const float turbine_drag = (float)MECH_PTR->turbine_drag[sid->inf.map_idx];
+        float calc = 0.0f;
+        if (turbine_drag > 0.0f) {
+            calc = (rpm_on_abs * ShiftHelpers::get_shift_intertia(sid->inf.map_idx)) / turbine_drag;
+        }
         if (this->freeing_trq != 0) {
             calc /= this->freeing_trq;
         }
         ret = MAX(0, max_cycles - calc);
-        if (sd->atf_temp < 30 && ret <= this->cycles_high_filling) {
+        if (sd->atf_temp < Temp::from_celsius(30) && ret <= this->cycles_high_filling) {
             ret = this->cycles_high_filling;
         }
     }

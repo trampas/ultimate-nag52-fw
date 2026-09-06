@@ -27,10 +27,10 @@ RLI_31_DATA get_rli_31(EgsBaseCan* can_layer) {
         n2,
         n3,
         can_layer->get_engine_rpm(300),
-        can_layer->get_front_left_wheel(300),
-        can_layer->get_front_right_wheel(300),
-        can_layer->get_rear_left_wheel(300),
-        can_layer->get_rear_right_wheel(300)
+        WheelSpeed::raw_2x_u16(can_layer->get_front_left_wheel(300)),
+        WheelSpeed::raw_2x_u16(can_layer->get_front_right_wheel(300)),
+        WheelSpeed::raw_2x_u16(can_layer->get_rear_left_wheel(300)),
+        WheelSpeed::raw_2x_u16(can_layer->get_rear_right_wheel(300))
     );
 
     ret.n2_pulse_count = derived.n2_pulse_count;
@@ -53,6 +53,15 @@ RLI_32_DATA get_rli_32(EgsBaseCan* can_layer) {
 RLI_33_DATA get_rli_33(EgsBaseCan* can_layer) {
     RLI_33_DATA ret = {};
     memset(&ret, 0x00, sizeof(RLI_33_DATA));
+
+    // This RLI is readable in the default diagnostic session, including on a TCU
+    // that failed POST - where pressure_manager and the solenoids are all still
+    // null. get_rli_31 above already guards its inputs; this one did not.
+    if (nullptr == pressure_manager ||
+        nullptr == sol_spc || nullptr == sol_mpc || nullptr == sol_tcc ||
+        nullptr == sol_y3 || nullptr == sol_y4 || nullptr == sol_y5) {
+        return ret;
+    }
 
     Egs51Rli33DerivedData derived = egs51_build_rli33_derived(
         pressure_manager->get_corrected_spc_pressure(),

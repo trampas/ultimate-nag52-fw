@@ -26,11 +26,10 @@ IOExpander::IOExpander(gpio_num_t sda, gpio_num_t scl)
 		init_status = i2c_new_master_bus(&conf, &bus_handle);
 		if (ESP_OK == init_status)
 		{
-			i2c_device_config_t dev_cfg = {
-				.dev_addr_length = I2C_ADDR_BIT_LEN_7,
-				.device_address = IO_ADDR,
-				.scl_speed_hz = 100000u,
-			};
+			i2c_device_config_t dev_cfg = {};
+			dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+			dev_cfg.device_address = IO_ADDR;
+			dev_cfg.scl_speed_hz = 100000u;
 			init_status = i2c_master_bus_add_device(bus_handle, &dev_cfg, &this->dev_handle);
 			if (ESP_OK == init_status)
 			{
@@ -40,16 +39,25 @@ IOExpander::IOExpander(gpio_num_t sda, gpio_num_t scl)
 				init_status = i2c_master_transmit(this->dev_handle, i2c_tx_bytes, 2, 50);
 				if (ESP_OK == init_status)
 				{
-					// set I/O 0 as inputs
+					// set I/O 0 as inputs.
+					// Each step is gated on the previous one: assigning
+					// init_status unconditionally meant a failed CONFIG0 or
+					// POLARITY0 write was hidden by a later successful one.
 					i2c_tx_bytes[0] = (uint8_t)PCAReg::CONFIG0;
 					i2c_tx_bytes[1] = 0xFF;
 					init_status = i2c_master_transmit(this->dev_handle, i2c_tx_bytes, 2, 50);
-					i2c_tx_bytes[0] = (uint8_t)PCAReg::POLARITY0;
-					i2c_tx_bytes[1] = 0x0u;
-					init_status = i2c_master_transmit(this->dev_handle, i2c_tx_bytes, 2, 50);
-					i2c_tx_bytes[0] = (uint8_t)PCAReg::OUTPUT1;
-					i2c_tx_bytes[1] = 0x0u;
-					init_status = i2c_master_transmit(this->dev_handle, i2c_tx_bytes, 2, 50);
+					if (ESP_OK == init_status)
+					{
+						i2c_tx_bytes[0] = (uint8_t)PCAReg::POLARITY0;
+						i2c_tx_bytes[1] = 0x0u;
+						init_status = i2c_master_transmit(this->dev_handle, i2c_tx_bytes, 2, 50);
+					}
+					if (ESP_OK == init_status)
+					{
+						i2c_tx_bytes[0] = (uint8_t)PCAReg::OUTPUT1;
+						i2c_tx_bytes[1] = 0x0u;
+						init_status = i2c_master_transmit(this->dev_handle, i2c_tx_bytes, 2, 50);
+					}
 					if (ESP_OK != init_status)
 					{
 						ESP_LOG_LEVEL(ESP_LOG_ERROR, name, "Failed to set input reg");
@@ -178,8 +186,12 @@ void IOExpander::set_gearbox_protection(const bool gearbox_protection_enabled)
 }
 
 void IOExpander::debug_get_registers(uint8_t* ll, uint8_t* hb) {
-	*ll = this->i2c_rx_bytes[0];
-	*hb = this->i2c_rx_bytes[1];
+	if (nullptr != ll) {
+		*ll = this->i2c_rx_bytes[0];
+	}
+	if (nullptr != hb) {
+		*hb = this->i2c_rx_bytes[1];
+	}
 }
 
 IOExpander *ioexpander = nullptr;

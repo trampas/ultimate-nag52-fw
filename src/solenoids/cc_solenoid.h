@@ -7,6 +7,7 @@
 class ConstantCurrentSolenoid : public PwmSolenoid {
 public:
     explicit ConstantCurrentSolenoid(const char* name, ledc_timer_t ledc_timer, gpio_num_t pwm_pin, ledc_channel_t channel, adc_channel_t read_channel, uint16_t phase_duration_ms);
+    // cppcheck-suppress functionStatic
     void __write_pwm(float vref_compensation, float temperature_factor, bool stop_compensation);
     void set_current_target(uint16_t target_ma);
     void update_when_reading(uint16_t battery);
