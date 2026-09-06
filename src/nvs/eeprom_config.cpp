@@ -143,7 +143,11 @@ esp_err_t EEPROM::init_eeprom() {
         nvs_handle_t config_handle;    
         result = nvs_open(NVS_PARTITION_USER_CFG, NVS_READWRITE, &config_handle);
         if (result != ESP_OK) {
+            // Bail out rather than publishing an uninitialised handle. Falling
+            // through here left MAP_NVS_HANDLE holding garbage, and the error
+            // was then overwritten by read_core_config's return value.
             ESP_LOG_LEVEL(ESP_LOG_ERROR, "EEPROM", "EEPROM NVS handle failed! %s", esp_err_to_name(result));
+            return result;
         }
         MAP_NVS_HANDLE = config_handle;
         bool new_fw = false;
@@ -211,10 +215,17 @@ esp_err_t EEPROM::read_core_config(TCM_CORE_CONFIG* dest) {
     if (dest == nullptr) {
         return ESP_ERR_INVALID_ARG;
     }
-    nvs_handle_t handle;
-    nvs_open(NVS_PARTITION_USER_CFG, NVS_READWRITE, &handle); // Must succeed as we have already opened it!
+    // Reuse the handle opened by init_eeprom. Opening a fresh one on every call
+    // leaked a handle each time, since none of these ever called nvs_close.
+    const nvs_handle_t handle = MAP_NVS_HANDLE;
     size_t s = sizeof(TCM_CORE_CONFIG);
     esp_err_t result = nvs_get_blob(handle, NVS_KEY_CORE_SCN, dest, &s);
+    if (result == ESP_OK && s != sizeof(TCM_CORE_CONFIG)) {
+        // A short or long blob means the layout changed - treat it as absent
+        // and rebuild from defaults rather than running on a partial config.
+        ESP_LOG_LEVEL(ESP_LOG_WARN, "EEPROM", "SCN Config size mismatch (stored %d, expected %d). Recreating", (int)s, (int)sizeof(TCM_CORE_CONFIG));
+        result = ESP_ERR_NVS_NOT_FOUND;
+    }
     if (result == ESP_ERR_NVS_NOT_FOUND) {
         ESP_LOG_LEVEL(ESP_LOG_WARN, "EEPROM", "SCN Config not found. Creating a new one");
         TCM_CORE_CONFIG c = {
@@ -262,10 +273,9 @@ esp_err_t EEPROM::save_core_config(TCM_CORE_CONFIG* write) {
     if (write == nullptr) {
         return ESP_ERR_INVALID_ARG;
     }
-    nvs_handle_t handle;
     esp_err_t e;
     size_t s = sizeof(TCM_CORE_CONFIG);
-    nvs_open(NVS_PARTITION_USER_CFG, NVS_READWRITE, &handle); // Must succeed as we have already opened it!
+    const nvs_handle_t handle = MAP_NVS_HANDLE; // Opened once by init_eeprom
     e = nvs_set_blob(handle, NVS_KEY_CORE_SCN, write, s);
     if (e != ESP_OK) {
         ESP_LOG_LEVEL(ESP_LOG_ERROR, "EEPROM", "Error Saving SCN config (%s)", esp_err_to_name(e));
@@ -282,15 +292,16 @@ esp_err_t EEPROM::ewm_btn_get_saved_profile(uint8_t* dest) {
     if (dest == nullptr) {
         return ESP_ERR_INVALID_ARG;
     }
-    nvs_handle_t handle;
-    nvs_open(NVS_PARTITION_USER_CFG, NVS_READWRITE, &handle); // Must succeed as we have already opened it!
-    return nvs_get_u8(handle, NVS_KEY_LAST_PROFILE, dest);
+    return nvs_get_u8(MAP_NVS_HANDLE, NVS_KEY_LAST_PROFILE, dest); // Handle opened by init_eeprom
 }
 
 esp_err_t EEPROM::ewm_btn_save_profile(uint8_t save_profile) {
-    nvs_handle_t handle;
-    nvs_open(NVS_PARTITION_USER_CFG, NVS_READWRITE, &handle); // Must succeed as we have already opened it!
-    return nvs_set_u8(handle, NVS_KEY_LAST_PROFILE, save_profile);
+    // Called on every shift into Park, so this must not open a handle per call
+    esp_err_t e = nvs_set_u8(MAP_NVS_HANDLE, NVS_KEY_LAST_PROFILE, save_profile);
+    if (ESP_OK == e) {
+        e = nvs_commit(MAP_NVS_HANDLE); // Without this the write may not persist
+    }
+    return e;
 }
 
 esp_err_t EEPROM::read_efuse_config(TCM_EFUSE_CONFIG* dest) {

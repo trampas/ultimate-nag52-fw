@@ -32,10 +32,12 @@ class StoredData {
         const char* get_data_name(void) const;
 
 	protected:
-        esp_err_t init_state;
-		const char* data_name;
-        uint16_t data_element_count;
-        const int16_t* default_data;
+        // Initialised here: a constructor can fail (bad size, NVS read error)
+        // before it gets as far as populating the name and element count.
+        esp_err_t init_state = ESP_FAIL;
+		const char* data_name = nullptr;
+        uint16_t data_element_count = 0u;
+        const int16_t* default_data = nullptr;
 };
 
 #endif // STORED_DATA_H

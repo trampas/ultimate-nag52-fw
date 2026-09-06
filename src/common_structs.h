@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "solenoids/solenoids.h"
 #include "canbus/can_defines.h"
+#include "tcu_scaling.h"
 
 typedef int16_t pressure_map[11];
 typedef float rpm_modifier_map[9];
@@ -55,23 +56,25 @@ struct SensorData{
     uint16_t engine_rpm;
     /// Output shaft RPM
     uint16_t output_rpm;
-    /// Accelerator pedal position. 0-250
-    uint8_t pedal_pos;
-    /// Accelerator pedal position. 0-250, smoothed to 500ms
-    uint8_t pedal_pos_smoothed;
-    /// Transmission oil temperature in Celcius
-    int16_t atf_temp;
-    // Input shaft torque
-    int16_t input_torque;
-    int16_t converted_torque;
-    int16_t converted_driver_torque;
-    int16_t indicated_torque;
+    /// Accelerator pedal position. 0-Pedal::MAX (250) - see tcu_scaling.h
+    pedal_pos_t pedal_pos;
+    /// Accelerator pedal position. 0-Pedal::MAX (250), smoothed to 500ms
+    pedal_pos_t pedal_pos_smoothed;
+    /// Transmission oil temperature. Temp::INVALID when unreadable.
+    temp_c_t atf_temp;
+    /// Input shaft torque in Nm. All torques below are whole Nm - see
+    /// Torque:: in tcu_scaling.h. Unwrap once with Torque::nm_i16() at the top
+    /// of a calculation rather than at every use.
+    torque_nm_t input_torque;
+    torque_nm_t converted_torque;
+    torque_nm_t converted_driver_torque;
+    torque_nm_t indicated_torque;
     /// Engine torque limit maximum in Nm
-    int16_t max_torque;
+    torque_nm_t max_torque;
     /// Engine torque limit minimum in Nm
-    int16_t min_torque;
-    /// TCC Pump torque
-    int16_t pump_torque;
+    torque_nm_t min_torque;
+    /// TCC Pump torque in Nm
+    torque_nm_t pump_torque;
     /// Last time the gearbox changed gear (in milliseconds)
     uint32_t last_shift_time;
     /// Current gearbox ratio

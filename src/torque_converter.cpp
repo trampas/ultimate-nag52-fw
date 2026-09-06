@@ -7,6 +7,7 @@
 #include "maps.h"
 #include "common_structs_ops.h"
 #include "egs_calibration/calibration_structs.h"
+#include "tcu_scaling.h"
 
 #define LOAD_SIZE ((TCC_SLIP_ADAPT_MAP_SIZE) / (5))
 
@@ -90,7 +91,7 @@ int16_t get_cell_value(const int16_t* dest, GearboxGear gear, uint8_t load_idx) 
 
 void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, PressureManager* pm, AbstractProfile* profile, SensorData* sensors) {
     int slip_now = abs((int32_t)sensors->engine_rpm-(int32_t)sensors->input_rpm);
-    int motor_torque = sensors->converted_torque;
+    int motor_torque = Torque::nm_i16(sensors->converted_torque);
     int load_as_percent = 0;
     if (this->rated_max_torque != 0u) {
         load_as_percent = abs(((int)motor_torque*100) / (int)this->rated_max_torque);
@@ -101,7 +102,7 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
     // this way, as the ATF warms up, simulated response time
     // decreases
     uint16_t pressure_samples = interpolate_float(
-        sensors->atf_temp,
+        (float)Temp::celsius_i16(sensors->atf_temp),
         MAX_TCC_P_SAMPLE_COUNT,
         MAX_TCC_P_SAMPLE_COUNT/2,
         -10,
@@ -142,7 +143,7 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
     InternalTccState targ = InternalTccState::Open;
     int slipping_rpm_targ = SLIP_V_WHEN_OPEN;
 
-    bool can_enable_tcc = sensors->atf_temp > -10 && sensors->input_rpm > rpm_map_y_headers[0];
+    bool can_enable_tcc = sensors->atf_temp > Temp::from_celsius(-10) && sensors->input_rpm > rpm_map_y_headers[0];
 
     if (
         can_enable_tcc &&
@@ -154,7 +155,7 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
     ) {
         // See if we should slip or close based on maps
         targ = InternalTccState::Open;
-        int pedal_as_percent = (sensors->pedal_pos*100)/250;
+        int pedal_as_percent = (int)Pedal::to_percent(sensors->pedal_pos);
         slipping_rpm_targ = this->slip_rpm_target_map->get_value(pedal_as_percent, sensors->input_rpm);
         // Can we slip?
         if (SLIP_V_WHEN_OPEN > slipping_rpm_targ) {
@@ -173,14 +174,14 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
                 open_tcc = true;
             } else {
                 if (upshifting) {
-                    if (sensors->pedal_pos > 15) {
+                    if (sensors->pedal_pos > Pedal::percent(6.0f)) {
                         open_tcc = TCC_CURRENT_SETTINGS.unlock_load_upshifts;
                     } else {
                         open_tcc = TCC_CURRENT_SETTINGS.unlock_coasting_upshifts;
                     }
                 } else {
                     // Downshifting
-                    if (sensors->pedal_pos > 15) {
+                    if (sensors->pedal_pos > Pedal::percent(6.0f)) {
                         open_tcc = TCC_CURRENT_SETTINGS.unlock_load_downshifts;
                     } else {
                         open_tcc = TCC_CURRENT_SETTINGS.unlock_coasting_downshifts;
@@ -227,7 +228,7 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
     if (!TCC_CURRENT_SETTINGS.adapt_enable) {
         is_adaptable = false;
     }
-    if (sensors->atf_temp < TCC_CURRENT_SETTINGS.tcc_temp_multiplier.raw_max) {
+    if ((float)Temp::celsius_i16(sensors->atf_temp) < TCC_CURRENT_SETTINGS.tcc_temp_multiplier.raw_max) {
         is_adaptable = false;
     }
     // Disable adapting when coasting (Some load doesn't map 1:1)
@@ -343,8 +344,8 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
     }
     // OEM EGS - Below 60C, TCC pressure is reduced by a factor based on
     // ATF temperature
-    if (sensors->atf_temp < TCC_CURRENT_SETTINGS.tcc_temp_multiplier.raw_max) {
-        float mul = interpolate_float(sensors->atf_temp, &TCC_CURRENT_SETTINGS.tcc_temp_multiplier, InterpType::Linear);
+    if ((float)Temp::celsius_i16(sensors->atf_temp) < TCC_CURRENT_SETTINGS.tcc_temp_multiplier.raw_max) {
+        float mul = interpolate_float((float)Temp::celsius_i16(sensors->atf_temp), &TCC_CURRENT_SETTINGS.tcc_temp_multiplier, InterpType::Linear);
         this->tcc_commanded_pressure = (float)this->tcc_commanded_pressure*mul;
     }
     pm->set_target_tcc_pressure(this->tcc_commanded_pressure);

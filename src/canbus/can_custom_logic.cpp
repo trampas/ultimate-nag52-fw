@@ -4,9 +4,9 @@
 
 int16_t customcan_decode_engine_coolant(const ENGINE_100_CUSTOMCAN& frame) {
     if (frame.T_COOLANT == UINT8_MAX) {
-        return INT16_MAX;
+        return Temp::celsius_i16(Temp::INVALID);
     }
-    return (int16_t)frame.T_COOLANT - 40;
+    return Temp::celsius_i16(Temp::from_can_u8_offset40(frame.T_COOLANT));
 }
 
 bool customcan_decode_kickdown(const ENGINE_100_CUSTOMCAN& frame) {
@@ -14,14 +14,9 @@ bool customcan_decode_kickdown(const ENGINE_100_CUSTOMCAN& frame) {
 }
 
 uint16_t customcan_encode_torque_request_nm(float amount_nm) {
-    float raw_f = (amount_nm + 500.0f) * 4.0f;
-    if (raw_f <= 0.0f) {
-        return 0;
-    }
-    if (raw_f >= 65535.0f) {
-        return UINT16_MAX;
-    }
-    return (uint16_t)raw_f;
+    // CustomCAN carries the request in a full 16 bit field, unlike the 13 bit
+    // fields on GS218 and ENG_RQ1_TCM.
+    return Torque::to_can_raw(amount_nm, UINT16_MAX);
 }
 
 CustomCanTorqueRequestFields customcan_build_torque_request(TorqueRequestControlType control_type, TorqueRequestBounds limit_type, float amount_nm) {

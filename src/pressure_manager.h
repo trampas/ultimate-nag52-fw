@@ -151,6 +151,15 @@ public:
         }
         return ret;
     }
+
+    /**
+     * @brief Re-copies the PCS axes out of the EGS calibration.
+     *
+     * The pressure PWM map reads from owned copies rather than pointing into
+     * the calibration blob, so this must be called after a calibration hot
+     * reload for the new values to take effect.
+     */
+    void reload_calibration_maps(void);
 private:
 
      /**
@@ -197,6 +206,15 @@ private:
     uint8_t mpc_flush_timer = 0;
     uint64_t last_ss_on_time = 0;
     ShiftPressures* ptr_shift_pressures = nullptr;
+
+    // Owned, correctly aligned copies of the PCS axes.
+    // HydraulicCalibration is packed and lands on an odd offset inside
+    // CalibrationInfo, so a bare int16_t* into it would be dereferenced as if
+    // 2 byte aligned. LookupRefMap retains the pointers it is handed, so the
+    // copies have to outlive the constructor - hence members, not locals.
+    int16_t pcs_map_x[7];
+    int16_t pcs_map_y[4];
+    int16_t pcs_map_z[28];
 
     // 1-2, 2-3, 3-4, 4-5
     LookupByteMap* momentum_upshifts[4];

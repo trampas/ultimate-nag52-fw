@@ -5,6 +5,14 @@
 
 // Lookup table base implementations
 
+LookupTable::~LookupTable(void)
+{
+    // Every concrete table allocates its own xHeader in its constructor
+    // (LookupAllocHeader or LookupRefHeader), so ownership sits here.
+    delete xHeader;
+    xHeader = nullptr;
+}
+
 float LookupTable::get_value(float xValue)
 {
     uint16_t    idx_min;
@@ -79,7 +87,10 @@ LookupAllocTable::LookupAllocTable(const int16_t *_xHeader, const uint16_t _xHea
 
 LookupAllocTable::~LookupAllocTable()
 {
+    // xHeader is released by ~LookupTable
     TCU_FREE(data);
+    data = nullptr;
+    allocation_successful = false;
 }
 
 bool LookupAllocTable::add_data(const int16_t* map, const uint16_t size) {
@@ -98,15 +109,21 @@ bool LookupAllocTable::add_data(const int16_t* map, const uint16_t size) {
 bool LookupAllocTable::set_data(const int16_t* _data, uint16_t _dataSize)
 {
     bool result = false;
-    dataSize = _dataSize;
-    if(allocation_successful) {
-        TCU_FREE(data);
-    }
-    data = static_cast<int16_t*>(TCU_HEAP_ALLOC(dataSize * sizeof(int16_t)));
-    allocation_successful = (nullptr != data);
-    if (allocation_successful)
+    if (nullptr != _data && 0u != _dataSize)
     {
-        (void)memcpy(data, _data, dataSize*sizeof(int16_t));
+        int16_t* replacement = static_cast<int16_t*>(TCU_HEAP_ALLOC(_dataSize * sizeof(int16_t)));
+        if (nullptr != replacement)
+        {
+            // Only commit once the new buffer exists, so a failed allocation
+            // leaves the table holding its previous (valid) contents rather
+            // than a null pointer with a non-zero dataSize.
+            (void)memcpy(replacement, _data, _dataSize * sizeof(int16_t));
+            TCU_FREE(data);
+            data = replacement;
+            dataSize = _dataSize;
+            allocation_successful = true;
+            result = true;
+        }
     }
     return result;
 }

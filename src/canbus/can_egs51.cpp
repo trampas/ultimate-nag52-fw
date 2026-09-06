@@ -18,41 +18,41 @@ Egs51Can::Egs51Can(const char *name, uint8_t tx_time_ms, uint32_t baud, Shifter 
     this->gs218.bytes[3] = 0x64;
 }
 
-uint16_t Egs51Can::get_front_right_wheel(const uint32_t expire_time_ms)
+wheel_rpm_2x_t Egs51Can::get_front_right_wheel(const uint32_t expire_time_ms)
 {
     BS_200_EGS51 bs200;
     if (this->esp51.get_BS_200(GET_CLOCK_TIME(), expire_time_ms, &bs200)) {
-        return egs51_decode_wheel_speed_or_sna(bs200.DVR);
+        return WheelSpeed::from_raw_2x(egs51_decode_wheel_speed_or_sna(bs200.DVR));
     }
-    return UINT16_MAX;
+    return WheelSpeed::INVALID;
 }
 
-uint16_t Egs51Can::get_front_left_wheel(const uint32_t expire_time_ms) {
+wheel_rpm_2x_t Egs51Can::get_front_left_wheel(const uint32_t expire_time_ms) {
     BS_200_EGS51 bs200;
     if (this->esp51.get_BS_200(GET_CLOCK_TIME(), expire_time_ms, &bs200)) {
-        return egs51_decode_wheel_speed_or_sna(bs200.DVL);
+        return WheelSpeed::from_raw_2x(egs51_decode_wheel_speed_or_sna(bs200.DVL));
     }
-    return UINT16_MAX;
+    return WheelSpeed::INVALID;
 }
 
-uint16_t Egs51Can::get_rear_right_wheel(const uint32_t expire_time_ms) {
+wheel_rpm_2x_t Egs51Can::get_rear_right_wheel(const uint32_t expire_time_ms) {
     BS_208_EGS51 bs208;
-    uint16_t ret = UINT16_MAX;
+    wheel_rpm_2x_t ret = WheelSpeed::INVALID;
     if (this->esp51.get_BS_208(GET_CLOCK_TIME(), expire_time_ms, &bs208)) {
         if (0x3FFF != bs208.DHR) {
-            ret = bs208.DHR;
+            ret = WheelSpeed::from_raw_2x(bs208.DHR);
         }
         
     }
     return ret;
 }
 
-uint16_t Egs51Can::get_rear_left_wheel(const uint32_t expire_time_ms) {
+wheel_rpm_2x_t Egs51Can::get_rear_left_wheel(const uint32_t expire_time_ms) {
     BS_208_EGS51 bs208;
-    uint16_t ret = UINT16_MAX;
+    wheel_rpm_2x_t ret = WheelSpeed::INVALID;
     if (this->esp51.get_BS_208(GET_CLOCK_TIME(), expire_time_ms, &bs208)) {
         if (0x3FFF != bs208.DHL) {
-            ret = bs208.DHL;
+            ret = WheelSpeed::from_raw_2x(bs208.DHL);
         }
         
     }
@@ -81,12 +81,12 @@ bool Egs51Can::get_kickdown(const uint32_t expire_time_ms) {
     return ret;
 }
 
-uint8_t Egs51Can::get_pedal_value(const uint32_t expire_time_ms) {
+pedal_pos_t Egs51Can::get_pedal_value(const uint32_t expire_time_ms) {
     MS_210_EGS51 ms210;
     if (this->ms51.get_MS_210(GET_CLOCK_TIME(), expire_time_ms, &ms210)) {
-        return ms210.PW;
+        return Pedal::from_raw(ms210.PW);
     } else {
-        return 0xFF;
+        return Pedal::INVALID;
     }
 }
 
@@ -94,36 +94,48 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
     CanTorqueData ret = TORQUE_NDEF;
     MS_310_EGS51 ms310;
     MS_210_EGS51 ms210;
-    uint16_t m_esp = INT16_MAX;
+    // EGS51 does not use the (Nm + 500) * 4 encoding the other buses do - MS_310
+    // carries a single unsigned byte at 3 Nm per bit, so there is no offset and
+    // no negative range. Decode it here rather than through Torque::from_can_raw().
+    static constexpr int16_t EGS51_NM_PER_BIT = 3;
+    // Was declared uint16_t while holding a signed torque compared against
+    // m_min, which can be negative on other buses. Nm are signed.
+    int16_t m_esp = INT16_MAX;
+    int16_t m_ind = INT16_MAX;
+    int16_t m_min = INT16_MAX;
+    int16_t m_max = INT16_MAX;
     if (this->ms51.get_MS_310(GET_CLOCK_TIME(), expire_time_ms, &ms310) &&
         this->ms51.get_MS_210(GET_CLOCK_TIME(), expire_time_ms, &ms210)) {
         if (UINT8_MAX != ms310.IND_TORQUE) {
-            ret.m_ind = ((int16_t)ms310.IND_TORQUE)*3;
+            m_ind = ((int16_t)ms310.IND_TORQUE) * EGS51_NM_PER_BIT;
         }
         if (UINT8_MAX != ms310.MIN_TORQUE) {
-            ret.m_min = ((int16_t)ms310.MIN_TORQUE)*3;
+            m_min = ((int16_t)ms310.MIN_TORQUE) * EGS51_NM_PER_BIT;
         }
         if (UINT8_MAX != ms310.MAX_TORQUE) {
-            ret.m_max = ((int16_t)ms310.MAX_TORQUE)*3;
-            ret.m_max = egs51_apply_max_torque_factor(ret.m_max, ms310.MAX_TRQ_FACTOR);
+            m_max = ((int16_t)ms310.MAX_TORQUE) * EGS51_NM_PER_BIT;
+            m_max = egs51_apply_max_torque_factor(m_max, ms310.MAX_TRQ_FACTOR);
         }
         if (UINT8_MAX != ms210.M_ESP) {
-            m_esp = ((int16_t)ms210.M_ESP)*3;
+            m_esp = ((int16_t)ms210.M_ESP) * EGS51_NM_PER_BIT;
         }
+        ret.m_ind = Torque::from_nm(m_ind);
+        ret.m_min = Torque::from_nm(m_min);
+        ret.m_max = Torque::from_nm(m_max);
     }
     if (
-        INT16_MAX != ret.m_min &&
-        INT16_MAX != ret.m_max &&
-        INT16_MAX != ret.m_ind &&
+        INT16_MAX != m_min &&
+        INT16_MAX != m_max &&
+        INT16_MAX != m_ind &&
         INT16_MAX != m_esp
     ) {
-        ret.m_ind = MIN(ret.m_ind, ret.m_max); // Limit indicated torque to max torque
-        ret.m_ind = MAX(ret.m_min, ret.m_ind); // Floor indicated torque to min torque
+        m_ind = MIN(m_ind, m_max); // Limit indicated torque to max torque
+        m_ind = MAX(m_min, m_ind); // Floor indicated torque to min torque
 
-        m_esp = MIN(m_esp, ret.m_max); // Limit ESP torque to max torque
-        m_esp = MAX(ret.m_min, m_esp); // Floor ESP torque to min torque
+        m_esp = MIN(m_esp, m_max); // Limit ESP torque to max torque
+        m_esp = MAX(m_min, m_esp); // Floor ESP torque to min torque
 
-        int16_t converted_torque = ret.m_ind;
+        int16_t converted_torque = m_ind;
         int16_t static_converted = converted_torque;
 
         if (m_esp > converted_torque) {
@@ -137,10 +149,11 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
             static_converted,
             this->req_static_torque_delta
         );
+        ret.m_ind = Torque::from_nm(m_ind);
         // Preserve freeze-adjusted driver torque instead of overwriting it later.
-        ret.m_converted_driver = freeze_result.driver_converted;
+        ret.m_converted_driver = Torque::from_nm(freeze_result.driver_converted);
         this->req_static_torque_delta = freeze_result.req_static_torque_delta;
-        ret.m_converted_static = static_converted;
+        ret.m_converted_static = Torque::from_nm(static_converted);
     }
     return ret;
 }
@@ -149,34 +162,34 @@ PaddlePosition Egs51Can::get_paddle_position(const uint32_t expire_time_ms) {
     return PaddlePosition::SNV;
 }
 
-int16_t Egs51Can::get_engine_coolant_temp(const uint32_t expire_time_ms) {
+temp_c_t Egs51Can::get_engine_coolant_temp(const uint32_t expire_time_ms) {
     MS_608_EGS51 ms608;
-    int16_t res = INT16_MAX;
+    temp_c_t res = Temp::INVALID;
     if (this->ms51.get_MS_608(GET_CLOCK_TIME(), expire_time_ms, &ms608)) {
         if (ms608.T_MOT != UINT8_MAX) {
-            res = ms608.T_MOT - 40;
+            res = Temp::from_can_u8_offset40(ms608.T_MOT);
         }
     }
     return res;
 }
 
-int16_t Egs51Can::get_engine_oil_temp(const uint32_t expire_time_ms) {
+temp_c_t Egs51Can::get_engine_oil_temp(const uint32_t expire_time_ms) {
     MS_308_EGS51 ms308;
-    int16_t res = INT16_MAX;
+    temp_c_t res = Temp::INVALID;
     if (this->ms51.get_MS_308(GET_CLOCK_TIME(), expire_time_ms, &ms308)) {
         if (ms308.T_OEL != UINT8_MAX) {
-            res = ms308.T_OEL - 40;
+            res = Temp::from_can_u8_offset40(ms308.T_OEL);
         }
     }
     return res;
 }
 
-int16_t Egs51Can::get_engine_iat_temp(const uint32_t expire_time_ms) {
+temp_c_t Egs51Can::get_engine_iat_temp(const uint32_t expire_time_ms) {
     MS_608_EGS51 ms608;
-    int16_t res = INT16_MAX;
+    temp_c_t res = Temp::INVALID;
     if (this->ms51.get_MS_608(GET_CLOCK_TIME(), expire_time_ms, &ms608)) {
         if (ms608.T_LUFT != UINT8_MAX) {
-            res = ms608.T_LUFT - 40;
+            res = Temp::from_can_u8_offset40(ms608.T_LUFT);
         }
     }
     return res;
@@ -379,7 +392,7 @@ ShifterPosition Egs51Can::internal_can_shifter_get_shifter_position(const uint32
 	return ret;
 }
 
-void Egs51Can::set_gearbox_temperature(int16_t temp) {
+void Egs51Can::set_gearbox_temperature(temp_c_t temp) {
 }
 
 void Egs51Can::set_input_shaft_speed(uint16_t rpm) {

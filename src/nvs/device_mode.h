@@ -26,4 +26,16 @@ extern uint16_t CURRENT_DEVICE_MODE;
 // BIT 14?
 #define DEVICE_MODE_CANLOGGER (BIT(15)) // UN52 specific (CAN logging available)
 
+// Every bit that has a defined meaning. Used to reject device mode writes that
+// arrive over the diagnostic link with unknown bits set.
+#define DEVICE_MODE_VALID_MASK ((uint16_t)( \
+    DEVICE_MODE_NORMAL | \
+    DEVICE_MODE_ROLLER | \
+    DEVICE_MODE_SLAVE | \
+    DEVICE_MODE_TEMPORARY_ERROR | \
+    DEVICE_MODE_ERROR | \
+    DEVICE_MODE_NO_CALIBRATION | \
+    DEVICE_MODE_NO_EFUSE | \
+    DEVICE_MODE_CANLOGGER))
+
 #endif
