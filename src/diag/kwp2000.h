@@ -50,6 +50,8 @@ class Kwp2000_server {
         Gearbox* gearbox_ptr;
         EgsBaseCan* can_layer;
     private:
+        // cppcheck-suppress functionConst
+        bool dispatch_sid(uint8_t sid, uint8_t* args, uint16_t arg_len);
         [[noreturn]]
         void server_loop();
         [[noreturn]]
@@ -62,10 +64,10 @@ class Kwp2000_server {
         CanEndpoint* can_endpoint;
         portMUX_TYPE state_mutex;
         bool routine_running = false;
-        TaskHandle_t routine_task;
+        TaskHandle_t routine_task = nullptr;
         uint8_t routine_id = 0x00;
         uint8_t routine_result[255];
-        uint8_t* running_routine_args;
+        uint8_t* running_routine_args = nullptr;
         uint8_t routine_results_len = 0;
         uint8_t response_pending_sid = 0;
         bool diag_on_usb = false;

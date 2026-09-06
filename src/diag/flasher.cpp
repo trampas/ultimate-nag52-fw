@@ -16,7 +16,11 @@ Flasher::Flasher(EgsBaseCan *can_ref, Gearbox* gearbox) {
 }
 
 Flasher::~Flasher() {
-    this->gearbox_ref->diag_regain_control(); // Re-enable engine starting
+    // gearbox_ref is null whenever the TCU failed POST - the diag server still
+    // runs in that state, so this cannot assume a gearbox exists.
+    if (nullptr != this->gearbox_ref) {
+        this->gearbox_ref->diag_regain_control(); // Re-enable engine starting
+    }
 }
 
 /**
@@ -220,6 +224,11 @@ void Flasher::on_request_verification(uint8_t* args, uint16_t arg_len, DiagMessa
         // Only for OTA update
         esp_image_metadata_t data;
         const esp_partition_t* part = esp_ota_get_next_update_partition(NULL);
+        if (nullptr == part) {
+            res[1] = FLASH_CHECK_STATUS_INVALID;
+            ESP_LOG_LEVEL(ESP_LOG_ERROR, "FLASHER", "No OTA partition available to verify!");
+            return global_make_diag_pos_msg(dest, SID_START_ROUTINE_BY_LOCAL_IDENT, res, 2);
+        }
         const esp_partition_pos_t part_pos = {
             .offset = part->address,
             .size = part->size,

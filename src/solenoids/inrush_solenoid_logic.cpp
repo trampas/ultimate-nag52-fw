@@ -1,8 +1,12 @@
 #include "inrush_solenoid_logic.h"
 
-#include <algorithm>
+// NOTE: deliberately no <algorithm> (or any other library header) here. This
+// translation unit is reachable from an IRAM ISR that runs with the cache
+// disabled, so everything it calls has to be inlined or IRAM resident. A plain
+// ternary keeps that guarantee independent of optimisation level.
+// See the ISR CACHE-SAFETY CONTRACT in inrush_solenoid.cpp.
 
-InrushHoldStepPlan inrush_plan_hold_step(
+INRUSH_LOGIC_IRAM InrushHoldStepPlan inrush_plan_hold_step(
     uint32_t pwm_on_time_us,
     uint32_t pwm_off_time_us,
     bool phase_is_pwm_off,
@@ -13,7 +17,7 @@ InrushHoldStepPlan inrush_plan_hold_step(
     const uint32_t remaining = (total_elapsed_us >= hold_time_us)
         ? 0u
         : (hold_time_us - total_elapsed_us);
-    uint32_t step = std::min(phase_duration, remaining);
+    uint32_t step = (phase_duration < remaining) ? phase_duration : remaining;
     if (step == 0u && remaining != 0u) {
         // Never schedule a zero-length timer step while hold is still active.
         step = remaining;
