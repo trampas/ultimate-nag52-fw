@@ -239,11 +239,11 @@ def measure_actual(log, t_from, t_to, gear):
     return num / den  # rpm/s of output shaft
 
 
-def analyse(logs, paths, verbose=False):
+def analyse(logs, paths, verbose=False, circ_override=None):
     log0 = logs[0]
     cfg = (log0.snapshot.get("records") or {}).get("tcm_config") or {}
     diff = cfg.get("diff_ratio", 3070) / 1000.0
-    circ = cfg.get("wheel_circumference", 1975) / 1000.0
+    circ = circ_override if circ_override else cfg.get("wheel_circumference", 1975) / 1000.0
     r_wheel = circ / (2.0 * math.pi)
     print("final drive %.3f, wheel circumference %.3f m" % (diff, circ))
 
@@ -416,9 +416,13 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("logs", nargs="+", help="drive logs (jsonl)")
     ap.add_argument("--verbose", action="store_true", help="per-shift table")
+    ap.add_argument("--circ", type=float, default=None, metavar="M",
+                    help="override wheel circumference (m). Use it to check how much "
+                         "the answer depends on it: the fit and the prediction share "
+                         "the same value, so it should very largely cancel")
     args = ap.parse_args()
     logs = [LogFile.load(p) for p in args.logs]
-    return analyse(logs, args.logs, args.verbose)
+    return analyse(logs, args.logs, args.verbose, args.circ)
 
 
 if __name__ == "__main__":

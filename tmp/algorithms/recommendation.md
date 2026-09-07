@@ -274,7 +274,7 @@ that, and measured where a measurement was available.
 
 | parameter | why not learnable |
 |---|---|
-| **wheel circumference** | the only absolute length reference in the system. Speed, distance and mass are all expressed through it, and with no GPS there is nothing to calibrate it against. Note the ABS sends wheel *rotation*, not road speed, so it does not help here. |
+| **wheel circumference** | nothing can learn it - it is the only absolute length in the system and the ABS sends wheel *rotation*, not road speed. But see below: it needs to be supplied, not to be accurate. |
 | **redline** | a limit, not a measurement. The experiment that identifies it destroys the engine. |
 | **vehicle mass _or_ engine torque scale - pick one** | the central result of [road-load-estimation.md](road-load-estimation.md). The estimator identifies `1/M` against the ECM's reported torque, so it can only ever know the *ratio*. Supplying either one pins the other. Supplying neither leaves both floating together, which is exactly what "mass estimates are torque estimates" means. |
 | **gearbox / EGS variant** | identity. The calibration blocks follow from the part number. |
@@ -282,6 +282,51 @@ that, and measured where a measurement was available.
 | **preference** (comfort vs sport, how firm) | not a fact about the car. |
 
 That is a five-line setup, and everything below follows from it.
+
+### Supplied but barely used: wheel circumference
+
+Worth separating from the rest of that table, because "cannot be learned" is not
+the same as "matters". On EGS51 it reaches only two live consumers - the road
+load estimator and the jerk figure in the shift trace. (The shifter's speed
+calculation is fed from the front wheels, which EGS51 does not provide, so it
+sits at zero; the HFM path belongs to another CAN variant.)
+
+**In the estimator it cancels.** Both terms scale with it in the fit and unscale
+in the prediction: the torque term goes as `1/circ` through `r_g` and `circ²`
+through `theta1`, the grade term as `circ` through `theta2`, and the conversion
+back to output rpm/s divides by `circ` again. Measured by deliberately getting
+it wrong over 91 upshifts:
+
+| circumference | prediction bias | mean abs error | correlation |
+|---|---|---|---|
+| 1.975 m (correct) | 7.5 | 50.7 | 0.62 |
+| 2.074 m (+5 %) | 7.9 | 50.8 | 0.62 |
+| 1.876 m (−5 %) | 6.8 | 50.2 | 0.63 |
+
+A 5 % tyre error moves the answer by 0.5 rpm/s against a 20 rpm/s threshold and
+51 rpm/s of scatter. It does not matter.
+
+**What does not cancel** is anything expressed in SI against an outside number:
+the 4 m/s gate deciding when the estimator runs, the 700–4000 kg clamps, the
+jerk targets of 12 and 30 m/s³ taken from the literature, and any figure a human
+reads. Those are the only reasons to get it roughly right.
+
+### The pattern behind all of this
+
+**This TCU is a ratio machine.** Speeds are compared with speeds, torques with
+torques from the same source, pressures come from constants fitted against those
+same torques. Every absolute physical quantity reached for so far - the engine
+torque scale, the vehicle mass, the wheel circumference - has turned out to
+cancel at the point of use, and the two that were built as settings were removed
+or demoted once measured.
+
+The design rule that follows is worth applying deliberately: **state thresholds
+in the units the TCU natively measures** - rpm, rpm/s, mBar - and no calibration
+constant is required at all. The next-gear check has its floor in output rpm/s,
+which is exactly why a 5 % tyre error cannot touch it. The jerk metric is stated
+in m/s³ against published targets, which is exactly why it is the one place
+circumference bites. Reach for SI only where something outside the TCU has to
+understand the number.
 
 ### Learnable now, with evidence
 
