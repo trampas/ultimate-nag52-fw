@@ -290,10 +290,10 @@ uint16_t PressureManager::p_clutch_with_coef(GearboxGear gear, Clutch clutch, ui
             coef = this->release_coefficient();
             break;
         default:
-            coef = 1.F;
+            coef = 100.F; // Coefficients are stored x100 (PRM settings: 120/185/140)
     }
     if (coef <= 0.F) {
-        coef = 1.F; // Guard against a zeroed user setting
+        coef = 100.F; // Guard against a zeroed user setting (x100 scale)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
     float calc = ((float)abs_torque_nm * friction_val) / coef;
@@ -314,10 +314,10 @@ int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clut
             coef = this->release_coefficient();
             break;
         default:
-            coef = 1.F;
+            coef = 100.F; // Coefficients are stored x100 (PRM settings: 120/185/140)
     }
     if (coef <= 0.F) {
-        coef = 1.F; // Guard against a zeroed user setting
+        coef = 100.F; // Guard against a zeroed user setting (x100 scale)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
     float calc = ((float)torque_nm * friction_val) / coef;
@@ -459,7 +459,7 @@ uint16_t PressureManager::calc_max_torque_for_clutch(GearboxGear gear, Clutch cl
             coef = this->release_coefficient();
             break;
         default:
-            coef = 1.F;
+            coef = 100.F; // Coefficients are stored x100 (PRM settings: 120/185/140)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
     if (friction_val <= 0.F) {
@@ -483,7 +483,7 @@ int PressureManager::calc_max_torque_for_clutch_signed(GearboxGear gear, Clutch 
             coef = this->release_coefficient();
             break;
         default:
-            coef = 1.F;
+            coef = 100.F; // Coefficients are stored x100 (PRM settings: 120/185/140)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
     if (friction_val <= 0.F) {
