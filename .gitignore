@@ -47,5 +47,8 @@ latex/**
 __pycache__
 __pycache__/*
 
+logger/logs/
+logger/logs/*
+
 MODULE_SETTINGS.md
 MODULE_SETTINGS.yml
