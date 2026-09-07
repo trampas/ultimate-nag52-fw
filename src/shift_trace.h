@@ -53,7 +53,9 @@ struct ShiftTraceSample {
     uint8_t  flags;         // bit0 shifting, bits 1-4 shift circuit flags
     uint8_t  pedal;         // raw, 0-250
     uint8_t  gear;          // actual << 4 | target
-} __attribute__((packed));  // 26 bytes
+    int16_t  trq_req_amount;// absolute torque asked of the engine, INT16_MAX = no request
+    int16_t  engine_torque; // what the engine reports it is making (CAN static torque)
+} __attribute__((packed));  // 30 bytes
 
 struct ShiftTraceEvent {
     uint32_t seq_start;     // sample index at which the shift began
@@ -80,7 +82,7 @@ struct ShiftTraceHeader {
 // The host decoder (logger/nag52logger/shift_trace.py) unpacks these by size, and
 // the header carries sample_size so a mismatch is reported rather than silently
 // mis-decoded. Pin them here so the two cannot drift apart unnoticed.
-static_assert(sizeof(ShiftTraceSample) == 26, "ShiftTraceSample must stay 26 bytes");
+static_assert(sizeof(ShiftTraceSample) == 30, "ShiftTraceSample must stay 30 bytes");
 static_assert(sizeof(ShiftTraceEvent) == 12, "ShiftTraceEvent must stay 12 bytes");
 static_assert(sizeof(ShiftTraceHeader) == 24 + (12 * SHIFT_TRACE_EVENTS), "ShiftTraceHeader layout changed");
 
@@ -90,7 +92,7 @@ namespace ShiftTrace {
     /// One sample. Called from Gearbox::controller_loop every 20 ms.
     void sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                 uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
-                uint8_t circuit_flags);
+                uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque);
     /// Header for the diagnostic readout, or nullptr if tracing is inactive.
     const ShiftTraceHeader* get_header(void);
 }

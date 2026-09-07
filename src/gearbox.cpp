@@ -1469,7 +1469,10 @@ void Gearbox::controller_loop()
             (uint8_t)gear_to_idx_lookup(this->actual_gear), (uint8_t)gear_to_idx_lookup(this->target_gear),
             this->pressure_mgr->get_corrected_spc_pressure(),
             this->pressure_mgr->get_corrected_modulating_pressure(),
-            this->pressure_mgr->get_active_shift_circuits());
+            this->pressure_mgr->get_active_shift_circuits(),
+            (this->output_data.ctrl_type == TorqueRequestControlType::None)
+                ? INT16_MAX : (int16_t)this->output_data.torque_req_amount,
+            (int16_t)this->sensor_data.converted_torque);
         uint32_t time = GET_CLOCK_TIME() - start;
         if (time < 20) {
             vTaskDelay((20 - time) / portTICK_PERIOD_MS); // 50 updates/sec!

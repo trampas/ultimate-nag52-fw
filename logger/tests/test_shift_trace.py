@@ -22,7 +22,7 @@ from fake_tcu import FakeTcu, build_trace  # noqa: E402
 class LayoutTests(unittest.TestCase):
     def test_struct_sizes_match_the_firmware_header(self):
         # src/shift_trace.h pins these with static_asserts.
-        self.assertEqual(ST.SAMPLE_SIZE, 26)
+        self.assertEqual(ST.SAMPLE_SIZE, 30)
         self.assertEqual(ST.EVENT_SIZE, 12)
         self.assertEqual(ST.HEADER_SIZE, 24)
 
@@ -31,7 +31,7 @@ class LayoutTests(unittest.TestCase):
         # That must stay well under the CP2102N's 576 byte receive buffer - a full
         # 255 byte read would be 518 bytes, 90 % of it.
         per_request = ST.MAX_CHUNK // ST.SAMPLE_SIZE
-        self.assertEqual(per_request, 5)
+        self.assertEqual(per_request, 4)
         frame = 2 * (1 + per_request * ST.SAMPLE_SIZE) + 6
         self.assertLess(frame, 576 * 0.6, "frame %d bytes is too close to the FIFO" % frame)
 
@@ -53,7 +53,7 @@ class ReadoutTests(unittest.TestCase):
         try:
             h = ST.read_header(cl)
             self.assertEqual(h["capacity"], 512)
-            self.assertEqual(h["sample_size"], 26)
+            self.assertEqual(h["sample_size"], 30)
             self.assertEqual(h["seq"], 100)
             self.assertEqual(len(h["events"]), 1)
             ev = h["events"][0]
@@ -107,6 +107,45 @@ class ReadoutTests(unittest.TestCase):
             self.assertEqual(s, [])
             s = ST.read_samples(cl, h, 1900, 20)
             self.assertEqual([x["seq"] for x in s], list(range(1900, 1920)))
+        finally:
+            rd.stop()
+
+    def test_stale_samples_from_a_wrap_are_rejected(self):
+        """
+        The ring keeps filling while we read, so a slot can be overwritten between
+        the header read and the read of that slot. The last drive produced
+        duplicate samples and jumps of hundreds of seconds this way.
+        """
+        import struct as _s
+        cl, rd, tcu = self._client(seq=100)
+        try:
+            h = ST.read_header(cl)
+            # Corrupt slot 20 with a sample from a much later wrap.
+            ring = bytearray(tcu.trace_ring)
+            off = 20 * ST.SAMPLE_SIZE
+            old_s = list(_s.unpack_from(ST.SAMPLE_FMT, ring, off))
+            old_s[0] = 900_000                      # t_ms far in the future
+            _s.pack_into(ST.SAMPLE_FMT, ring, off, *old_s)
+            tcu.trace_ring = bytes(ring)
+            got = ST.read_samples(cl, h, 10, 30)
+            self.assertEqual([x["seq"] for x in got], list(range(10, 20)),
+                             "should stop at the stale sample, not return it")
+        finally:
+            rd.stop()
+
+    def test_torque_request_none_is_decoded(self):
+        cl, rd, tcu = self._client(seq=60)
+        try:
+            import struct as _s
+            ring = bytearray(tcu.trace_ring)
+            v = list(_s.unpack_from(ST.SAMPLE_FMT, ring, 0))
+            v[15] = 32767                            # INT16_MAX = no request
+            _s.pack_into(ST.SAMPLE_FMT, ring, 0, *v)
+            tcu.trace_ring = bytes(ring)
+            s = ST.read_samples(cl, ST.read_header(cl), 0, 2)
+            self.assertIsNone(s[0]["trq_req_amount"])
+            self.assertEqual(s[1]["trq_req_amount"], 120)
+            self.assertEqual(s[0]["engine_torque"], 200)
         finally:
             rd.stop()
 

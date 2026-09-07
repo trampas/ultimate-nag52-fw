@@ -69,7 +69,7 @@ static void push_event(uint32_t seq, uint8_t from, uint8_t to) {
 
 void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                         uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
-                        uint8_t circuit_flags) {
+                        uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque) {
     if (nullptr == trace_ring || nullptr == sd || nullptr == algo) {
         return;
     }
@@ -89,6 +89,8 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
     s->flags = (shifting ? 0x01u : 0x00u) | (uint8_t)((circuit_flags & 0x0Fu) << 1);
     s->pedal = (sd->pedal_pos > 250) ? 250u : (uint8_t)sd->pedal_pos;
     s->gear = (uint8_t)((gear_actual & 0x0Fu) << 4 | (gear_target & 0x0Fu));
+    s->trq_req_amount = trq_req_amount;
+    s->engine_torque = engine_torque;
 
     // Shift boundaries are detected here rather than hooked into elapse_shift,
     // so the shift control path is untouched.

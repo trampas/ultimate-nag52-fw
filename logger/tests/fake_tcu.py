@@ -218,13 +218,13 @@ def build_trace(n_samples: int = 60, capacity: int = 512, seq: int = 0,
     `events` entries are (seq_start, seq_end, gear_from, gear_to, done).
     """
     import struct as _s
-    SAMPLE = "<IHHHhHHHHBBBBBB"
+    SAMPLE = "<IHHHhHHHHBBBBBBhh"
     ring = b""
     for i in range(capacity):
         shifting = any(a <= i <= b for a, b, _, _, _ in events)
         ring += _s.pack(SAMPLE, 1000 + i * 20, 2000 - i, 900, 2100, 150,
                         3000 + i, 4000 - i, 5000, 6000, 2, 1, 0,
-                        (1 if shifting else 0), 100, 0x23)
+                        (1 if shifting else 0), 100, 0x23, 120, 200)
     hdr = _s.pack("<IBBHIIIB3x", 0x43415254, 1, _s.calcsize(SAMPLE), capacity,
                   addr, seq or n_samples, 0, len(events))
     for a, b, gf, gt, done in events:

@@ -32,14 +32,15 @@ TRACE_MAGIC = 0x43415254  # 'TRAC'
 # time.  5 samples is a 268 byte frame (47 %), matching the chunk size the
 # calibration reader already uses.  A 2.3 s shift window is then ~23 requests,
 # about 150 ms, against a shortest observed gap between shifts of 1.9 s.
-MAX_CHUNK = 130
+MAX_CHUNK = 120
 
 # struct ShiftTraceSample - 26 bytes
-SAMPLE_FMT = "<IHHHhHHHHBBBBBB"
+SAMPLE_FMT = "<IHHHhHHHHBBBBBBhh"
 SAMPLE_SIZE = struct.calcsize(SAMPLE_FMT)
 SAMPLE_FIELDS = ["t_ms", "input_rpm", "output_rpm", "engine_rpm", "input_torque",
                  "p_on", "p_off", "spc", "mpc", "phase", "subphase_shift",
-                 "subphase_mod", "flags", "pedal", "gear"]
+                 "subphase_mod", "flags", "pedal", "gear", "trq_req_amount",
+                 "engine_torque"]
 
 # struct ShiftTraceEvent - 12 bytes
 EVENT_FMT = "<IIBBBB"
@@ -109,10 +110,24 @@ def read_samples(client, header: Dict[str, Any], first: int, count: int) -> List
             rec["circuits"] = (rec["flags"] >> 1) & 0x0F
             rec["gear_actual"] = GEAR_NAMES.get(rec["gear"] >> 4, rec["gear"] >> 4)
             rec["gear_target"] = GEAR_NAMES.get(rec["gear"] & 0x0F, rec["gear"] & 0x0F)
+            if rec["trq_req_amount"] == 32767:
+                rec["trq_req_amount"] = None       # no request active
             del rec["flags"], rec["gear"]
             out.append(rec)
         n += run
-    return out
+
+    # The ring keeps filling while we read (7-8 new samples per chunk), so a slot
+    # can be overwritten between the header read and the read of that slot. Drop
+    # anything whose timestamp is not consistent with its neighbours - without this
+    # a drive produced duplicate samples and jumps of several hundred seconds.
+    clean = []
+    for r in out:
+        if clean:
+            dt = r["t_ms"] - clean[-1]["t_ms"]
+            if dt <= 0 or dt > 200:
+                break                              # stale from an older wrap
+        clean.append(r)
+    return clean
 
 
 def read_shift(client, header: Dict[str, Any], event: Dict[str, Any],
@@ -125,6 +140,13 @@ def read_shift(client, header: Dict[str, Any], event: Dict[str, Any],
     samples = read_samples(client, header, first, count)
     if not samples:
         return None
+    # Confirm the whole window was still in the ring when we finished reading it.
+    try:
+        after = read_header(client)
+        if after["seq"] - first >= after["capacity"]:
+            return None                            # overwritten mid-read, discard
+    except (TraceUnavailable, KwpError):
+        pass
     return {"gear_from": event["gear_from"], "gear_to": event["gear_to"],
             "seq_start": event["seq_start"], "seq_end": event["seq_end"],
             "samples": samples}
