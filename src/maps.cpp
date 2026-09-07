@@ -1,11 +1,29 @@
 #include "maps.h"
 
+/*
+    The 10-50 % pedal cells are the cruising columns and they decide what rpm the
+    engine is left at after an upshift. Measured over 105 upshifts across five
+    drives, 17 % landed under 1200 rpm - Comfort's 2->3 at 20 % pedal landed at
+    864 rpm against a 650 rpm idle, and 3->4 at light pedal had a median landing
+    of 1291. That is not economy: the engine lugs, and the next request for any
+    load needs an immediate downshift, which is the hunting the driver then feels
+    and corrects with more throttle.
+
+    These cells now land the engine at 1250-1550 rpm, above where it pulls cleanly
+    and below the ~2000 rpm best-consumption point. The 0 % column is deliberately
+    untouched - that is lift-off, not cruise, where an early upshift is wanted (and
+    StandardProfile does not upshift at 0 % pedal at all).
+
+    Raising the upshift points also raises the ceiling for downshift thresholds, so
+    it reduces the hunt findings from scripts/shift_envelope.py rather than adding
+    to them. Run that script after any edit here.
+*/
 const int16_t S_DIESEL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-    1400, 1550, 1800, 2000, 2200, 2450, 2600, 2850, 3200, 4000, 4500,/* 1 -> 2 */
-    1400, 1550, 1700, 1850, 2000, 2200, 2350, 2600, 2900, 3550, 4500,/* 2 -> 3 */
-    1400, 1550, 1700, 1850, 1950, 2050, 2200, 2450, 2700, 3450, 4500,/* 3 -> 4 */
+    1400, 2041, 2123, 2253, 2368, 2531, 2600, 2850, 3200, 4000, 4500,/* 1 -> 2 */
+    1400, 2026, 2107, 2236, 2350, 2512, 2512, 2600, 2900, 3550, 4500,/* 2 -> 3 */
+    1400, 1858, 1932, 2051, 2155, 2303, 2303, 2450, 2700, 3450, 4500,/* 3 -> 4 */
     1500, 1550, 1700, 1800, 1950, 2050, 2200, 2450, 2650, 3400, 4500 /* 4 -> 5 */
 };
 
@@ -38,8 +56,8 @@ const int16_t S_DIESEL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
        600, 650, 850, 1050, 1200, 1400, 1500, 1700, 1890, 2380, 2400,/* 2 -> 1 */
-       650, 750, 900, 1100, 1250, 1400, 1500, 1700, 1800, 2130, 2400,/* 3 -> 2 */
-      700, 850, 1000, 1150, 1300, 1400, 1550, 1700, 1800, 2260, 2400,/* 4 -> 3 */
+       650, 750, 900, 1100, 1250, 1400, 1500, 1570, 1760, 2130, 2400,/* 3 -> 2 */
+      700, 850, 1000, 1150, 1300, 1400, 1520, 1620, 1800, 2260, 2400,/* 4 -> 3 */
      900, 1000, 1100, 1200, 1350, 1450, 1500, 1970, 2130, 2400, 2500 /* 5 -> 4 */
     };
 
@@ -71,10 +89,10 @@ const int16_t S_PETROL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
 const int16_t C_DIESEL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-    1500, 1750, 1900, 2100, 2200, 2450, 2600, 3000, 3500, 4000, 4500,/* 1 -> 2 */
-    1500, 1500, 1400, 1500, 1700, 2000, 2300, 2450, 3200, 3750, 4500,/* 2 -> 3 */
-    1450, 1500, 1500, 1600, 1800, 2100, 2400, 2550, 3400, 3800, 4500,/* 3 -> 4 */
-    1450, 1500, 1600, 1650, 1900, 2200, 2500, 3000, 3700, 4200, 4500 /* 4 -> 5 */
+    1500, 2041, 2123, 2253, 2368, 2531, 2600, 3000, 3500, 4000, 4500,/* 1 -> 2 */
+    1500, 2026, 2107, 2236, 2350, 2512, 2512, 2512, 3200, 3750, 4500,/* 2 -> 3 */
+    1450, 1858, 1932, 2051, 2155, 2303, 2400, 2550, 3400, 3800, 4500,/* 3 -> 4 */
+    1450, 1506, 1600, 1663, 1900, 2200, 2500, 3000, 3700, 4200, 4500 /* 4 -> 5 */
 };
 
 const int16_t C_DIESEL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {

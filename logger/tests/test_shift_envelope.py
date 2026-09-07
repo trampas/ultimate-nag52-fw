@@ -31,13 +31,13 @@ def maps_source(up_rows, dn_rows, prefix="S_DIESEL"):
     )
 
 
-SHIPPED_UP = [[1400, 1550, 1800, 2000, 2200, 2450, 2600, 2850, 3200, 4000, 4500],
-           [1400, 1550, 1700, 1850, 2000, 2200, 2350, 2600, 2900, 3550, 4500],
-           [1400, 1550, 1700, 1850, 1950, 2050, 2200, 2450, 2700, 3450, 4500],
+SHIPPED_UP = [[1400, 2041, 2123, 2253, 2368, 2531, 2600, 2850, 3200, 4000, 4500],
+           [1400, 2026, 2107, 2236, 2350, 2512, 2512, 2600, 2900, 3550, 4500],
+           [1400, 1858, 1932, 2051, 2155, 2303, 2303, 2450, 2700, 3450, 4500],
            [1500, 1550, 1700, 1800, 1950, 2050, 2200, 2450, 2650, 3400, 4500]]
 SHIPPED_DN = [[600, 650, 850, 1050, 1200, 1400, 1500, 1700, 1890, 2380, 2400],
-           [650, 750, 900, 1100, 1250, 1400, 1500, 1700, 1800, 2130, 2400],
-           [700, 850, 1000, 1150, 1300, 1400, 1550, 1700, 1800, 2260, 2400],
+           [650, 750, 900, 1100, 1250, 1400, 1500, 1570, 1760, 2130, 2400],
+           [700, 850, 1000, 1150, 1300, 1400, 1520, 1620, 1800, 2260, 2400],
            [900, 1000, 1100, 1200, 1350, 1450, 1500, 1970, 2130, 2400, 2500]]
 
 
@@ -63,12 +63,13 @@ class CheckTests(unittest.TestCase):
 
     def test_shipped_maps_have_no_new_defect_classes(self):
         """
-        The shipped calibration is not clean, and this pins what is left so a
-        change that introduces a NEW kind of defect fails here. The remaining
-        findings need the upshift map moved too - see TRANSMISSION_NOTES.md.
+        The shipped calibration now has no errors. What is left are the
+        unavoidable ones: at 80-90 % pedal, reaching the boost point and avoiding
+        hunting are mathematically incompatible with these ratios (see
+        TRANSMISSION_NOTES.md). This pins that, so a change that reintroduces
+        lugging or hunting fails here.
         """
-        self.assertEqual(self.kinds(SHIPPED_UP, SHIPPED_DN),
-                         {"hunt", "conflict", "dead_band", "lugging"})
+        self.assertEqual(self.kinds(SHIPPED_UP, SHIPPED_DN), {"conflict", "dead_band"})
 
     def test_a_clean_calibration_is_reachable(self):
         """Guard against the checks being unsatisfiable by construction."""
@@ -100,7 +101,7 @@ class CheckTests(unittest.TestCase):
 
     def test_hunting(self):
         dn = [r[:] for r in SHIPPED_DN]
-        dn[1][5] = 1400                      # 3->2 lands above the 2->3 upshift point
+        dn[1][5] = 2400                      # 3->2 landing well above the 2->3 upshift point
         self.assertIn("hunt", self.kinds(SHIPPED_UP, dn))
 
     def test_non_monotonic_cell(self):

@@ -59,9 +59,10 @@ ENVELOPE = {
     "economy_rpm": 2000,     # best specific fuel consumption sits just under
     # Lowest rpm the engine pulls cleanly. Upshifting below this lugs it, hurts
     # economy rather than helping, and forces a downshift the moment any load is
-    # asked for - the opposite of smooth. The owner cruises 1400-2000 and rarely
-    # sees over 3000-3500, so the comfort columns must land inside that.
-    "min_cruise_rpm": 1400,
+    # asked for - the opposite of smooth. Idle is 650; an OM606 pulls from roughly
+    # 1200. Only checked on the CRUISING columns: at 0 % pedal the driver has
+    # lifted off, so landing low is fine and an early upshift is what is wanted.
+    "min_cruise_rpm": 1200,
     "comfort_max_rpm": 3200,  # a gentle driver should not be taken past this
     "peak_power": (3250, 3750),
     "idle_rpm": 650,
@@ -173,7 +174,7 @@ def check(profile: str, up: list, dn: list, env: dict) -> list:
             # Lugging: an upshift that drops the engine below its clean pulling
             # speed costs economy rather than saving it, and the next request for
             # any load has to downshift again.
-            if pct <= 40 and lands < env["min_cruise_rpm"]:
+            if 10 <= pct <= 40 and lands < env["min_cruise_rpm"]:
                 probs.append(Problem("lugging", "WARN", profile, key, pct,
                                      "at %d%% pedal lands at %.0f rpm, under the %d rpm the engine "
                                      "pulls cleanly at - will lug and then need a downshift"
