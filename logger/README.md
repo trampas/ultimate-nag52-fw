@@ -58,13 +58,15 @@ to go faster.
 
 ### Shift trace
 
-The polled records above only manage ~17 Hz, because each record costs one
-request/response round trip (~6.5 ms).  A shift's inertia phase is 100-200 ms,
-so that rate resolves it with about two samples.
+The polled records above manage 19 Hz — a cycle of the default nine records
+takes 52.5 ms (measured median over 29944 cycles).  The sensors and the shift
+algorithm both update every 20 ms, so polling caught only one update in 2.6 and
+a shift's 100-200 ms inertia phase came out as about three aliased samples.
 
 The TCU therefore records shifts itself, into a PSRAM ring filled at the 20 ms
-period its control loop already runs at — the same period the shift algorithm
-steps at, so the capture is lossless.  The logger reads the window around each
+period its control loop already runs at — the same period the sensors and the
+shift algorithm update at, so the capture is lossless and there is no point
+sampling faster.  The logger reads the window around each
 completed shift back afterwards and writes it as a `shift_trace` line holding
 ~50 Hz samples with 0.5 s of context either side.  This is on by default and
 costs nothing until a shift ends; `--no-shift-trace` disables it.  Firmware

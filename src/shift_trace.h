@@ -7,11 +7,13 @@
 /**
  * @brief High rate shift recorder.
  *
- * The diagnostic link is request/response, so a host poll costs one round trip
- * per record (~6.5 ms measured) and a full record set only manages ~17 Hz. A
- * shift's inertia phase lasts 100-200 ms, which that rate resolves with about
- * two samples - far too few to see how a shift actually went, let alone to fit
- * a model to it.
+ * The diagnostic link is request/response, so a host poll of the default nine
+ * records takes 52.5 ms (measured median over 29944 cycles across four drives),
+ * i.e. 19 Hz. The sensors and the shift algorithm both update every 20 ms, so
+ * polling captured only one update in 2.6 - 62 % of them never left the TCU,
+ * and which ones survived drifted arbitrarily against the shift. A shift's
+ * inertia phase lasts 100-200 ms, leaving about three aliased samples: too few
+ * to see how a shift went, let alone to fit a model to it.
  *
  * So the TCU records it itself. A ring in PSRAM is filled from
  * Gearbox::controller_loop at its native 20 ms period, which is also the period
