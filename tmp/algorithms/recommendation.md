@@ -216,8 +216,16 @@ Only after Layers 0-2, and only for per-driver drift:
 ### Layer 4 — torque converter
 
 Keep the current slip/lock state machine, but key it to the same recognisers:
-unlock or slip on grade braking and downhill hold only if engine braking
-benefits, lock earlier under a gentle long-term driver type, and never adapt
+**stay locked** through grade braking and downhill hold - the retarding torque
+is the point of both recognisers, and an open converter throws most of it away
+as fluid shear (heat into the ATF, on the one occasion a long descent is already
+heating it). Unlock there only for the reasons that have nothing to do with
+braking: approaching stall as the car comes to rest, or lugging NVH, which a
+slip target handles better than a full open. Note that a grade-braking downshift
+has the pedal released, so it takes the coasting branch in
+`torque_converter.cpp` and `unlock_coasting_downshifts` (default false) would
+open the converter on exactly the shift that is meant to slow the car.
+Otherwise: lock earlier under a gentle long-term driver type, and never adapt
 the TCC maps inside a corner or during fast-off.
 
 ---
