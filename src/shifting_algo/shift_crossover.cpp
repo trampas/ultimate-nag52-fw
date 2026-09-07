@@ -181,6 +181,12 @@ uint8_t CrossoverShift::phase_fill() {
         uint16_t p_mod_1 = this->calc_mod_with_filling_trq_and_freewheeling(this->p_apply_clutch);
         uint16_t p_mod_2 = this->calc_mod_min_abs_trq(low_filling_p);
         this->mod_sol_pressure = MAX(p_mod_1, p_mod_2);
+        // Adaptation measures the clutch through the pump-torque model, which is only valid with the
+        // converter slipping, so let the TCC start its shift handling (unlock per settings) now rather
+        // than at the start of overlap.
+        if (this->do_fill_pressure_adaptation || (this->fill_via_ramp && this->upshifting)) {
+            sid->tcc->shift_start(this->upshifting, false);
+        }
     } 
     else if (2 == this->subphase_shift) {
         // Ramp to low filling P
