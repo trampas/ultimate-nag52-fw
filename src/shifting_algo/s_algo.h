@@ -181,6 +181,12 @@ protected:
     int32_t pid_sum = 0;
     int32_t abs_sum = 0;
     uint16_t pid_count = 0;
+
+    // Torque-jump detection: a step in input torque of more than half the drag torque during the
+    // shift means the fill measurements are not comparable, so fill time/pressure adaptation is cancelled
+    int16_t old_input_trq = 0;
+    bool first_run = true;
+    bool torque_jumped = false;
 };
 
 // Helper functions

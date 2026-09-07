@@ -56,6 +56,14 @@ uint8_t ShiftingAlgorithm::step(
         // Seed at 1x real value (the filter below stores 1x and works internally at 10x)
         this->first_order_pump_trq_filter = (sd->tcc_trq_multiplier * sd->pump_torque);
     }
+    if (this->first_run) {
+        this->old_engine_rpm = sd->engine_rpm;
+        this->old_input_trq = sd->input_torque;
+        this->first_run = false;
+    }
+    if (abs((int)sd->input_torque - (int)this->old_input_trq) > VEHICLE_CONFIG.engine_drag_torque/20.0) { // > 1/2 drag torque (drag is Nm x10)
+        this->torque_jumped = true;
+    }
 
     // Decrease our timers
     if (this->timer_mod > 0) {
@@ -100,6 +108,7 @@ uint8_t ShiftingAlgorithm::step(
         sid->ptr_w_pressures->on_clutch = 0;
     }
     this->old_engine_rpm = sd->engine_rpm;
+    this->old_input_trq = sd->input_torque;
 
     return step_res;
 }
@@ -448,6 +457,9 @@ void ShiftingAlgorithm::adaptation_step() {
         }
 
         this->fill_time_adaptation_stage += 1;
+    } else if (this->do_fill_time_adaptation && this->torque_jumped) {
+        this->do_fill_time_adaptation = false;
+        ESP_LOGI("ADAPT", "Fill time adapt cancelled (Input torque jumped)");
     }
 
     // Fill pressure adaptation (Done for all algorithms)
@@ -477,6 +489,10 @@ void ShiftingAlgorithm::adaptation_step() {
         }
         if (sd->engine_rpm > ADP_CURRENT_SETTINGS.max_input_rpm) {
             ESP_LOGI("ADAPT", "Pressure adapt cancelled (Engine RPM too high)");
+            this->do_fill_pressure_adaptation = false;
+        }
+        if (this->torque_jumped) {
+            ESP_LOGI("ADAPT", "Pressure adapt cancelled (Input torque jumped)");
             this->do_fill_pressure_adaptation = false;
         }
         if (!this->do_fill_pressure_adaptation) {
