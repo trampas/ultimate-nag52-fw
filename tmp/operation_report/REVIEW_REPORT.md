@@ -181,3 +181,78 @@ Behaviour changes from the first pass that the reviewer flagged as needing road 
 ### 7.3 Confirmed correct by the second pass
 
 Reverse bands, band midpoint caps, output-rpm guard, delta timer, ATF restructure, the `update_pressures` gating (every shift-thread path drives the solenoids each cycle), the N2 plausibility check in every forward gear, the bleed ramp (SPC_MAX to target in equal steps, same first-cycle value as before), the adaptation stage machine (stage 5 terminal), the overlap2 downshift exit, the TCC hysteresis transitions (none sticky or unreachable), the battery-scaled current feed-forward, the MPC flush cycle (starts and stops), the calibration reload free path, the tcu_io template ordering, the virtual destructors (all objects heap-allocated and held by pointer), and the 13-bit CAN sentinels.
+
+## 8. What the drive log shows (logger/logs/nag52_20260907_054611.jsonl)
+
+12-minute log from the car (EGS51 CAN layer, profile S), firmware build `2409592` dated 16 Aug 2026 on ESP-IDF 5.5.0. That build predates this repository's HEAD and its commit is not in this repository, so code-to-log correspondence is approximate. None of the fixes in this report were on the car.
+
+| Observation | Evidence | Relevance |
+|---|---|---|
+| **Two boot panics before a successful boot.** `Guru Meditation Error: Core 0 panic'ed (Cache error). Cache disabled but cached memory region accessed`, PC 0x400e47c8, right after the EEPROM map loads, twice in a row, then a clean third boot. | log lines at t=0.14 s and 0.34 s | New, not in the review. Signature is an IRAM-flagged interrupt handler calling flash-resident code during a flash write. Running ISRs at that moment: the TCC inrush gptimer callback (old path calls `ledc_set_duty`, which is not in IRAM unless `CONFIG_LEDC_CTRL_FUNC_IN_IRAM`), the ADC continuous ISR, and TWAI. Resolve with `xtensa-esp32-elf-addr2line -e <that build's .elf> 0x400e47c5 0x4008909e 0x400855f1`. The repo's sdkconfig leaves `CONFIG_GPTIMER_ISR_IRAM_SAFE` off, which masks the timer ISR during flash writes instead; if the car build had it on, the LEDC call from the ISR is the likely culprit. |
+| **Static (converted) engine torque is negative on every cycle and identical to min torque** (-84 to 0 Nm, mean -54). Driver torque is 0 to 225 Nm. | `can.static_torque == can.min_torque` in 13532/13532 cycles | With the current EGS51 decode (uint8 x3) static torque cannot be negative, so the car build decodes MS_310 differently or the field is not what the code assumes. `converted_torque` selects release vs crossover shifting, gates TCC adaptation, and sets TCC load. Re-log with the current build and check MS_310. |
+| **Converter never reached its Closed state.** Target was Closed for 2398 cycles, current state stayed Open; slip about 90 rpm at 1990 rpm while "closed"; 33 Closed/Slipping target flips. ATF was below 60 C for the whole drive (20 C rising to 56 C, 84 C only after stopping). | `tcc` record | Confirms C9 in the field: below 60 C the state machine cannot settle, so the ECU is told the clutch is in transition and the lock map never adapts. Also confirms D2 (target toggling) and that the lock map is under-pressured for this box. |
+| **Adaptation ran on none of the 38 shifts.** | `Start adaptation flags: 0 0 0` every shift | Expected: `min_atf_temp` is 60 C and the box never got there while driving. Not a bug, but it means none of the adaptation paths has ever run on this car. |
+| **ATF reported -40 C for the first 6 s** (parking lock engaged, coolant frame not yet received). | `sensors.atf_temp` t=1.1 to 6.8 s | Consistent with C27 (substitute value before the first coolant frame); the EGS51 coolant decode returns -40 for a zero raw byte, so an SNV check on that byte is also needed. |
+| **Battery reads 2.1 to 2.5 V for the first 1.5 s.** | `sensors.v_batt` | Filter start-up from the ADC before the divider settles; the solenoid feed-forward (D12) now uses this value, so the `> 9 V` gate matters and holds. |
+| **Garage shifts N to D and P to R completed in 1020 ms each**, turbine pulled from about 620 to 26 rpm, no abort. | log lines at 26 s, 56 s, 647 s | The current garage-shift fill (D4, magnitude unchanged) works on this car. No reason to alter it. |
+| **No up/down hunting.** Seven reversals within 8 s, every one explained by a pedal change (lift-off to 0% or a kickdown-style increase). | shift request lines with pedal/rpm context | D1 did not occur on this drive (diesel Standard maps, mostly 30 to 60% pedal). The inhibit stays as a safeguard. |
+| No N2/N3 disagreement in gears 2 to 4, no zero-turbine-while-moving cycles, no reboots after boot, CPU load 0.4% / 0.2% at idle, 100 KB internal RAM free. | | Sensor path healthy on this car. |
+| Pedal peaked at 124 of 250. | `can.pedal_pos` | Either the driver never exceeded half throttle or MS_210 PW is not 0-250 on this vehicle; worth a full-throttle check in the next log. |
+
+What the log cannot answer: the FMRAD wheel-torque scale (EGS52 only, and the TCU's transmitted frames are not logged), the SPC gain calibration (the on-clutch pressure record is only populated during a shift and the logged build's conversion is unknown), and the on/off torque-limit indexing.
+
+Recommended next log: flash the current build, drive until ATF exceeds 60 C so adaptation and TCC lock run, include one full-throttle pull, and capture the boot with `--reset` to see whether the cache-error panic persists.
+
+## 9. Flashing the TCU (2026-09-07)
+
+The `unified` build (commit 5813b7b plus the sdkconfig change below) was flashed over `/dev/ttyUSB0` with PlatformIO (`pio run -e unified -t upload`) and the boot captured with the logger (`nag52log.py --reset`).
+
+**First attempt: boot loop.** Every boot panicked on core 1 with `Cache disabled but cached memory region accessed` inside ESP-IDF's `do_system_init_fn` (startup.c:123), before `app_main`. Cause: in IDF 5.3.0 the core-0 secondary init stage runs concurrently with core 1's init loop, which executes from flash. The core-dump init on core 0 (`init_coredump`, priority 130) reads flash (the boot-time image check and the lazy partition-table load behind `esp_partition_find_first`). Before the scheduler starts, `spi_flash_disable_interrupts_caches_and_other_cpu` assumes core 1 is parked in IRAM and disables both caches, so core 1 faults. The car's earlier build on IDF 5.5.0 did not show this particular race (its boot panics were a different signature, on core 0).
+
+**Fix (sdkconfig.unified):** `CONFIG_ESP_COREDUMP_CHECK_BOOT` off (removed most panics: 4 before a successful boot) and core dumps redirected from flash to UART (`CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=n`, `CONFIG_ESP_COREDUMP_ENABLE_TO_UART=y`), which removes the remaining flash access from the race window. Result: two consecutive clean boots, no panics, `GEARBOX START` at 0.25 s (was 0.53 s after the retries), calibration plausibility check passed, no warnings or errors, diagnostics polling at ~18 cycles/s. With the engine off and the selector in P the TCU reports 12.4 V, all solenoid currents zero, coolant 82 C.
+
+Side effect worth knowing: a future panic now prints the core dump as a base64 blob on the serial port instead of storing it in the `coredump` partition; the logger records it as log lines.
+
+Observation from the boot: `Calibrated solenoids at -40 C` on the first control-loop iteration. With the parking lock engaged the ATF substitute comes from the EGS51 coolant frame, which decoded to -40 C at that moment; the resistance figure it produces is unused (N18), but the same -40 C feeds the first garage-shift fill lookups for a few seconds (see section 8). The EGS51 coolant decode needs an SNV check on a zero raw byte.
+
+Not yet done: a drive on this build. The road-validation list in sections 6 and 7.1 applies.
+
+## 10. Second drive on the new build (logger/logs/nag52_20260907_082955.jsonl)
+
+5.7 minute drive, build 5813b7b-dirty, profile S (summer position), ATF 62 to 79 C, 37 shifts, no panics or reboots. Reported: rough first engagement, hard shifts, engine over 5000 rpm.
+
+Important context: the previous firmware on this car (build 2409592) was not built from this repository, and it decoded the EGS51 engine torque differently (static torque was always negative and equal to min torque). On this build static torque is valid (0 to 408 Nm). So the shift algorithms, torque requests and adaptation are all exercising paths on this car for the first time; the comparison with the morning log is "old firmware vs this repository", not "before vs after the review fixes".
+
+### 10.1 Over-rev (5154 rpm engine, 5144 rpm input, 1st gear, 170 to 171 s)
+
+Sequence: at 168.2 s a full-throttle kickdown in 2nd at 1723 rpm requested 2-1 (correct per the S diesel map). In 1st at full throttle the input shaft climbed at about 1100 rpm/s. `StandardProfile::should_upshift` takes the map value (4500 rpm at 100% pedal, which already equals the diesel redline) and adds up to +1000 rpm for "time since last shift" (decaying over 5 s) and up to +1000 rpm for engine load, giving a threshold above 6000 rpm. The upshift was only requested at 171.1 s when the driver lifted. No code path enforced the redline on upshifts; the only redline logic (`restrict_target` seek and the downshift guard) does not apply here. This is pre-existing profile logic, not a review change.
+
+Fix applied (built, not yet flashed):
+- `StandardProfile::should_upshift` caps the threshold at redline minus 250 rpm, so the request is made before the redline. The pedal-zero and brake inhibits are bypassed above that point.
+- `Gearbox::controller_loop` has a profile-independent backstop: if the input rpm plus half of its rate of change (rpm/s from the now-working delta tracker, 0.5 s look-ahead for bleed and fill) reaches the redline, an upshift is forced and a warning logged.
+
+The maps and adders still deserve tuning: an adder of +1000 rpm within 5 s of any shift is very aggressive on a diesel with a 4500 rpm limit.
+
+### 10.2 Rough first engagement (56.2 to 58.3 s)
+
+N to D garage shift started at 56.4 s (prefill 3390 mBar, fill ramp 2200 to 2700 mBar), the turbine was pulled down by 57.1 s and the shift was declared complete at 57.4 s (the fixed 1020 ms minimum). The driver applied throttle from 56.98 s, i.e. while the engagement was still in progress, reaching 87% by 57.5 s. Because the S position starts in 1st, the TCU then executed the stationary 2-1 (B1 apply, K1 release) as a release shift at 87% pedal. At standstill all clutch slip speeds are near zero, so the release algorithm's slip-based exits fire immediately: fill-and-release lasted one cycle and the overlap ramped B1 to full pressure in 0.6 s while the engine rose from 800 to 1500 rpm and the car launched. That is the jolt.
+
+Contributing factors: (1) throttle applied 0.6 s after selecting D, before the garage sequence finished; (2) the 2-1 after a garage shift is run by the normal shift algorithm, which has no stationary handling (`SHIFT_FLAG_STATIONARY` is computed but unused; the `stationary` argument to `step_internal` is ignored). The morning log had the same 2-1 at 50% pedal and it was tolerable. Not changed yet; the right fix is a dedicated stationary 2-1 (timer-based fill, no slip exits) and ideally performing it before releasing torque. Listed as an open item.
+
+### 10.3 Shift harshness
+
+Power upshifts (pedal above 30%): peak engine deceleration during the inertia phase, median 4466 rpm/s (max 7966) versus 3245 rpm/s (max 4504) on the morning log. Output-shaft jumps are similar (median 8 vs 7 rpm per cycle). What the data shows for a typical 1-2 at 80% pedal (62 s): the inertia phase lasted about 0.35 s, which is close to the S-profile target shift time, but the PID saturated at -192 Nm for six cycles because the turbine fell 1280 rpm below its target, and the apply pressure could not be reduced below the overlap-begin floor. The feed-forward apply pressure (torque adder map plus adaptation) is too high for this car, so the clutch grabs faster than the momentum controller wants.
+
+Differences from the morning log that plausibly contribute: valid static torque enables torque requests (active during 12 shifts, small reductions of 20 to 60 Nm, NormalSpeed) and changes the release/crossover selection; solenoid current tracking is now accurate (MPC error 9.6 mA mean vs 79 mA), so actual pressures now match the commanded values the tuning was done without; fill-time adaptation is now running (offsets moved between -7 and +1 cycles) and one SPC pressure adaptation applied -72 mBar. None of the review fixes changes the overlap or overlap2 feed-forward for power upshifts.
+
+Suggested next step: compare the crossover feed-forward against the car's calibration (section 10.4) and consider a slower S-profile target time or a lower torque adder map until adaptation has settled. Adaptation cancelled on most shifts with "Engine torque too high" (limits 40 to 94 Nm vs 66 to 369 Nm input torque), so fill-pressure adaptation only ran once; the applying-torque adaptation is off by default.
+
+### 10.4 Calibration
+
+The logger did not previously record the calibration block, so which blocks the TCU holds could only be inferred (a parallel session matched the morning log to hydraulic STDP, mechanical 51, converter 71, shift maps SM00 from the config app database). The logger now downloads the block at connect via KWP ReadMemoryByAddress (0x800000 maps to the `tcm_shift_store` partition), validates magic, length and checksum, decodes every field of `CalibrationInfo`, and stores it in the `snapshot` line. `nag52log.py info` prints the block names, ratios, SPC gains and pressure multipliers; `nag52log.py calibration <log>` prints the full decode; `--live` reads it from a connected TCU. Zero divisors are flagged. Tests cover the round trip and the fake TCU serves the block.
+
+Firmware updates via `pio run -t upload` write only the bootloader, partition table, OTA data and app; the NVS settings, maps and the calibration partition are preserved (confirmed by the boot log: all settings and maps loaded from NVS, calibration check passed).
+
+### 10.5 Status
+
+Built and ready to flash: redline cap and predictive backstop. Open: stationary 2-1 handling after garage shifts; feed-forward tuning for power upshifts on this car; verification of the calibration block against the config database once the next log is recorded.

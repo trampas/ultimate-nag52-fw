@@ -1,0 +1,9 @@
+# Build output and generated data - all regenerable, see README.md
+sim_old
+sim_new
+shifts/
+results/
+results_whatif/
+# Source copy of an older build, recreate with:
+#   git worktree add baseline_<sha> <sha>
+baseline_*/
