@@ -305,6 +305,8 @@ DATA_DRIVING_DYNAMICS Gearbox::get_driving_dynamics(void)
         .decel_rpm_s = this->decel_rpm_s,
         .profile_id = (uint8_t)((nullptr != this->current_profile) ? this->current_profile->get_profile_id() : 0xFF),
         .selected_id = (uint8_t)((nullptr != this->selected_profile) ? this->selected_profile->get_profile_id() : 0xFF),
+        .brake_pressed = (uint8_t)(this->sensor_data.brake_pressed ? 1 : 0),
+        .kickdown_pressed = (uint8_t)(this->sensor_data.kickdown_pressed ? 1 : 0),
     };
 }
 

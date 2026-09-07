@@ -283,6 +283,8 @@ _add(Record("driving_dynamics", 0x32, "Driver agility demand (DATA_DRIVING_DYNAM
     Field("decel_rpm_s", "h", "rpm/s", desc="output shaft, negative when braking"),
     Field("profile_id", "B", "", desc="profile actually in force"),
     Field("selected_id", "B", "", desc="profile the driver asked for"),
+    Field("brake_pressed", "B", "", desc="1 while the brake pedal is down"),
+    Field("kickdown_pressed", "B", "", desc="1 on a kickdown switch press"),
 ]))
 
 _add(Record("shift_algo", RLI_SHIFTING_ALGO, "Shifting algorithm feedback (ShiftAlgoFeedback)", [

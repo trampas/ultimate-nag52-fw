@@ -22,8 +22,10 @@ Notes specific to this car:
   have to, because the TCU already models turbine torque.
 * Braking is excluded rather than modelled. The paper does the same ("we will
   dismiss portions of data in which service brakes were activated") because
-  turning brake pressure into force needs a model they did not have. We do not
-  log brake state at all, so samples under overrun are dropped.
+  turning brake pressure into force needs a model they did not have. Logs from
+  2026-09 onward carry brake_pressed in the driving_dynamics record; older ones
+  do not, and there the only safe thing is to drop every decelerating sample,
+  which discards most of a drive.
 * Gear shifts are excluded - the paper flags parameter tracking during a shift
   as a known difficulty.
 
@@ -76,8 +78,12 @@ def estimate(log, diff, circ, verbose=False):
         if not (0.03 < dt < 0.15) or g != prev[3]:
             prev = (c["t"], v, w, g)
             continue
-        # exclude: shifting, overrun/braking, too slow for the model to mean anything
-        if (c.get("shift_algo") or {}).get("active") or ped == 0 or trq <= 0 or v < 4.0:
+        # Exclude: shifting, braking, and too slow for the model to mean anything.
+        # With a brake signal we only have to drop actual braking, which keeps the
+        # coasting samples; without one, every zero-pedal sample has to go.
+        dyn = c.get("driving_dynamics") or {}
+        braking = bool(dyn.get("brake_pressed")) if "brake_pressed" in dyn else (ped == 0)
+        if (c.get("shift_algo") or {}).get("active") or braking or trq <= 0 or v < 4.0:
             prev = (c["t"], v, w, g)
             skipped += 1
             continue

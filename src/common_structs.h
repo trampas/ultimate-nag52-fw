@@ -40,6 +40,12 @@ typedef struct {
     int16_t decel_rpm_s;     // output shaft, negative when braking
     uint8_t profile_id;      // profile actually in force
     uint8_t selected_id;     // profile the driver asked for
+    // The TCU has always had these and no record exposed them, so a log could
+    // not tell engine overrun from the driver braking. Road load estimation
+    // needs that distinction - without a brake signal the only safe thing is to
+    // discard every decelerating sample, which throws away most of a drive.
+    uint8_t brake_pressed;
+    uint8_t kickdown_pressed;
 } __attribute__ ((packed)) DATA_DRIVING_DYNAMICS;
 
 struct ShiftAlgoFeedback {
