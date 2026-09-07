@@ -70,7 +70,8 @@ ShifterPosition ShifterTrrs::get_shifter_position(const uint32_t expire_time_ms)
 
 void ShifterTrrs::set_rp_solenoid(const float vVeh, const ShifterPosition pos, const bool is_brake_pressed)
 {
-	bool should_rp_solenoid_be_activated = (ShifterPosition::N == pos) && ((2.5F < vVeh) || is_brake_pressed);
+	// Shift lock: hold the lever in N while rolling, or at rest until the brake is pressed
+	bool should_rp_solenoid_be_activated = (ShifterPosition::N == pos) && ((2.5F < vVeh) || !(is_brake_pressed));
 	board->set_rp_solenoid(should_rp_solenoid_be_activated);
 }
 
