@@ -80,7 +80,8 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
     CanTorqueData ret = TORQUE_NDEF;
     MS_310_EGS51 ms310;
     MS_210_EGS51 ms210;
-    uint16_t m_esp = INT16_MAX;
+    int16_t m_esp = INT16_MAX;
+    int16_t m_drg = 0; // Engine drag torque (friction + pumping). SNV -> 0 keeps the old gross values
     if (this->ms51.get_MS_310(GET_CLOCK_TIME(), expire_time_ms, &ms310) &&
         this->ms51.get_MS_210(GET_CLOCK_TIME(), expire_time_ms, &ms210)) {
         if (UINT8_MAX != ms310.IND_TORQUE) {
@@ -91,7 +92,10 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
         }
         if (UINT8_MAX != ms310.MAX_TORQUE) {
             ret.m_max = ((int16_t)ms310.MAX_TORQUE)*3;
-            // TODO -> ms310.MAX_TRQ_FACTOR
+            // TODO -> ms310.MAX_TRQ_FACTOR (needs a raw MS_310 capture first: 0xFF/0x00 would double/zero m_max)
+        }
+        if (UINT8_MAX != ms310.DRG_TORQUE) {
+            m_drg = ((int16_t)ms310.DRG_TORQUE)*3;
         }
         if (UINT8_MAX != ms210.M_ESP) {
             m_esp = ((int16_t)ms210.M_ESP)*3;
@@ -103,18 +107,19 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
         INT16_MAX != ret.m_ind &&
         INT16_MAX != m_esp
     ) {
-        ret.m_ind = MIN(ret.m_ind, ret.m_max); // Limit indicated torque to max torque
-        ret.m_ind = MAX(ret.m_min, ret.m_ind); // Floor indicated torque to min torque
+        // MS_310/MS_210 carry gross (indicated) torques with a floor of 0 (MIN_TORQUE reads 0 on the
+        // road, coasting reads 0). The gearbox works in net crankshaft torque, which is what EGS52/53
+        // report directly, so remove the engine's own drag: coasting then reads -drag rather than 0,
+        // which is what the release/crossover selection and the coast flags expect.
+        ret.m_min -= m_drg;
+        ret.m_max -= m_drg;
+        ret.m_ind -= m_drg;
+        ret.m_ind = MAX(ret.m_min, MIN(ret.m_ind, ret.m_max)); // Clamp indicated torque to [min, max]
+        // Driver demand: never below 0 (a driver cannot ask for negative torque), never above max
+        m_esp = MAX(0, MIN(m_esp - m_drg, ret.m_max));
 
-        m_esp = MIN(m_esp, ret.m_max); // Limit ESP torque to max torque
-        m_esp = MAX(ret.m_min, m_esp); // Floor ESP torque to min torque
-
-        int16_t driver_converted = ret.m_ind;
+        int16_t driver_converted = m_esp;
         int16_t static_converted = ret.m_ind;
-
-        if (m_esp > ret.m_ind) {
-            driver_converted = m_esp;
-        }
 
         bool freeze = this->gs218.TORQUE_REQ_EN;
         // Change torque values based on freezing or not
