@@ -46,7 +46,7 @@ SAMPLE_FIELDS = ["t_ms", "input_rpm", "output_rpm", "engine_rpm", "input_torque"
 # There is no single quality number and no mode-independent one, so this is a
 # vector; scripts/shift_quality.py judges it against per-mode targets.
 QUALITY_FMT = "<HHHHIHBB"
-QUALITY_FIELDS = ["response_ms", "duration_ms", "peak_jerk_rpms2", "torque_hole",
+QUALITY_FIELDS = ["response_ms", "duration_ms", "peak_jerk_mms3", "torque_hole",
                   "slip_energy_j", "lockup_rate", "settle_osc", "valid"]
 # struct ShiftTraceEvent - 28 bytes
 EVENT_FMT = "<IIBBBB" + QUALITY_FMT[1:]
@@ -65,7 +65,7 @@ class TraceUnavailable(Exception):
 
 # Must track SHIFT_TRACE_VERSION in src/shift_trace.h. Bumped whenever a field's
 # meaning changes, even if the layout does not - a size check cannot catch that.
-TRACE_VERSION = 2
+TRACE_VERSION = 1
 
 
 def read_header(client) -> Dict[str, Any]:
@@ -81,8 +81,8 @@ def read_header(client) -> Dict[str, Any]:
     if ver != TRACE_VERSION:
         raise TraceUnavailable(
             "trace version mismatch: firmware %d, decoder %d. Field meanings have "
-            "changed between these (v2 reports peak jerk in output shaft rpm/s^2, "
-            "v1 in mm/s^3), so decoding would silently misreport rather than fail."
+            "changed between these, so decoding would silently misreport rather "
+            "than fail - a size check cannot catch a field that kept its width."
             % (ver, TRACE_VERSION))
     if ssize != SAMPLE_SIZE:
         raise TraceUnavailable("sample size mismatch: firmware %d, decoder %d - "
@@ -101,10 +101,8 @@ def read_header(client) -> Dict[str, Any]:
               # Agility shift
               "agility_score": agility}
         if q.pop("valid", 0):
-            # The TCU reports jerk in ITS OWN units - output shaft rpm/s^2 - because
-            # converting to m/s^3 needs a wheel circumference it cannot verify and
-            # which changes nothing that matters. Convert here, where the vehicle
-            # config is known, and keep the native figure alongside it.
+            # SI, scaled x1000 on the wire to stay an integer.
+            q["peak_jerk"] = q.pop("peak_jerk_mms3") / 1000.0
             ev["quality"] = q
         events.append(ev)
     return {"version": ver, "sample_size": ssize, "capacity": cap, "buffer_addr": addr,

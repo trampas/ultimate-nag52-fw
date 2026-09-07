@@ -57,7 +57,7 @@ RATIOS = {1: 3.932, 2: 2.408, 3: 1.486, 4: 1.000, 5: 0.830}
 # ---------------------------------------------------------------------------
 TARGETS = {
     "comfort": {
-        "peak_jerk":     (0, 1120),    # output rpm/s^2 (~12 m/s^3) the dominant metric
+        "peak_jerk":     (0, 12),      # m/s^3   the dominant metric here
         "torque_hole":   (0, 60),      # rpm/s   drop in output accel mid-shift
         "response_ms":   (0, 700),     # request -> ratio actually moving
         "duration_ms":   (0, 1400),    # long is acceptable if it buys smoothness
@@ -65,7 +65,7 @@ TARGETS = {
         "slip_energy_J": (0, 12000),
     },
     "agility": {
-        "peak_jerk":     (0, 2800),    # output rpm/s^2 (~30 m/s^3) - the point of the mode
+        "peak_jerk":     (0, 30),      # m/s^3   tolerated - this is the point of the mode
         "torque_hole":   (0, 120),
         "response_ms":   (0, 350),     # spontaneity is the dominant metric here
         "duration_ms":   (0, 800),
@@ -91,9 +91,9 @@ def vehicle_config(log):
             cfg.get("wheel_circumference", int(CIRC * 1000)) / 1000.0)
 
 
-def jerk_to_si(rpms2, diff, circ):
-    """Output shaft rpm/s^2 -> m/s^3, for comparison with the published numbers."""
-    return rpms2 * circ / 60.0 / diff
+def mps_per_output_rpm(diff, circ):
+    """Matches mps_per_output_rpm() in src/models/vehicle_geometry.h."""
+    return circ / 60.0 / diff
 
 
 def shifts_from(log):
@@ -121,8 +121,8 @@ def trace_jerk(log):
     (median 19.8 against 39.3 m/s^3), so any jerk number taken from cycle records
     understates how harsh the shift actually was.
 
-    Returned in the TCU's own units - output shaft rpm/s^2 - so that this and the
-    firmware compute the same number and neither needs a wheel circumference.
+    Returned in m/s^3, as the firmware reports it, so the two are directly
+    comparable and can be checked against the published thresholds.
     """
     out = {}
     for tr in getattr(log, "shift_traces", []):
@@ -134,8 +134,9 @@ def trace_jerk(log):
             dt = (b["t_ms"] - a["t_ms"]) / 1000.0
             if not (0.015 < dt < 0.05):
                 continue
-            acc.append(((a["t_ms"] + b["t_ms"]) / 2000.0,
-                        (b["output_rpm"] - a["output_rpm"]) / dt))
+            va = a["output_rpm"] / 60.0 / DIFF * CIRC
+            vb = b["output_rpm"] / 60.0 / DIFF * CIRC
+            acc.append(((a["t_ms"] + b["t_ms"]) / 2000.0, (vb - va) / dt))
         j = [abs(b[1] - a[1]) / (b[0] - a[0]) for a, b in zip(acc, acc[1:]) if b[0] > a[0]]
         if j:
             out[ss[0]["t_ms"] / 1000.0] = (ss[-1]["t_ms"] / 1000.0, max(j))
@@ -152,9 +153,8 @@ def score(log, t0, t1, g0, g1, tjerk=None, tcu_off=0.0):
     if max(out_rpm) < 200:
         return None                      # too slow for the ratio maths to mean anything
 
-    # Jerk as the second derivative of OUTPUT SHAFT SPEED, in rpm/s^2 - the same
-    # units the firmware reports, so the two can be compared directly and neither
-    # needs a wheel circumference. Use jerk_to_si() if you want m/s^3.
+    # Output shaft acceleration in rpm/s, kept native because torque_hole is
+    # reported in it; jerk is converted to m/s^3 below, as the firmware does.
     acc = []
     for a, b in zip(cyc, cyc[1:]):
         dt = b["t"] - a["t"]
@@ -162,10 +162,11 @@ def score(log, t0, t1, g0, g1, tjerk=None, tcu_off=0.0):
             acc.append(((a["t"] + b["t"]) / 2,
                         (b["sensors"]["output_rpm"] - a["sensors"]["output_rpm"]) / dt))
     jerk = []
+    mps_per_rpm = CIRC / 60.0 / DIFF
     for a, b in zip(acc, acc[1:]):
         dt = b[0] - a[0]
         if dt > 0:
-            jerk.append(abs(b[1] - a[1]) / dt)
+            jerk.append(abs(b[1] - a[1]) / dt * mps_per_rpm)   # m/s^3
     peak_jerk = max(jerk) if jerk else 0.0
     # Prefer the 50 Hz trace where the drive has one.
     jerk_src = "19Hz"

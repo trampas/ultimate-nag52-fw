@@ -1,4 +1,5 @@
 #include "shift_trace.h"
+#include "models/vehicle_geometry.h"
 #include "tcu_alloc.h"
 #include "clock.hpp"
 #include "esp_log.h"
@@ -138,7 +139,7 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
         float dt = dt_ms / 1000.0f;
         accel = ((float)s->output_rpm - (float)q.out_prev) / dt;   // rpm/s of output
         if (shifting || q.settling) {
-            float jerk = fabsf(accel - q.accel_prev) / dt;   // output shaft rpm/s^2
+            float jerk = fabsf(accel - q.accel_prev) / dt * mps_per_output_rpm();  // m/s^3
             if (jerk > q.peak_jerk) { q.peak_jerk = jerk; }
         }
         if (shifting) {
@@ -202,7 +203,7 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
             e->done = 1;
             e->quality.duration_ms = (uint16_t)MIN(65535u, s->t_ms - q.t_start);
             e->quality.response_ms = q.response_ms;
-            e->quality.peak_jerk = (uint16_t)MIN(65535.0f, q.peak_jerk);
+            e->quality.peak_jerk = (uint16_t)MIN(65535.0f, q.peak_jerk * 1000.0f);
             e->quality.torque_hole = (uint16_t)MIN(65535.0f, MAX(0.0f, q.accel_base - q.min_accel));
             e->quality.slip_energy_j = (uint32_t)MAX(0.0f, q.energy);
             e->quality.lockup_rate = q.lockup_rate;

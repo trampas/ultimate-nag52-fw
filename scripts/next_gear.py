@@ -296,15 +296,16 @@ def analyse(logs, paths, verbose=False, circ_override=None):
                 else:
                     scale = 1.0
                 t_next = trq * scale
-                # m/s^2, then to output shaft rpm/s so it can be compared with a
-                # measurement the TCU can actually make.
+                # mm/s^2 - SI, matching RoadLoadEstimator::predict_accel_mms2 and
+                # the SBS threshold it is compared against.
                 a = (t_next / r_g_next - f_aero) / m_eff - G * sin_grade
-                preds[name] = a * 60.0 * diff / circ
+                preds[name] = a * 1000.0
 
             t0 = sh["t_end"] + SETTLE_S
             act = measure_actual(log, t0, t0 + WINDOW_S, g_to)
             if act is None:
                 continue
+            act = act * circ / 60.0 / diff * 1000.0     # output rpm/s -> mm/s^2
             rows.append({
                 "log": os.path.basename(path), "t": sh["t_start"], "from": g_from, "to": g_to,
                 "pedal": ped, "rpm": i, "rpm_next": rpm_next, "trq": trq,
@@ -328,11 +329,11 @@ def analyse(logs, paths, verbose=False, circ_override=None):
         print()
 
     ac_all = sorted(r["actual"] for r in rows)
-    print("Measured post-shift acceleration, output rpm/s: median %.0f, "
+    print("Measured post-shift acceleration, mm/s^2: median %.0f, "
           "10th %.0f, 90th %.0f\n" % (
               statistics.median(ac_all), ac_all[len(ac_all) // 10], ac_all[-1 - len(ac_all) // 10]))
 
-    print("Prediction of post-shift output acceleration, rpm/s:\n")
+    print("Prediction of post-shift acceleration, mm/s^2:\n")
     print("%-9s %8s %8s %8s %8s   %s" % ("curve", "bias", "mae", "median", "sign ok", "correlation"))
     for name in ("flat", "measured", "ecm"):
         errs = [r["pred_" + name] - r["actual"] for r in rows]
@@ -375,7 +376,7 @@ def analyse(logs, paths, verbose=False, circ_override=None):
     # numbers rather than on the correlation looking respectable.
     # ---------------------------------------------------------------------
     print("\nWould the check have caught them? Refuse the upshift when the predicted")
-    print("acceleration is below a threshold. Caught = a decelerating upshift blocked;")
+    print("acceleration (mm/s^2) is below a threshold. Caught = a decelerating upshift blocked;")
     print("cost = an upshift that pulled fine, blocked anyway.\n")
     # Landing rpm as a rival discriminator. It needs no estimator, no torque and no
     # mass - it is just rpm * ratio_next / ratio_now, known exactly before the shift.
@@ -393,7 +394,7 @@ def analyse(logs, paths, verbose=False, circ_override=None):
     for name in ("flat", "measured", "ecm"):
         print("  %s:" % name)
         print("    %10s %10s %10s %10s" % ("threshold", "caught", "cost", "precision"))
-        for th in (-40, -20, 0, 20, 40, 60, 80):
+        for th in (-400, -200, 0, 200, 400, 600, 800):
             caught = sum(1 for r in neg if r["pred_" + name] < th)
             cost = sum(1 for r in rows if r["actual"] >= 0 and r["pred_" + name] < th)
             prec = caught / (caught + cost) if (caught + cost) else 0.0
@@ -406,7 +407,7 @@ def analyse(logs, paths, verbose=False, circ_override=None):
     if best:
         _, name, th, caught, cost = best
         print("  Best trade (counting a wrongly blocked upshift as twice the cost of a")
-        print("  missed one): %s curve, threshold %d rpm/s - catches %d of %d, costs %d." % (
+        print("  missed one): %s curve, threshold %d mm/s^2 - catches %d of %d, costs %d." % (
             name, th, caught, len(neg), cost))
     return 0
 

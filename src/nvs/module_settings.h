@@ -177,11 +177,12 @@ typedef struct {
     // Never blocks the redline protection upshift, a manual/paddle shift, or a
     // range restriction. Off by default: unproven on the road.
     bool en_next_gear_check;
-    // Output shaft acceleration the next gear must be predicted to deliver,
-    // in output RPM/s. About 0.011 m/s^2 per rpm/s on a W210. Higher holds
-    // gears longer and shifts less; 0 only blocks upshifts predicted to slow
-    // the car down. Ignored unless en_next_gear_check.
-    int16_t next_gear_min_accel;
+    // Acceleration the next gear must be predicted to deliver before an upshift
+    // is allowed, in mm/s^2. 0 blocks only upshifts predicted to slow the car
+    // down; higher holds gears longer and shifts less often. Ignored unless
+    // en_next_gear_check. (214 mm/s^2 is the 20 output rpm/s the offline
+    // measurement was made at, on the test car's gearing.)
+    int16_t next_gear_min_accel_mms2;
     // Minimum road load estimator confidence (0-100) before the check may act.
     // The estimate means nothing without persistent excitation, so a seed value
     // must never hold a gear.
@@ -202,7 +203,7 @@ const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
     .en_trq_req_5_4 = true,
 
     .en_next_gear_check = false,
-    .next_gear_min_accel = 20,
+    .next_gear_min_accel_mms2 = 214,
     .next_gear_min_confidence = 50,
 };
 

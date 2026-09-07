@@ -61,8 +61,8 @@ namespace RoadLoadEstimator {
     RoadLoad get(void);
 
     /**
-     * @brief Predicted output shaft acceleration if the car were in a gear of
-     *        this ratio right now, in output shaft RPM/s.
+     * @brief Predicted vehicle acceleration if the car were in a gear of this
+     *        ratio right now, in mm/s^2 (SI, scaled to stay an integer).
      *
      * The same model the estimator fits, run forwards instead of backwards:
      *
@@ -82,7 +82,7 @@ namespace RoadLoadEstimator {
      *
      * Returns 0 if the estimator has no usable state.
      */
-    int16_t predict_output_accel(const SensorData* sd, float gear_ratio);
+    int16_t predict_accel_mms2(const SensorData* sd, float gear_ratio);
 }
 
 #endif

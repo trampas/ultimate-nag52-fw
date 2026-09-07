@@ -72,14 +72,19 @@ getting it wrong over 91 upshifts:
 | +5 % | 7.9 | 50.8 | 0.62 |
 | −5 % | 6.8 | 50.2 | 0.63 |
 
-**And the jerk metric no longer uses it at all** - it reports output shaft
-rpm/s², converted to m/s³ only where a human wants SI. A wrong tyre entry is
-about 1 % for a properly plus-sized wheel and 8 % for a 20 inch wheel nobody
-would fit, against a metric that reads twice different between 19 Hz and 50 Hz
-sampling.
+**The jerk metric does use it**, and should: entering a circumference is not a
+burden, and reporting m/s³ keeps the number comparable with the published
+thresholds (comfortable under ~10, objectionable over ~20-30) and with whatever
+target a user sets. A wrong tyre entry costs about 1 % for a properly
+plus-sized wheel and 8 % for a 20 inch wheel nobody would fit, against a metric
+that already reads twice different between 19 Hz and 50 Hz sampling. The
+conversion lives in one place, `mps_per_output_rpm()` in
+`src/models/vehicle_geometry.h`, which falls back to an ordinary saloon rather
+than returning zero - an unconfigured TCU reporting a jerk of 0 would look like
+a perfect shift.
 
-What still wants it roughly right: the 4 m/s gate on the estimator, the
-700-4000 kg clamps, and anything a human reads.
+Also wants it roughly right: the 4 m/s gate on the estimator, the 700-4000 kg
+clamps, and anything a human reads.
 
 ## 3. Gearbox calibration - `CalibrationInfo`, TCU flash
 
@@ -162,19 +167,34 @@ list a new installation genuinely needs a human for is:
 
 Everything else is either derivable, learnable, or a preference.
 
-## The principle worth keeping
+## The principles worth keeping
 
-**This TCU is a ratio machine.** Speeds are compared with speeds, torques with
-torques from the same source, pressures come from constants fitted against those
-same torques. Every absolute physical quantity reached for during this work -
-engine torque scale, vehicle mass, wheel circumference - turned out to cancel at
-the point of use. Two were built as settings and both were removed or demoted
-once measured.
+**1. Let the software work it out, and default to something that gets the car
+home.** A parameter the firmware can measure should be measured - the final
+drive ratio is recoverable from the ABS wheels to 0.1 %, and checking it catches
+a wrong entry that would otherwise poison every speed silently. Where it cannot
+be measured, the default should be a plausible car rather than a placeholder,
+so an unconfigured TCU drives home badly instead of not at all, and so a derived
+metric never comes out as a suspiciously perfect zero.
 
-The rule that follows: **state thresholds in the units the TCU natively
-measures** - rpm, rpm/s, mBar. Then no calibration constant is needed at all.
-The next-gear check puts its floor in output rpm/s and a 5 % tyre error cannot
-touch it. Jerk used to be stated in m/s³ against published targets, which is
-exactly why it was the one place tyre size bit; it is now in rpm/s² and no
-longer cares. Reach for SI only where something outside the TCU has to
-understand the number.
+That is not yet true of everything. `diff_ratio` defaults to 1.000 and
+`wheel_circumference` to 2850 mm, which are placeholders, not a car. The
+argument for leaving them obviously wrong is that it forces the installer to
+set them; the argument against is that nothing checks, so a wrong entry survives
+just as silently. Worth deciding deliberately rather than by inheritance.
+
+**2. State parameters in SI where it is reasonable.** A number a human sets or
+reads should mean something outside this codebase: m/s³ can be checked against
+published shift-quality work, mm/s² against intuition about how a car pulls.
+Native units are the exception, taken only where the conversion would need a
+constant nobody can supply - not where the constant is merely approximate.
+Pressures stay in mBar because that is the language of the hydraulics.
+
+**3. Do not invent a setting for a quantity that cancels.** This TCU is largely
+a ratio machine: speeds against speeds, torques against torques from the same
+source, pressures from constants fitted against those same torques. The engine
+torque scale was added and removed in a day because it was exactly degenerate
+with the friction coefficients it sat beside. Before adding a physical constant,
+check whether anything downstream can actually tell the difference. Wheel
+circumference survives that test - not because it is precise, but because it is
+cheap, available, and buys interpretability.

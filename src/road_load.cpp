@@ -54,7 +54,7 @@ RoadLoad RoadLoadEstimator::get(void) {
     };
 }
 
-int16_t RoadLoadEstimator::predict_output_accel(const SensorData* sd, float gear_ratio) {
+int16_t RoadLoadEstimator::predict_accel_mms2(const SensorData* sd, float gear_ratio) {
     if (nullptr == sd || r_wheel <= 0.0f || gear_ratio <= 0.0f || theta[0] <= 1e-6f) {
         return 0;
     }
@@ -67,12 +67,12 @@ int16_t RoadLoadEstimator::predict_output_accel(const SensorData* sd, float gear
     // m/s^2 in the candidate gear
     float a = ((((float)sd->input_torque / r_g) - (RHO_CDA * v * v)) * theta[0])
               - (GRAVITY * theta[1]);
-    // ... expressed as output shaft RPM/s, which is what the TCU can measure
-    // and therefore the unit any threshold should be written in.
-    float rpms = a * 60.0f * diff_ratio / circ;
-    if (rpms > 32000.0f) { rpms = 32000.0f; }
-    if (rpms < -32000.0f) { rpms = -32000.0f; }
-    return (int16_t)rpms;
+    // Reported in mm/s^2 so the threshold it is compared against can be written
+    // in SI and mean something to whoever sets it.
+    float mms2 = a * 1000.0f;
+    if (mms2 > 32000.0f) { mms2 = 32000.0f; }
+    if (mms2 < -32000.0f) { mms2 = -32000.0f; }
+    return (int16_t)mms2;
 }
 
 void RoadLoadEstimator::update(const SensorData* sd, float gear_ratio,

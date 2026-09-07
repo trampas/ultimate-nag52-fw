@@ -2,7 +2,7 @@
 # Does the firmware's road load prediction still agree with the script that
 # validated it?
 #
-# RoadLoadEstimator::predict_output_accel (src/road_load.cpp) and the model in
+# RoadLoadEstimator::predict_accel_mms2 (src/road_load.cpp) and the model in
 # scripts/next_gear.py are the same physics written twice. This repo has already
 # learned what that costs - see "Doing it on the controller" in
 # tmp/algorithms/shift-quality-metrics.md - so the two are pinned against each
@@ -43,7 +43,7 @@ def pred(out_rpm, trq, ratio):
     v = out_rpm / 60.0 / diff * circ
     r_g = r_wheel / (ratio * diff)
     a = ((trq / r_g) - RHO_CDA * v * v) * th0 - G * th1
-    return a * 60.0 * diff / circ
+    return a * 1000.0          # mm/s^2, SI, matching the firmware
 
 cpp = [int(x) for x in open(sys.argv[1]).read().split()]
 args = [float(x) for x in sys.argv[2:]]
@@ -51,7 +51,7 @@ cases = [tuple(args[i:i + 3]) for i in range(0, len(args), 3)]
 assert len(cpp) == len(cases), "%d results for %d cases" % (len(cpp), len(cases))
 
 bad = 0
-print("%-26s %9s %9s %7s" % ("out_rpm torque ratio", "python", "firmware", "delta"))
+print("%-26s %9s %9s %7s   (mm/s^2)" % ("out_rpm torque ratio", "python", "firmware", "delta"))
 for c, e in zip(cases, cpp):
     p = pred(*c)
     d = p - e

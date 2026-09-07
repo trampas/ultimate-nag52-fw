@@ -543,13 +543,13 @@ bool Gearbox::next_gear_can_pull(GearboxGear next) {
     if (ratio <= 0.0f) {
         return true;
     }
-    int16_t predicted = RoadLoadEstimator::predict_output_accel(&this->sensor_data, ratio);
-    if (predicted >= SBS_CURRENT_SETTINGS.next_gear_min_accel) {
+    int16_t predicted = RoadLoadEstimator::predict_accel_mms2(&this->sensor_data, ratio);
+    if (predicted >= SBS_CURRENT_SETTINGS.next_gear_min_accel_mms2) {
         return true;
     }
-    ESP_LOGI("GEARBOX", "Holding %s: %s predicted at %d rpm/s, floor %d (mass %d kg, terrain %d, conf %d)",
+    ESP_LOGI("GEARBOX", "Holding %s: %s predicted at %d mm/s2, floor %d (mass %d kg, terrain %d, conf %d)",
              gear_to_text(this->actual_gear), gear_to_text(next), predicted,
-             SBS_CURRENT_SETTINGS.next_gear_min_accel, rl.mass_kg, rl.terrain_coeff, rl.confidence);
+             SBS_CURRENT_SETTINGS.next_gear_min_accel_mms2, rl.mass_kg, rl.terrain_coeff, rl.confidence);
     return false;
 }
 

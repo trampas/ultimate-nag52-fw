@@ -1,6 +1,6 @@
 // Host driver for tmp/road_load_check/check.sh - see that script for why.
 // Feeds triples of (output_rpm, input_torque, gear_ratio) through the real
-// RoadLoadEstimator::predict_output_accel and prints one result per line.
+// RoadLoadEstimator::predict_accel_mms2 and prints one result per line (mm/s^2).
 #include <stdio.h>
 #include <stdlib.h>
 #include "road_load.h"
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         SensorData sd = {};
         sd.output_rpm = atoi(argv[i]);
         sd.input_torque = atoi(argv[i + 1]);
-        printf("%d\n", RoadLoadEstimator::predict_output_accel(&sd, atof(argv[i + 2])));
+        printf("%d\n", RoadLoadEstimator::predict_accel_mms2(&sd, atof(argv[i + 2])));
     }
     return 0;
 }
