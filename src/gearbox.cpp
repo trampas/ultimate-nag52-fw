@@ -506,6 +506,10 @@ ShiftReportSegment Gearbox::collect_report_segment(uint64_t start_time) {
  * @return uint16_t - The actual time taken to shift gears. This is fed back into the adaptation network so it can better meet 'target_shift_duration_ms'
  */
 
+// Road load confidence (0-100) below which the anti-bog check declines to act.
+// 50 is roughly 25 s of driving under power at the estimator's 10 Hz.
+#define NEXT_GEAR_MIN_CONFIDENCE 50
+
 /**
  * @brief Would the next gear still pull, or would the car bog?
  *
@@ -527,16 +531,19 @@ ShiftReportSegment Gearbox::collect_report_segment(uint64_t start_time) {
  * manual shift or a range restriction - those are decided elsewhere.
  */
 bool Gearbox::next_gear_can_pull(GearboxGear next) {
-    if (!SBS_CURRENT_SETTINGS.en_next_gear_check) {
-        return true;
+    if (INT16_MIN == SBS_CURRENT_SETTINGS.next_gear_min_accel_mms2) {
+        return true;    // disabled - no floor can be low enough to mean anything else
     }
     // Coasting or braking: the driver is not asking for pull and input_torque is
     // negative, so a prediction here would refuse every overrun upshift.
     if (this->sensor_data.input_torque <= 0 || this->sensor_data.output_rpm < 100) {
         return true;
     }
+    // The estimate means nothing without persistent excitation, so a seed value
+    // must never hold a gear. Not a setting: there is no preference to express
+    // here, only a right answer, and a user who lowers it gets nonsense.
     RoadLoad rl = RoadLoadEstimator::get();
-    if (rl.confidence < SBS_CURRENT_SETTINGS.next_gear_min_confidence) {
+    if (rl.confidence < NEXT_GEAR_MIN_CONFIDENCE) {
         return true;
     }
     float ratio = ratio_absolute(next, &this->gearboxConfig);

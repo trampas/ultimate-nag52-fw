@@ -2,6 +2,7 @@
 #define __MODULE_SETTINGS_H
 
 #include <stdint.h>
+#include <limits.h>
 #include <tcu_maths.h>
 #include <esp_err.h>
 
@@ -165,28 +166,21 @@ typedef struct {
     bool en_trq_req_5_4;
     // Refuse an automatic upshift when the next gear cannot pull.
     //
-    // Instead of shifting on an RPM threshold and finding out afterwards, predict
-    // the acceleration the next gear would give from the road load estimator's
-    // fitted mass and grade, and hold the gear if it is below the floor below
-    // (GM US 6098004, Ford US 5669850). Measured over 91 upshifts on the
-    // 2026-09-07 drives, 33 % were followed by the car DECELERATING in the new
-    // gear, 13 of them harder than -0.64 m/s^2; a floor of 20 rpm/s catches
-    // half of those and wrongly holds 7 of the 61 good ones - see
-    // scripts/next_gear.py, which is how to re-measure this on another car.
+    // Rather than shifting on an RPM threshold and finding out afterwards, the
+    // acceleration the next gear would give is predicted from the road load
+    // estimator's fitted mass and grade, and the gear is held if it comes out
+    // below this (GM US 6098004, Ford US 5669850). In mm/s^2.
     //
-    // Never blocks the redline protection upshift, a manual/paddle shift, or a
-    // range restriction. Off by default: unproven on the road.
-    bool en_next_gear_check;
-    // Acceleration the next gear must be predicted to deliver before an upshift
-    // is allowed, in mm/s^2. 0 blocks only upshifts predicted to slow the car
-    // down; higher holds gears longer and shifts less often. Ignored unless
-    // en_next_gear_check. (214 mm/s^2 is the 20 output rpm/s the offline
-    // measurement was made at, on the test car's gearing.)
+    // INT16_MIN disables it, and is the default: this has never been driven, and
+    // adding a setting must not change how anyone's car behaves. 214 is the
+    // measured starting point - over 91 upshifts on the 2026-09-07 drives, 33 %
+    // were followed by the car DECELERATING in the new gear and 214 catches half
+    // of those while wrongly holding 7 of the 61 good ones. 0 is the timid
+    // setting: block only upshifts predicted to actually slow the car down.
+    // Higher holds gears longer and shifts less often.
+    //
+    // Re-measure on another car with scripts/next_gear.py rather than guessing.
     int16_t next_gear_min_accel_mms2;
-    // Minimum road load estimator confidence (0-100) before the check may act.
-    // The estimate means nothing without persistent excitation, so a seed value
-    // must never hold a gear.
-    uint8_t next_gear_min_confidence;
 } __attribute__ ((packed)) SBS_MODULE_SETTINGS;
 
 const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
@@ -202,9 +196,7 @@ const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
     .en_trq_req_4_3 = true,
     .en_trq_req_5_4 = true,
 
-    .en_next_gear_check = false,
-    .next_gear_min_accel_mms2 = 214,
-    .next_gear_min_confidence = 50,
+    .next_gear_min_accel_mms2 = INT16_MIN,   // disabled; 214 is the measured value
 };
 
 // Pressure manager settings

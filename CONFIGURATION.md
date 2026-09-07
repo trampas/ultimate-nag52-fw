@@ -5,7 +5,7 @@ obvious from reading it - **who is supposed to supply each one**. Written
 2026-09 after a run of work in which three separate "essential" per-car
 constants turned out, on measurement, to cancel at the point of use.
 
-The headline: the surface looks enormous (56 NVS keys, 125 tunable settings, 44
+The headline: the surface looks enormous (56 NVS keys, 123 tunable settings, 44
 maps) and the genuinely per-car set is about six numbers.
 
 ---
@@ -17,7 +17,7 @@ maps) and the genuinely per-car set is about six numbers.
 | 1. Board identity | eFuse, burnt at manufacture | the board |
 | 2. Vehicle configuration | NVS `CORE_SCN` (19 fields) | installer, mostly identity |
 | 3. Gearbox calibration | TCU flash, 4 named blocks | the gearbox part number |
-| 4. Module settings | NVS, 9 blocks / 125 params | tuner |
+| 4. Module settings | NVS, 9 blocks / 123 params | tuner |
 | 5. Maps | NVS, 44 keys | tuner, and adaptation |
 
 Plus one that is **not on the TCU at all**: the vehicle envelope in
@@ -102,13 +102,13 @@ maps SM00, from PN 0205459132.)*
 Not tuned per car. Read it back from a log rather than hardcoding it - doing so
 corrected two ratios this repo had been carrying from memory.
 
-## 4. Module settings - 9 blocks, 125 parameters
+## 4. Module settings - 9 blocks, 123 parameters
 
 | block | params | what it covers |
 |---|---|---|
 | TCC | 16 | lock-up per gear, adaptation, prefill, unlock-on-shift rules |
 | SOL | 10 | solenoid current PID, per-board current offset, boot voltage |
-| SBS | 13 | shift program basics, per-shift torque request enables, the next-gear check |
+| SBS | 11 | shift program basics, per-shift torque request enables, the next-gear check |
 | PRM | 4 | pressure manager friction coefficients |
 | ADP | 20 | adaptation windows: ATF temp, RPM, per-clutch and per-shift enables |
 | ETS | 15 | shifter configuration and profile selection |
@@ -190,7 +190,14 @@ Native units are the exception, taken only where the conversion would need a
 constant nobody can supply - not where the constant is merely approximate.
 Pressures stay in mBar because that is the language of the hydraulics.
 
-**3. Do not invent a setting for a quantity that cancels.** This TCU is largely
+**3. Do not invent a setting where there is no decision to make.** A parameter
+is for a preference or a car-specific fact, not for an implementation constant
+someone might get wrong. The anti-bog check shipped with three settings and
+needs one: the enable was redundant with the threshold (a floor low enough never
+fires, so `INT16_MIN` is the off switch), and the estimator-confidence gate has
+one right answer and no preference to express, so it is a constant.
+
+**4. Do not invent a setting for a quantity that cancels.** This TCU is largely
 a ratio machine: speeds against speeds, torques against torques from the same
 source, pressures from constants fitted against those same torques. The engine
 torque scale was added and removed in a day because it was exactly degenerate
