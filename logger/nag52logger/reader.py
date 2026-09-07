@@ -67,6 +67,7 @@ class LogFile:
         self.cycles: List[Dict[str, Any]] = []
         self.logs: List[Dict[str, Any]] = []
         self.events: List[Dict[str, Any]] = []
+        self.accel: List[Dict[str, Any]] = []
         self.end: Dict[str, Any] = {}
 
     @classmethod
@@ -83,6 +84,8 @@ class LogFile:
                 lf.header = e
             elif t == "snapshot":
                 lf.snapshot = e
+            elif t == "accel":
+                lf.accel.append(e)
             elif t == "event":
                 lf.events.append(e)
             elif t == "end":
@@ -106,6 +109,29 @@ class LogFile:
                 if isinstance(v, dict) and k not in names:
                     names.append(k)
         return names
+
+    def accel_series(self, axis: Optional[str] = None) -> Tuple[List[float], List[Any]]:
+        """
+        Host accelerometer samples as aligned lists on the same ``t`` clock as
+        ``cycles``. ``axis`` picks one of ``x``/``y``/``z``; the default returns
+        the magnitude, which needs no knowledge of how the sensor was oriented.
+        """
+        ts: List[float] = []
+        vs: List[Any] = []
+        for a in self.accel:
+            ts.append(a["t"])
+            if axis is None:
+                vs.append((a["x"] ** 2 + a["y"] ** 2 + a["z"] ** 2) ** 0.5)
+            else:
+                vs.append(a[axis])
+        return ts, vs
+
+    def accel_rate(self) -> Optional[float]:
+        """Measured sample rate of the accelerometer capture, or None."""
+        if len(self.accel) < 2:
+            return None
+        span = self.accel[-1]["t"] - self.accel[0]["t"]
+        return (len(self.accel) - 1) / span if span > 0 else None
 
     def series(self, record: str, field: str, time_key: str = "t") -> Tuple[List[float], List[Any]]:
         """Aligned (time, value) lists for one field; cycles lacking it are skipped."""
@@ -189,6 +215,9 @@ class LogFile:
             s["firmware"] = {k: fw.get(k) for k in ("version", "project_name", "date", "time", "idf_ver")}
         if self.snapshot.get("ecu_serial"):
             s["ecu_serial"] = self.snapshot["ecu_serial"]
+        if self.snapshot.get("calibration") is not None:
+            from .calibration import summarize
+            s["calibration"] = summarize(self.snapshot["calibration"])
         s["shifts"] = len(self.shifts())
         if self.end:
             s["stats"] = self.end.get("stats")

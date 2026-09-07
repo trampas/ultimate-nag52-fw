@@ -23,6 +23,36 @@ def frame_line(payload: bytes, fid: int = TX_ID) -> bytes:
     return ("#%04X%s\n" % (fid, payload.hex().upper())).encode("ascii")
 
 
+from nag52logger import calibration as C  # noqa: E402
+
+C_DEFAULT_CAL = {
+    "tcc_cal_name": "71", "mech_cal_name": "51", "hydr_cal_name": "STDP", "shift_algo_pack_name": "SM00",
+    "tcc_cal": {"multiplier_map_x": [0, 850], "multiplier_map_z": [250, 100],
+                "pump_map_x": list(range(0, 1100, 100)), "pump_map_z": [50] * 11},
+    "mech_cal": {"gb_ty": 1, "ratio_table": [0, 3932, 2408, 1486, 1000, 830, 3100, 1899],
+                 "intertia_factor": [1000] * 8, "friction_map": [1500] * 48,
+                 "max_torque_on_clutch": [400] * 4, "max_torque_off_clutch": [400] * 4,
+                 "release_spring_pressure": [700, 750, 800, 650, 600, 900], "intertia_torque": [120] * 8,
+                 "strongest_loaded_clutch_idx": [6, 3, 0, 0, 0, 3, 5, 5], "turbine_drag": [40] * 8,
+                 "atf_density_minus_50c": 900, "atf_density_drop_per_c": 70,
+                 "atf_density_centrifugal_force_factor": [0, 1200, 1300]},
+    "hydr_cal": {"p_multi_1": 1500, "p_multi_other": 1000, "lp_reg_spring_pressure": 1000,
+                 "overlap_circuit_factor_spc": [1000] * 8, "overlap_circuit_factor_mpc": [1000] * 8,
+                 "overlap_circuit_spring_pressure": [-100] * 8, "shift_reg_spring_pressure": 601,
+                 "shift_spc_gain": [1993] * 8, "min_mpc_pressure": 500, "filter_factor": 4,
+                 "mpc_flush_temp_threshold": 90, "mpc_no_flush_time": 0, "mpc_flush_time": 0,
+                 "extra_p_not_shifting": 0, "shift_pressure_addr_percent": 0, "inlet_pressure_offset": 0,
+                 "inlet_pressure_input_min": 0, "inlet_pressure_input_max": 10000,
+                 "inlet_pressure_output_min": 0, "inlet_pressure_output_max": 7700,
+                 "extra_pressure_pump_speed_min": 0, "extra_pressure_pump_speed_max": 6000,
+                 "extra_pressure_adder_r1_1": 0, "extra_pressure_adder_other_gears": 0,
+                 "shift_pressure_factor_percent": 100,
+                 "pcs_map_x": [0, 1000, 2000, 3000, 4000, 6000, 7700], "pcs_map_y": [0, 40, 80, 120],
+                 "pcs_map_z": [1200 - i * 30 for i in range(28)]},
+    "shift_algo_cal": {},
+}
+
+
 class FakeTcu:
     def __init__(self) -> None:
         self._rx = bytearray()          # bytes waiting for the PC to read
@@ -31,6 +61,7 @@ class FakeTcu:
         self.is_open = True
         self.session = 0x81
         self.tcu_ms = 100_000
+        self.calibration = C.encode_calibration(C_DEFAULT_CAL)
         self.requests: List[bytes] = []
         self.pending_logs: List[str] = []   # injected before the next response
         self.corrupt_next = 0               # emit N corrupt frames before answering
@@ -104,8 +135,25 @@ class FakeTcu:
             self._respond(bytes([0x7E]))
         elif sid == 0x21:
             self._rli(req[1])
+        elif sid == 0x23:
+            self._read_memory(req)
         else:
             self._neg(sid, 0x11)
+
+    def _read_memory(self, req: bytes) -> None:
+        if len(req) != 5:
+            self._neg(0x23, 0x12)
+            return
+        addr = (req[1] << 16) | (req[2] << 8) | req[3]
+        n = req[4]
+        if 0x800000 <= addr and addr + n <= 0x87D000:
+            off = addr - 0x800000
+            blob = self.calibration
+            chunk = blob[off:off + n]
+            chunk = chunk + b"\xff" * (n - len(chunk))   # erased flash beyond the block
+            self._respond(bytes([0x63]) + chunk)
+        else:
+            self._neg(0x23, 0x12)
 
     def _rli(self, rli: int) -> None:
         if rli == 0xE1:

@@ -12,6 +12,8 @@ Output format (one JSON object per line, ``type`` discriminates):
                duration in s) and one sub-object per record, keyed by name
 * ``log``      one ESP_LOG line, parsed into level / tcu_ms / tag / msg when it
                matches the ESP-IDF format, otherwise just ``raw``
+* ``accel``    one host accelerometer sample: ``t`` and ``x``/``y``/``z`` in
+               m/s^2, on the same clock as ``cycle`` (only when ``--accel``)
 * ``event``    connection state changes, TCU reboots, errors
 * ``end``      last line, with counters
 
@@ -34,6 +36,8 @@ from typing import Any, Dict, List, Optional, TextIO
 from . import __version__
 from .protocol import (KWP_TP_TIMEOUT_S, KwpClient, KwpError, KwpNegativeResponse,
                        KwpTimeout, LogLine, SESSION_EXTENDED, SerialReader, open_serial)
+from .accel import USEFUL_HZ, AccelSource, select as select_accel
+from .calibration import read_calibration
 from .records import (DEFAULT_FAST, DEFAULT_ONCE, DEFAULT_SLOW, ENUMS, Record,
                       describe_all, resolve)
 
@@ -85,16 +89,19 @@ class Nag52Logger:
     def __init__(self, port, out_path: str, baud: int = 921600,
                  fast: Optional[List[str]] = None, slow: Optional[List[str]] = None,
                  once: Optional[List[str]] = None, slow_interval: float = 1.0,
+                 read_cal: bool = True,
                  rate_hz: float = 0.0, poll: bool = True, session: int = SESSION_EXTENDED,
                  echo_log: bool = True, status: bool = True, reset: bool = False,
                  request_timeout: float = 0.5, status_stream: TextIO = sys.stderr,
-                 echo_stream: TextIO = sys.stdout, max_cycles: Optional[int] = None) -> None:
+                 echo_stream: TextIO = sys.stdout, max_cycles: Optional[int] = None,
+                 accel: Optional[str] = None, accel_rate: float = 0.0) -> None:
         self.port_arg = port
         self.baud = baud
         self.out_path = out_path
         self.fast = resolve(DEFAULT_FAST if fast is None else fast)
         self.slow = resolve(DEFAULT_SLOW if slow is None else slow)
         self.once = resolve(DEFAULT_ONCE if once is None else once)
+        self.read_cal = read_cal
         self.slow_interval = slow_interval
         self.period = (1.0 / rate_hz) if rate_hz and rate_hz > 0 else 0.0
         self.poll = poll
@@ -106,6 +113,9 @@ class Nag52Logger:
         self.status_stream = status_stream
         self.echo_stream = echo_stream
         self.max_cycles = max_cycles
+        self.accel_spec = accel
+        self.accel_rate = accel_rate
+        self.accel: Optional[AccelSource] = None
 
         self.t0 = 0.0
         self.writer: Optional[JsonlWriter] = None
@@ -114,7 +124,7 @@ class Nag52Logger:
         self.ser = None
         self.connected = False
         self.stats = {"cycles": 0, "log_lines": 0, "bad_frames": 0, "errors": 0,
-                      "reconnects": 0, "tcu_reboots": 0}
+                      "reconnects": 0, "tcu_reboots": 0, "accel_samples": 0}
         self._last_tcu_ms: Optional[int] = None
         self._last_status = 0.0
         self._last_slow = -1e9
@@ -136,6 +146,27 @@ class Nag52Logger:
         if self.status:
             print("[nag52log] %s %s" % (name, json.dumps(kw) if kw else ""),
                   file=self.status_stream, flush=True)
+
+    def _drain_accel(self) -> None:
+        """Write everything the accelerometer thread captured since the last call."""
+        if self.accel is None:
+            return
+        for t, x, y, z in self.accel.drain():
+            self._emit({"type": "accel", "t": t, "x": round(x, 4),
+                        "y": round(y, 4), "z": round(z, 4)})
+            self.stats["accel_samples"] += 1
+
+    def _start_accel(self) -> None:
+        device = select_accel(self.accel_spec)
+        if device is None:
+            # Recording an accelerometer is on by default, so "none found" is the
+            # normal case on a machine without one and must not look like an error.
+            if self.accel_spec not in (None, "", "off", "none", "auto", "on", "yes"):
+                self._event("accel_not_found", requested=self.accel_spec)
+            return
+        self.accel = AccelSource(device, self.t0, rate_hz=self.accel_rate)
+        self.accel.start()
+        self._event("accel_start", device=self.accel.describe())
 
     def _on_log(self, text: str) -> None:
         line = LogLine.parse(text)
@@ -185,6 +216,13 @@ class Nag52Logger:
                 snapshot["records"][rec.name] = {"_error": str(exc)}
             except KwpError:
                 return False
+        # EGS calibration block (flash partition, via ReadMemoryByAddress). The shift
+        # algorithms are only meaningful together with it, so record it with every log.
+        if self.read_cal:
+            try:
+                snapshot["calibration"] = read_calibration(self.client)
+            except KwpError as exc:
+                snapshot["calibration"] = {"_error": "calibration read failed: %s" % exc}
         self._emit(snapshot)
         self._last_tcu_ms = None
         return True
@@ -282,6 +320,7 @@ class Nag52Logger:
             "fast": [r.name for r in self.fast], "slow": [r.name for r in self.slow],
             "slow_interval": self.slow_interval, "rate_hz": (1.0 / self.period) if self.period else None,
             "records": describe_all(), "enums": {k: {str(i): n for i, n in v.items()} for k, v in ENUMS.items()},
+            "accel": self.accel_spec or None,
         }
         self.writer.write(header)
         if self.status:
@@ -289,9 +328,11 @@ class Nag52Logger:
         try:
             self._open()
             self._event("port_open", port=header["port"], baud=self.baud)
+            self._start_accel()
             if not self.poll:
                 while not self._stop:
                     self._sleep(0.2)
+                    self._drain_accel()
                     self._print_status()
                 return self.stats
             consecutive_failures = 0
@@ -314,6 +355,7 @@ class Nag52Logger:
                     self.stats["errors"] += 1
                     self._event("kwp_error", error=str(exc))
                 self._check_reader()
+                self._drain_accel()
                 self._print_status()
                 if self.max_cycles is not None and self.stats["cycles"] >= self.max_cycles:
                     break
@@ -334,6 +376,9 @@ class Nag52Logger:
         return self.stats
 
     def _finish(self) -> None:
+        if self.accel is not None:
+            self.accel.stop()
+            self._drain_accel()
         if self.reader:
             self.reader.stop()
         if self.ser is not None and isinstance(self.port_arg, str):
@@ -347,9 +392,21 @@ class Nag52Logger:
             end = {"type": "end", "t": self._now(), "stats": dict(self.stats)}
             if self.client:
                 end["kwp"] = dict(self.client.stats)
+            if self.accel is not None:
+                end["accel"] = self.accel.summary()
             self.writer.write(end)
             self.writer.close()
             self._print_status(force=True)
             if self.status:
                 print("[nag52log] wrote %d lines to %s" % (self.writer.lines, self.out_path),
                       file=self.status_stream, flush=True)
+                if self.accel is not None:
+                    a = self.accel.summary()
+                    print("[nag52log] accel: %d samples via %s at %s Hz%s"
+                          % (a["samples"], a["backend"], a["measured_rate_hz"],
+                             "" if a["usable_for_shift_shock"] else
+                             " - TOO SLOW to resolve shift shock (need >=%g Hz)" % USEFUL_HZ),
+                          file=self.status_stream, flush=True)
+                    if self.accel.error:
+                        print("[nag52log] accel error: %s" % self.accel.error,
+                              file=self.status_stream, flush=True)

@@ -5,6 +5,7 @@ import argparse
 import json
 import signal
 import sys
+import time
 from typing import List, Optional
 
 from . import __version__
@@ -33,6 +34,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         slow_interval=args.slow_interval, rate_hz=args.rate, poll=not args.no_poll,
         session=session, echo_log=not args.no_echo, status=not args.quiet,
         reset=args.reset, request_timeout=args.timeout, max_cycles=args.cycles,
+        accel=args.accel, accel_rate=args.accel_rate,
     )
 
     def _sigterm(_signum, _frame):  # allow `timeout`/systemd to stop us cleanly
@@ -77,6 +79,40 @@ def cmd_info(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_calibration(args: argparse.Namespace) -> int:
+    """Print the calibration block recorded in a log (or read live from the TCU with --live)."""
+    from .calibration import decode_calibration, summarize
+    if args.live:
+        from .protocol import KwpClient, SerialReader, open_serial
+        from .calibration import read_calibration
+        ser = open_serial(args.port, args.baud, reset=False)
+        reader = SerialReader(ser, lambda _l: None, lambda: None)
+        reader.start()
+        try:
+            client = KwpClient(ser, reader, timeout=0.5)
+            client.start_session(SESSION_EXTENDED)
+            cal = read_calibration(client)
+        finally:
+            reader.stop()
+            ser.close()
+    else:
+        from .reader import LogFile
+        lf = LogFile.load(args.file)
+        cal = (lf.snapshot or {}).get("calibration")
+        if cal is None:
+            print("no calibration block in this log (recorded with an older logger?)", file=sys.stderr)
+            return 1
+        if args.raw and isinstance(cal, dict) and cal.get("_raw"):
+            cal = decode_calibration(bytes.fromhex(cal["_raw"]))
+    out = cal if args.full else summarize(cal)
+    if args.output:
+        with open(args.output, "w") as fh:
+            json.dump(cal, fh, indent=2)
+        print("wrote %s" % args.output)
+    print(json.dumps(out, indent=2))
+    return 0
+
+
 def cmd_records(_args: argparse.Namespace) -> int:
     for name, rec in RECORDS.items():
         tag = {"fast": "", "slow": " [slow]", "once": " [once]"}[rec.group]
@@ -92,6 +128,44 @@ def cmd_records(_args: argparse.Namespace) -> int:
             print("    %-30s %s" % (f.name, "  ".join(extra)))
     print("\ndefault fast: %s\ndefault slow: %s\ndefault once: %s" % (
         ",".join(DEFAULT_FAST), ",".join(DEFAULT_SLOW), ",".join(DEFAULT_ONCE)))
+    return 0
+
+
+def cmd_accel(args: argparse.Namespace) -> int:
+    """List IIO accelerometers and time one, so a useless rate is found before the drive."""
+    from .accel import USEFUL_HZ, AccelSource, find_accelerometers
+
+    devices = find_accelerometers()
+    if not devices:
+        print("no IIO accelerometer found (looked under /sys/bus/iio/devices)")
+        return 1
+    for dev in devices:
+        d = dev.describe()
+        print("%s  %s" % (d["node"], d["name"]))
+        print("    path        %s" % d["path"])
+        print("    scale       %g m/s^2 per count" % d["scale"])
+        print("    rate        %s Hz%s" % (d["sampling_frequency"],
+              "" if not d["available_frequencies"] else
+              "  (available: %s)" % d["available_frequencies"]))
+        print("    buffer      %s" % ("yes" if d["buffer"] else "no"))
+        if d["buffer"] and not d["buffer_readable"]:
+            print("                not readable as this user - falling back to slow sysfs polling")
+            print("                (fix: udev rule granting read on %s + write on the sysfs attrs)"
+                  % dev.dev_node)
+        src = AccelSource(dev, time.monotonic(), rate_hz=args.rate)
+        src.start()
+        time.sleep(max(0.5, args.seconds))
+        src.stop()
+        a = src.summary()
+        print("    MEASURED    %s Hz over %.1f s via %s (%d samples)"
+              % (a["measured_rate_hz"], args.seconds, a["backend"], a["samples"]))
+        if src.error:
+            print("    error       %s" % src.error)
+        if not a["usable_for_shift_shock"]:
+            print("    VERDICT     too slow for shift shock - needs >= %g Hz, this is %s Hz"
+                  % (USEFUL_HZ, a["measured_rate_hz"]))
+        else:
+            print("    VERDICT     usable for shift shock")
     return 0
 
 
@@ -132,6 +206,15 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--session", choices=["extended", "un52"], default="extended",
                    help="diagnostic session to open (both give the fast 2 ms server loop)")
     r.add_argument("--no-poll", action="store_true", help="only capture ESP_LOG output, send nothing")
+    r.add_argument("--accel", nargs="?", const="auto", default="auto", metavar="DEV",
+                   help="host accelerometer to record alongside the TCU data (default: auto, "
+                        "the first one found). Also accepts an iio node (iio:device2), a "
+                        "device name, or a sysfs path -- see the `accel` subcommand")
+    r.add_argument("--no-accel", dest="accel", action="store_const", const=None,
+                   default=argparse.SUPPRESS,
+                   help="do not record an accelerometer")
+    r.add_argument("--accel-rate", type=float, default=0.0, metavar="HZ",
+                   help="requested accelerometer sample rate (0 = leave the driver's setting)")
     r.add_argument("--no-echo", action="store_true", help="do not print TCU log lines to stdout")
     r.add_argument("-q", "--quiet", action="store_true", help="no status line on stderr")
     r.add_argument("--reset", action="store_true",
@@ -151,18 +234,33 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--columns", action="store_true", help="list available CSV columns")
     i.set_defaults(func=cmd_info)
 
+    ca = sub.add_parser("calibration", help="show the EGS calibration block stored in a log, or read it live")
+    ca.add_argument("file", nargs="?", help=".jsonl log (omit with --live)")
+    ca.add_argument("--live", action="store_true", help="read the block from the TCU now instead of a log")
+    ca.add_argument("-p", "--port", default="/dev/ttyUSB0")
+    ca.add_argument("-b", "--baud", type=int, default=921600)
+    ca.add_argument("--full", action="store_true", help="print every field, not just the summary")
+    ca.add_argument("--raw", action="store_true", help="re-decode from the stored raw bytes with this logger's layout")
+    ca.add_argument("-o", "--output", help="also write the full decoded block as JSON to this path")
+    ca.set_defaults(func=cmd_calibration)
+
     rc = sub.add_parser("records", help="list the live-data records this logger understands")
     rc.set_defaults(func=cmd_records)
 
     pp = sub.add_parser("ports", help="list serial ports")
     pp.set_defaults(func=cmd_ports)
+
+    ac = sub.add_parser("accel", help="list host accelerometers and measure their real sample rate")
+    ac.add_argument("--seconds", type=float, default=3.0, help="how long to measure for")
+    ac.add_argument("--rate", type=float, default=0.0, metavar="HZ", help="request this rate first")
+    ac.set_defaults(func=cmd_accel)
     return ap
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     ap = build_parser()
-    known = {"record", "export", "info", "records", "ports"}
+    known = {"record", "export", "info", "records", "ports", "calibration", "accel"}
     if not argv or (argv[0] not in known and not argv[0].startswith("-")):
         argv = ["record"] + argv
     elif argv[0].startswith("-") and argv[0] not in ("-h", "--help", "--version"):

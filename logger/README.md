@@ -37,6 +37,9 @@ Python 3.8+. The reader/export side needs no third‑party packages at all.
 ./nag52log.py --reset                # pulse EN on open so boot logs are captured
 ./nag52log.py ports                  # find the CP210x
 ./nag52log.py records                # list every record and field with units
+./nag52log.py --no-accel             # skip the accelerometer (on by default, see below)
+./nag52log.py --accel iio:device2    # pick a specific accelerometer
+./nag52log.py accel                  # list accelerometers and measure their real rate
 ```
 
 Ctrl‑C stops the recording cleanly. While recording, TCU log lines are echoed
@@ -53,6 +56,50 @@ and each record costs one request/response, so the default set of nine
 records gives roughly 20–30 cycles per second.  Drop records you do not need
 to go faster.
 
+### Accelerometer
+
+A host accelerometer is recorded **by default** into the same file, on the same
+clock as the polled records, as `accel` lines (`t`, `x`, `y`, `z` in m/s²).  Any
+Linux IIO device with an `in_accel_*` channel works; the first one found is used
+unless you name a node (`--accel iio:device2`), a driver name, or a sysfs path.
+`--no-accel` turns it off, and `--accel-rate` requests a sample rate (the driver
+may refuse it).  If the machine has no accelerometer, recording proceeds without
+one and nothing is logged about it.
+
+This exists because shift shock is a 5–20 Hz driveline event and the polling
+loop only manages ~20 cycles/s, so differentiating the logged output shaft
+speed shows the average torque step but not the jerk.
+
+**Measure the rate before relying on it.**  `./nag52log.py accel` reports what a
+sensor actually delivers, and a recording is flagged in the log and on the
+console if it came out under 50 Hz:
+
+```
+iio:device2  accel_3d
+    rate        10.0 Hz
+    buffer      yes
+                not readable as this user - falling back to slow sysfs polling
+    MEASURED    2.94 Hz over 3.0 s via sysfs (9 samples)
+    VERDICT     too slow for shift shock - needs >= 50 Hz, this is 2.94 Hz
+```
+
+Two backends are used automatically: hardware-timestamped samples read from
+`/dev/iio:deviceN` when the character device and the sysfs attributes are
+writable (a udev rule is usually needed), otherwise polling `in_accel_*_raw`,
+which on HID sensor-hub devices costs a synchronous round trip per read and
+lands around 3 Hz.  Laptop lid sensors are frequently firmware-locked to 10 Hz
+and only report on change, so they are not usable for this; a phone IMU logger
+(200–500 Hz) or a dedicated IIO-backed USB IMU is.
+
+Reading it back:
+
+```python
+lf = LogFile.load("logs/drive.jsonl")
+t, mag = lf.accel_series()        # magnitude, needs no knowledge of orientation
+t, x   = lf.accel_series("x")
+lf.accel_rate()                   # measured sample rate, or None
+```
+
 ## Analyse / export
 
 ```sh
@@ -60,7 +107,15 @@ to go faster.
 ./nag52log.py export logs/nag52_x.jsonl              # -> logs/nag52_x.csv, one row per cycle
 ./nag52log.py export logs/nag52_x.jsonl --columns t,tcu_ms,sensors.input_rpm,pressures.corrected_spc_pressure
 ./nag52log.py export logs/nag52_x.jsonl --logs tcu.log   # also dump ESP_LOG lines as text
+./nag52log.py calibration logs/nag52_x.jsonl              # summary of the calibration the TCU was running
+./nag52log.py calibration logs/nag52_x.jsonl --full -o cal.json   # every field, also saved as JSON
+./nag52log.py calibration --live                          # read the block from a connected TCU now
 ```
+
+The calibration block (`src/egs_calibration/calibration_structs.h`) is downloaded at connect and stored in the
+`snapshot` line, so a log always carries the ratios, friction map, spring pressures, SPC gains and pressure/current
+map the shift algorithms were using. `info` prints a short summary of it; if its length does not match this
+logger's layout the raw bytes are kept and a warning is recorded.
 
 From Python (e.g. a simulation harness):
 
@@ -84,7 +139,7 @@ One JSON object per line; the `type` key says what it is.
 | type       | content |
 |------------|---------|
 | `header`   | logger version, start time, port, record/field metadata (units, scaling, enums) – the schema for the rest of the file |
-| `snapshot` | ECU serial, firmware header (`fw_header`), vehicle config (`tcm_config`), read once after connecting |
+| `snapshot` | ECU serial, firmware header (`fw_header`), vehicle config (`tcm_config`) and the EGS calibration block (`calibration`, decoded from the TCU's flash partition via ReadMemoryByAddress), read once after connecting |
 | `cycle`    | `seq`, `t` (host seconds since start), `tcu_ms` (TCU clock at cycle start), `dt` (cycle duration) and one object per record, keyed by record name |
 | `log`      | one ESP_LOG line: `t`, `tcu_ms`, `level`, `tag`, `msg` (or `raw` if it was not in ESP‑IDF format, e.g. boot ROM text) |
 | `event`    | `port_open`, `waiting_for_tcu`, `connected`, `tcu_lost`, `tcu_reboot`, `kwp_error` |

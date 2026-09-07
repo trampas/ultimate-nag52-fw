@@ -39,6 +39,7 @@ KWP_ECU_RX_ID = 0x07E1  # Tester requests on this ID
 SID_START_DIAGNOSTIC_SESSION = 0x10
 SID_READ_ECU_IDENT = 0x1A
 SID_READ_DATA_LOCAL_IDENT = 0x21
+SID_READ_MEM_BY_ADDRESS = 0x23
 SID_TESTER_PRESENT = 0x3E
 
 SESSION_DEFAULT = 0x81
@@ -321,6 +322,22 @@ class KwpClient:
 
     def read_ecu_serial(self) -> str:
         return self.read_local_ident(0xE1).decode("ascii", errors="replace")
+
+    def read_memory(self, address: int, length: int) -> bytes:
+        """
+        ReadMemoryByAddress (3 byte address, 1 byte length, max 255).  The
+        firmware maps 0x800000.. onto the calibration flash partition and lower
+        addresses onto SRAM/PSRAM (see kwp2000.cpp process_read_mem_address).
+        """
+        if not 0 < length <= 255:
+            raise ValueError("length must be 1..255")
+        req = bytes([SID_READ_MEM_BY_ADDRESS, (address >> 16) & 0xFF, (address >> 8) & 0xFF,
+                     address & 0xFF, length])
+        resp = self.request(req)
+        data = resp[1:]
+        if len(data) != length:
+            raise KwpBadResponse("ReadMemory 0x%06X: expected %d bytes, got %d" % (address, length, len(data)))
+        return data
 
 
 def open_serial(port: str, baud: int = 921600, reset: bool = False):
