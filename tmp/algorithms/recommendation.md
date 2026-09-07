@@ -315,10 +315,34 @@ That is a five-line setup, and everything below follows from it.
 ## Order of work, one variable per drive
 
 1. ~~**Pin the torque scale** from vehicle mass and feed it to
-   `PressureManager`.~~ **Done, not driven.** 78 % of reported net torque,
-   measured at 1790 kg over four drives in the converter-locked gears. Verify on
-   the road: clutch pressures fall, `ShiftQuality.slip_energy` and jerk change,
-   no flare.
+   `PressureManager`.~~ **Tried and removed - it was the wrong shape of answer.**
+   Clutch pressure is deliberately generous, because a clutch that slips under
+   load is destroyed while one that is over-clamped is merely harsh, and the
+   margin is already explicit in the calibration (`release_spring_pressure` +
+   `extra_p_not_shifting`). An open-loop scale factor eats a margin somebody
+   chose, using a number that is measured at the road and so includes gearbox
+   and final-drive losses *downstream of the clutch*, anchored on a mass that
+   changes every time somebody gets in the car.
+   **Replace it with a closed loop** (below), which is what the margin is
+   waiting for.
+
+1b. **Trim shift pressure against measured slip and shift quality.** The
+   signals are already there and unused: `ShiftQuality.peak_jerk` and
+   `slip_energy_j` per shift, plus the existing flare flag, plus ratio deviation
+   which measures slip directly. Adapt the SPC offset per shift index in the
+   maps `ShiftAdaptationSystem` already carries.
+   - **Asymmetric, in the safe direction**: lower a little when a shift is
+     clean and harsh, raise a lot and at once on any flare or excess slip.
+   - **Bound it with the slip energy budget** rather than a pressure limit -
+     that is the quantity that actually wears the plates (measured: 5.8 kJ
+     median per shift, 480 kJ over 52).
+   - **It has to run at real torque.** Adaptation is gated so tightly today
+     that 37 of 39 shifts cancelled, which is why base calibration is what the
+     car gets. Widening that gate is the change, and it is the one that needs a
+     drive to trust.
+   - Note the ceiling from TRANSMISSION_NOTES section 2: on 2-3, 3-4 and 4-5
+     the applying clutch cannot be fed above ~7100 mBar, so "raise on slip" runs
+     out on high-torque shifts and torque reduction is the only lever left.
 2. **Fill adaptation from turbine timing on all shifts.** Verify: median
    `response_ms` falls from 500 towards the Agility target.
 3. **Layer 0 map generation** with a power-reserve knob, checked by

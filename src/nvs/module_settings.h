@@ -216,28 +216,6 @@ typedef struct {
     uint8_t applying_coefficient_cold;
     // DEBUG: Friction coefficient when applying a clutch (Hot)
     uint8_t applying_coefficient_hot;
-    // Percentage of the torque the ECM reports that the engine actually delivers
-    // to the turbine. 100 means trust the ECM, and is the behaviour every
-    // calibration before this setting existed was tuned against - so it is the
-    // default, and adding this setting changes nothing until someone sets it.
-    //
-    // The ECM reports torque from factory maps; a worn engine delivers less, and
-    // clutch pressure sized from the reported figure is then too high by the same
-    // ratio. Measure it from a drive log with a known vehicle mass:
-    //   scripts/road_load.py <log> --mass <kg>
-    // using the converter-locked gears only (in 1st and 2nd the turbine torque
-    // carries the converter model's error as well). The test car measured 78.
-    //
-    // Be aware this is mathematically degenerate with the friction coefficients
-    // above: pressure = torque * scale * friction / coefficient, so setting the
-    // scale to 78 is the same arithmetic as raising the coefficients by 28 %.
-    // It is worth having as its own number because it is independently
-    // measurable and means something physical, where the coefficients are fitted
-    // constants - but do not tune both against the same symptom.
-    //
-    // Applies to clutch pressure sizing only; shift points, adaptation gates and
-    // torque requests are unaffected.
-    uint8_t engine_torque_scale_pct;
 } __attribute__ ((packed)) PRM_MODULE_SETTINGS;
 
 
@@ -246,13 +224,7 @@ const PRM_MODULE_SETTINGS PRM_DEFAULT_SETTINGS = {
     .stationary_coefficient = 100,
     .releasing_coefficient = 120,
     .applying_coefficient_cold = 185,
-    .applying_coefficient_hot = 140,
-    // 100 = trust the ECM, which is what every existing calibration assumes.
-    // The W210 E300 TD test car measures 78 (net torque, 1790 kg as driven,
-    // gears 3-5, 0.76-0.82 over four drives on 2026-09-07) but that is a
-    // property of that engine, so it belongs in the car's settings and not in
-    // the defaults every other TCU would silently inherit on upgrade.
-    .engine_torque_scale_pct = 100
+    .applying_coefficient_hot = 140
 };
 
 // Adaptation settings
