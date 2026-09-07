@@ -57,7 +57,7 @@ RATIOS = {1: 3.932, 2: 2.408, 3: 1.486, 4: 1.000, 5: 0.830}
 # ---------------------------------------------------------------------------
 TARGETS = {
     "comfort": {
-        "peak_jerk":     (0, 12),      # m/s^3   the dominant metric here
+        "peak_jerk":     (0, 1120),    # output rpm/s^2 (~12 m/s^3) the dominant metric
         "torque_hole":   (0, 60),      # rpm/s   drop in output accel mid-shift
         "response_ms":   (0, 700),     # request -> ratio actually moving
         "duration_ms":   (0, 1400),    # long is acceptable if it buys smoothness
@@ -65,7 +65,7 @@ TARGETS = {
         "slip_energy_J": (0, 12000),
     },
     "agility": {
-        "peak_jerk":     (0, 30),      # tolerated - this is the point of the mode
+        "peak_jerk":     (0, 2800),    # output rpm/s^2 (~30 m/s^3) - the point of the mode
         "torque_hole":   (0, 120),
         "response_ms":   (0, 350),     # spontaneity is the dominant metric here
         "duration_ms":   (0, 800),
@@ -75,7 +75,25 @@ TARGETS = {
 }
 INPUT_INERTIA = 0.16          # kg m^2, fitted from logged inertia phases
 RPM2RAD = 2 * math.pi / 60.0
-DIFF, CIRC = 3.070, 1.975     # from the TCU config record
+# Fallbacks only - every log carries the TCU's own config, so read it from there
+# (vehicle_config()) and never trust these. Used to convert the native jerk figure
+# into m/s^3 for comparison with the published thresholds; the conversion changes
+# nothing that matters (a properly plus-sized wheel is ~1 % out, a 20 inch wheel
+# nobody would fit is 8 %, against a metric that reads 2x different between 19 Hz
+# and 50 Hz sampling) which is exactly why the TCU does not do it.
+DIFF, CIRC = 3.070, 1.975
+
+
+def vehicle_config(log):
+    """Final drive and wheel circumference from the log's own TCU config record."""
+    cfg = (log.snapshot.get("records") or {}).get("tcm_config") or {}
+    return (cfg.get("diff_ratio", int(DIFF * 1000)) / 1000.0,
+            cfg.get("wheel_circumference", int(CIRC * 1000)) / 1000.0)
+
+
+def jerk_to_si(rpms2, diff, circ):
+    """Output shaft rpm/s^2 -> m/s^3, for comparison with the published numbers."""
+    return rpms2 * circ / 60.0 / diff
 
 
 def shifts_from(log):
@@ -102,6 +120,9 @@ def trace_jerk(log):
     Compared over 51 shifts on one drive the polled figure is HALF the real one
     (median 19.8 against 39.3 m/s^3), so any jerk number taken from cycle records
     understates how harsh the shift actually was.
+
+    Returned in the TCU's own units - output shaft rpm/s^2 - so that this and the
+    firmware compute the same number and neither needs a wheel circumference.
     """
     out = {}
     for tr in getattr(log, "shift_traces", []):
@@ -113,9 +134,8 @@ def trace_jerk(log):
             dt = (b["t_ms"] - a["t_ms"]) / 1000.0
             if not (0.015 < dt < 0.05):
                 continue
-            va = a["output_rpm"] / 60.0 / DIFF * CIRC
-            vb = b["output_rpm"] / 60.0 / DIFF * CIRC
-            acc.append(((a["t_ms"] + b["t_ms"]) / 2000.0, (vb - va) / dt))
+            acc.append(((a["t_ms"] + b["t_ms"]) / 2000.0,
+                        (b["output_rpm"] - a["output_rpm"]) / dt))
         j = [abs(b[1] - a[1]) / (b[0] - a[0]) for a, b in zip(acc, acc[1:]) if b[0] > a[0]]
         if j:
             out[ss[0]["t_ms"] / 1000.0] = (ss[-1]["t_ms"] / 1000.0, max(j))
@@ -132,14 +152,15 @@ def score(log, t0, t1, g0, g1, tjerk=None, tcu_off=0.0):
     if max(out_rpm) < 200:
         return None                      # too slow for the ratio maths to mean anything
 
-    # jerk from output shaft speed -> vehicle acceleration -> its derivative
-    def v(o):
-        return o / 60.0 / DIFF * CIRC
+    # Jerk as the second derivative of OUTPUT SHAFT SPEED, in rpm/s^2 - the same
+    # units the firmware reports, so the two can be compared directly and neither
+    # needs a wheel circumference. Use jerk_to_si() if you want m/s^3.
     acc = []
     for a, b in zip(cyc, cyc[1:]):
         dt = b["t"] - a["t"]
         if 0.02 < dt < 0.2:
-            acc.append(((a["t"] + b["t"]) / 2, (v(b["sensors"]["output_rpm"]) - v(a["sensors"]["output_rpm"])) / dt))
+            acc.append(((a["t"] + b["t"]) / 2,
+                        (b["sensors"]["output_rpm"] - a["sensors"]["output_rpm"]) / dt))
     jerk = []
     for a, b in zip(acc, acc[1:]):
         dt = b[0] - a[0]
@@ -203,10 +224,11 @@ def score(log, t0, t1, g0, g1, tjerk=None, tcu_off=0.0):
     pre = [a for t, a in acc if t < t0]
     base = statistics.median(pre[-4:]) if len(pre) >= 4 else (pre[-1] if pre else 0)
     during = [a for t, a in acc if t0 <= t <= t1]
-    # in rpm/s of output shaft, so it is comparable across gears
+    # Already in rpm/s of output shaft, since acc is now native - comparable
+    # across gears and needing no vehicle constants.
     hole = 0.0
     if during:
-        hole = max(0.0, (base - min(during)) / (CIRC / 60.0 / DIFF))
+        hole = max(0.0, base - min(during))
 
     # Driveline settling: acceleration sign reversals in the 0.6 s after the
     # shift. A clean engagement settles; a hard one rings.

@@ -33,7 +33,7 @@
  */
 
 #define SHIFT_TRACE_MAGIC 0x43415254u  // 'TRAC'
-#define SHIFT_TRACE_VERSION 1u
+#define SHIFT_TRACE_VERSION 2u
 #define SHIFT_TRACE_CAPACITY 512u      // 512 * 20 ms = 10.2 s of history
 #define SHIFT_TRACE_EVENTS 4u
 
@@ -79,7 +79,17 @@ struct ShiftTraceSample {
 struct ShiftQuality {
     uint16_t response_ms;   // request until the ratio actually starts to move
     uint16_t duration_ms;
-    uint16_t peak_jerk;     // mm/s^3 (m/s^3 x1000) of vehicle longitudinal jerk
+    // Output shaft rpm/s^2 - the TCU's own units, NOT m/s^3.
+    //
+    // Converting to m/s^3 needs the wheel circumference and final drive, and the
+    // TCU has no way to check either. It also buys nothing: the error from a
+    // wrong tyre entry is ~1 % for a properly plus-sized wheel and 8 % for a
+    // 20 inch wheel nobody would fit, against a metric that already reads 2x
+    // different between 19 Hz and 50 Hz sampling. So the conversion belongs
+    // wherever a human wants SI, and the controller stays in units it measures.
+    //   m/s^3 = peak_jerk * circumference_m / 60 / diff_ratio
+    // On the test car that factor is 0.01072, so 12 m/s^3 is about 1120 here.
+    uint16_t peak_jerk;
     uint16_t torque_hole;   // rpm/s of output shaft accel lost mid-shift
     uint32_t slip_energy_j; // joules dissipated in the applying clutch
     uint16_t lockup_rate;   // rpm/s at which the applying clutch slip collapses

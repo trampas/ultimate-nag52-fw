@@ -38,7 +38,6 @@ static struct {
 } q = {};
 
 // Vehicle longitudinal speed per rpm of output shaft, m/s. Set once at init.
-static float mps_per_out_rpm = 0.0f;
 // The applying clutch only starts to transmit once its pressure beats the return
 // spring, so slip before that dissipates nothing. The calibration puts the
 // springs at 1139-1289 mBar on this box.
@@ -67,11 +66,6 @@ void ShiftTrace::init(void) {
     trace_header.seq = 0;
     trace_header.dropped = 0;
     trace_header.n_events = 0;
-    if (VEHICLE_CONFIG.diff_ratio != 0) {
-        // circumference is mm, diff_ratio is x1000
-        mps_per_out_rpm = ((float)VEHICLE_CONFIG.wheel_circumference / 1000.0f) /
-                          60.0f / ((float)VEHICLE_CONFIG.diff_ratio / 1000.0f);
-    }
     ESP_LOG_LEVEL(ESP_LOG_INFO, "TRACE", "Shift trace ready: %u samples x %u bytes at 0x%08X (%u ms of history)",
         (unsigned)SHIFT_TRACE_CAPACITY, (unsigned)sizeof(ShiftTraceSample),
         (unsigned)trace_header.buffer_addr, (unsigned)(SHIFT_TRACE_CAPACITY * 20u));
@@ -144,7 +138,7 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
         float dt = dt_ms / 1000.0f;
         accel = ((float)s->output_rpm - (float)q.out_prev) / dt;   // rpm/s of output
         if (shifting || q.settling) {
-            float jerk = fabsf(accel - q.accel_prev) / dt * mps_per_out_rpm;  // m/s^3
+            float jerk = fabsf(accel - q.accel_prev) / dt;   // output shaft rpm/s^2
             if (jerk > q.peak_jerk) { q.peak_jerk = jerk; }
         }
         if (shifting) {
@@ -208,7 +202,7 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
             e->done = 1;
             e->quality.duration_ms = (uint16_t)MIN(65535u, s->t_ms - q.t_start);
             e->quality.response_ms = q.response_ms;
-            e->quality.peak_jerk = (uint16_t)MIN(65535.0f, q.peak_jerk * 1000.0f);
+            e->quality.peak_jerk = (uint16_t)MIN(65535.0f, q.peak_jerk);
             e->quality.torque_hole = (uint16_t)MIN(65535.0f, MAX(0.0f, q.accel_base - q.min_accel));
             e->quality.slip_energy_j = (uint32_t)MAX(0.0f, q.energy);
             e->quality.lockup_rate = q.lockup_rate;
