@@ -107,6 +107,8 @@ private:
     int16_t decel_rpm_s = 0;            // output shaft, for the braking term
     uint8_t agility_demand(void);
     void update_agility_score(void);
+    // Anti-bog gate on automatic upshifts; see the definition in gearbox.cpp
+    bool next_gear_can_pull(GearboxGear next);
     void update_adaptive_profile(void);
     GearboxGear target_gear = GearboxGear::Park;
     GearboxGear actual_gear = GearboxGear::Park;

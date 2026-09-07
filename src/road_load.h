@@ -59,6 +59,30 @@ namespace RoadLoadEstimator {
      */
     void update(const SensorData* sd, float gear_ratio, bool shifting, bool braking);
     RoadLoad get(void);
+
+    /**
+     * @brief Predicted output shaft acceleration if the car were in a gear of
+     *        this ratio right now, in output shaft RPM/s.
+     *
+     * The same model the estimator fits, run forwards instead of backwards:
+     *
+     *     a = ( T / r_g  -  F_aero ) / M  -  g * sin(grade)
+     *
+     * with M and the grade taken from the fitted state. Both the fit and this
+     * prediction use the ECM's reported torque, so the ECM's scale error is
+     * common to the two and cancels - which is the only reason a figure built
+     * on an admittedly wrong mass is worth anything. Do not "improve" this by
+     * correcting the torque here without correcting the fit as well.
+     *
+     * Torque is used unchanged, NOT scaled by a torque-vs-RPM curve for the
+     * lower RPM the new gear lands at. That looks like an omission and is not:
+     * measured over 91 upshifts in scripts/next_gear.py, a flat assumption
+     * predicts better (correlation 0.62) than either the measured power curve
+     * (0.59) or the ECM's own broadcast max torque (0.53).
+     *
+     * Returns 0 if the estimator has no usable state.
+     */
+    int16_t predict_output_accel(const SensorData* sd, float gear_ratio);
 }
 
 #endif

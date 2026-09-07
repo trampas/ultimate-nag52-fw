@@ -54,6 +54,27 @@ RoadLoad RoadLoadEstimator::get(void) {
     };
 }
 
+int16_t RoadLoadEstimator::predict_output_accel(const SensorData* sd, float gear_ratio) {
+    if (nullptr == sd || r_wheel <= 0.0f || gear_ratio <= 0.0f || theta[0] <= 1e-6f) {
+        return 0;
+    }
+    float circ = (float)VEHICLE_CONFIG.wheel_circumference / 1000.0f;
+    if (circ <= 0.0f || diff_ratio <= 0.0f) {
+        return 0;
+    }
+    float v = ((float)sd->output_rpm / 60.0f / diff_ratio) * circ;
+    float r_g = r_wheel / (gear_ratio * diff_ratio);
+    // m/s^2 in the candidate gear
+    float a = ((((float)sd->input_torque / r_g) - (RHO_CDA * v * v)) * theta[0])
+              - (GRAVITY * theta[1]);
+    // ... expressed as output shaft RPM/s, which is what the TCU can measure
+    // and therefore the unit any threshold should be written in.
+    float rpms = a * 60.0f * diff_ratio / circ;
+    if (rpms > 32000.0f) { rpms = 32000.0f; }
+    if (rpms < -32000.0f) { rpms = -32000.0f; }
+    return (int16_t)rpms;
+}
+
 void RoadLoadEstimator::update(const SensorData* sd, float gear_ratio,
                                bool shifting, bool braking) {
     updating_now = false;

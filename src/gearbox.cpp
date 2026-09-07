@@ -506,6 +506,53 @@ ShiftReportSegment Gearbox::collect_report_segment(uint64_t start_time) {
  * @return uint16_t - The actual time taken to shift gears. This is fed back into the adaptation network so it can better meet 'target_shift_duration_ms'
  */
 
+/**
+ * @brief Would the next gear still pull, or would the car bog?
+ *
+ * A shift map answers "is the RPM high enough to shift?", and how the next gear
+ * actually pulls is discovered afterwards. On the 2026-09-07 drives that answer
+ * was wrong for 33 % of upshifts, which were followed by the car slowing down in
+ * the new gear - 13 of 91 by more than -0.64 m/s^2, the worst a 3-4 at 78 %
+ * pedal that lost 1.6 m/s^2. The published fix is to predict first and refuse
+ * the shift when the next gear cannot deliver a minimum acceleration
+ * (GM US 6098004, Ford US 5669850).
+ *
+ * The prediction comes from the road load estimator, which has already fitted
+ * the mass and grade it needs. Validated offline against the same logs by
+ * scripts/next_gear.py - re-run that before changing the floor.
+ *
+ * Returns true (allow the shift) whenever the check cannot be trusted:
+ * disabled, estimator not converged, stationary, or coasting. A check that is
+ * unsure must not hold a gear. It never sees a redline protection upshift, a
+ * manual shift or a range restriction - those are decided elsewhere.
+ */
+bool Gearbox::next_gear_can_pull(GearboxGear next) {
+    if (!SBS_CURRENT_SETTINGS.en_next_gear_check) {
+        return true;
+    }
+    // Coasting or braking: the driver is not asking for pull and input_torque is
+    // negative, so a prediction here would refuse every overrun upshift.
+    if (this->sensor_data.input_torque <= 0 || this->sensor_data.output_rpm < 100) {
+        return true;
+    }
+    RoadLoad rl = RoadLoadEstimator::get();
+    if (rl.confidence < SBS_CURRENT_SETTINGS.next_gear_min_confidence) {
+        return true;
+    }
+    float ratio = ratio_absolute(next, &this->gearboxConfig);
+    if (ratio <= 0.0f) {
+        return true;
+    }
+    int16_t predicted = RoadLoadEstimator::predict_output_accel(&this->sensor_data, ratio);
+    if (predicted >= SBS_CURRENT_SETTINGS.next_gear_min_accel) {
+        return true;
+    }
+    ESP_LOGI("GEARBOX", "Holding %s: %s predicted at %d rpm/s, floor %d (mass %d kg, terrain %d, conf %d)",
+             gear_to_text(this->actual_gear), gear_to_text(next), predicted,
+             SBS_CURRENT_SETTINGS.next_gear_min_accel, rl.mass_kg, rl.terrain_coeff, rl.confidence);
+    return false;
+}
+
 bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool manually_requested)
 {
     bool result = false;
@@ -1342,8 +1389,15 @@ void Gearbox::controller_loop()
                         // data, if the car should up/downshift
                         if (this->restrict_target > this->actual_gear && p->should_upshift(this->actual_gear, &this->sensor_data))
                         {
-                            this->ask_upshift = true; // Upshift takes priority
-                            this->manual_shift = false;
+                            // The map says shift. Before taking its word for it, ask whether the
+                            // next gear can actually pull - see next_gear_can_pull(). If it cannot,
+                            // hold this gear: take neither branch, so this does not turn into a
+                            // downshift either.
+                            if (this->next_gear_can_pull(next_gear(this->actual_gear)))
+                            {
+                                this->ask_upshift = true; // Upshift takes priority
+                                this->manual_shift = false;
+                            }
                         }
                         else if (this->restrict_target < this->actual_gear || p->should_downshift(this->actual_gear, &this->sensor_data)) {
                             this->ask_downshift = true; // Downshift is secondary

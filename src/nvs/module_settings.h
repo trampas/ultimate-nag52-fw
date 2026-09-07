@@ -163,6 +163,29 @@ typedef struct {
     bool en_trq_req_4_3;
     // Enable torque requests for 5-4
     bool en_trq_req_5_4;
+    // Refuse an automatic upshift when the next gear cannot pull.
+    //
+    // Instead of shifting on an RPM threshold and finding out afterwards, predict
+    // the acceleration the next gear would give from the road load estimator's
+    // fitted mass and grade, and hold the gear if it is below the floor below
+    // (GM US 6098004, Ford US 5669850). Measured over 91 upshifts on the
+    // 2026-09-07 drives, 33 % were followed by the car DECELERATING in the new
+    // gear, 13 of them harder than -0.64 m/s^2; a floor of 20 rpm/s catches
+    // half of those and wrongly holds 7 of the 61 good ones - see
+    // scripts/next_gear.py, which is how to re-measure this on another car.
+    //
+    // Never blocks the redline protection upshift, a manual/paddle shift, or a
+    // range restriction. Off by default: unproven on the road.
+    bool en_next_gear_check;
+    // Output shaft acceleration the next gear must be predicted to deliver,
+    // in output RPM/s. About 0.011 m/s^2 per rpm/s on a W210. Higher holds
+    // gears longer and shifts less; 0 only blocks upshifts predicted to slow
+    // the car down. Ignored unless en_next_gear_check.
+    int16_t next_gear_min_accel;
+    // Minimum road load estimator confidence (0-100) before the check may act.
+    // The estimate means nothing without persistent excitation, so a seed value
+    // must never hold a gear.
+    uint8_t next_gear_min_confidence;
 } __attribute__ ((packed)) SBS_MODULE_SETTINGS;
 
 const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
@@ -177,6 +200,10 @@ const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
     .en_trq_req_3_2 = true,
     .en_trq_req_4_3 = true,
     .en_trq_req_5_4 = true,
+
+    .en_next_gear_check = false,
+    .next_gear_min_accel = 20,
+    .next_gear_min_confidence = 50,
 };
 
 // Pressure manager settings
