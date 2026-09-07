@@ -229,7 +229,14 @@ Useful proxies that the log *can* support:
 
 ---
 
-## 8. Tools
+## 8. Algorithms and published work
+
+`tmp/algorithms/` holds the research notes: the RLS mass and grade estimator, how
+the industry measures shift quality, driver type recognition, an annotated
+bibliography, and the numbers our own drives produced. This file covers what is
+specific to this gearbox; that directory covers the general methods.
+
+## 9. Tools
 
 * **`tmp/shift_replay/`** — compiles the real `ShiftingAlgorithm` / `PressureManager` for the
   host and replays logged shifts through them. Open loop: logged RPMs do not react to changed
@@ -259,7 +266,7 @@ cmd 0x01 = live (RAM)   0x02 = built-in default (flash)   0x08 = stored (NVS)
 
 ---
 
-## 9. Pitfalls that have already cost time
+## 10. Pitfalls that have already cost time
 
 * Assuming the end-of-shift SPC ramp is a harshness source. It is pressure matching (§2).
 * Editing a map default and expecting the car to use it (§5).

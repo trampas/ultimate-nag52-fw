@@ -2,6 +2,11 @@
 
 ## Read this first
 
+**[tmp/algorithms/](tmp/algorithms/)** — the published algorithms behind shift
+quality, road load and driver type adaptation, with an annotated bibliography and
+what our own logs measured. Almost everything needed here already exists in SAE
+papers; read it before inventing.
+
 **[TRANSMISSION_NOTES.md](TRANSMISSION_NOTES.md)** — how the 722.6 actually works: hydraulics,
 torque converter, shift algorithm structure, maps, and the physics needed to judge shift
 quality. Written because several confidently wrong conclusions came from not knowing it.
