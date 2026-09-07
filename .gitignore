@@ -52,3 +52,12 @@ logger/logs/*
 
 MODULE_SETTINGS.md
 MODULE_SETTINGS.yml
+
+# Fetched reference copies (tmp/algorithms/refs). The markdown there is ours and
+# is tracked; the fetched documents are not - 30 MB of binaries, and the trade
+# press articles are copyrighted text this repo should not redistribute.
+# Re-fetch with tmp/algorithms/refs/fetch.sh
+tmp/algorithms/refs/patents/*.pdf
+tmp/algorithms/refs/papers/*.pdf
+tmp/algorithms/refs/articles/*.html
+tmp/algorithms/refs/articles/*.txt

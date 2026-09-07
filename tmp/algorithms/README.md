@@ -14,6 +14,8 @@ the 1990s. Read the references before inventing.
 | [shift-quality-metrics.md](shift-quality-metrics.md) | how the industry measures a shift |
 | [driver-type-adaptation.md](driver-type-adaptation.md) | driving style recognition and adaptive shift strategy |
 | [findings-from-our-data.md](findings-from-our-data.md) | what our own logs measured, and the traps |
+| [recommendation.md](recommendation.md) | the recommended layered strategy, user knobs, and order of work |
+| [refs/](refs/README.md) | local copies: 23 patent PDFs, open-access papers, articles, abstracts for the rest |
 
 ## The four ideas worth knowing
 
