@@ -176,6 +176,25 @@ default — say so when you do it.
 
 ---
 
+### Known open tension in the shift maps
+
+`scripts/shift_envelope.py` reports findings that cannot be fixed in the
+downshift map alone. To keep full load on boost, a downshift must land at or
+above 2400 rpm; to avoid hunting, it must land *below* the lower gear's upshift
+point. On this calibration those are incompatible except at 100 % pedal:
+
+| pedal | 3->2 must land under | to reach boost it needs |
+|---|---|---|
+| 80 % | 1790 rpm (2->3 upshifts at 2900) | 2400 |
+| 90 % | 2191 rpm (2->3 upshifts at 3550) | 2400 |
+| 100 % | 2776 rpm (2->3 upshifts at 4500) | 2400 ✓ |
+
+So the 60-90 % upshift cells are the blocker: they upshift early enough that the
+next gear starts below the boost point, and no downshift threshold can rescue
+that without hunting. Fixing it means raising the upshift map's mid-to-high pedal
+columns, which is a deliberate calibration pass to do with the owner and one
+drive per change - not a reactive edit.
+
 ## 6. Adaptation
 
 Pressure adaptation is gated to low torque:
