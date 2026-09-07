@@ -36,6 +36,37 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 from nag52logger.reader import LogFile  # noqa: E402
 
 RATIOS = {1: 3.932, 2: 2.408, 3: 1.486, 4: 1.000, 5: 0.830}
+
+# ---------------------------------------------------------------------------
+# There is no single number for shift quality, and no mode-independent one.
+# Comfort wants low jerk and will pay for it in duration; Agility wants
+# spontaneity and will accept jerk to get it. A scalar score hides exactly the
+# trade you are trying to make, so metrics are reported as a vector and judged
+# against per-mode targets.
+#
+# PROVISIONAL. Only the jerk figures have outside support (comfortable shifts are
+# generally quoted under ~10 m/s^3, objectionable over ~20-30). The rest are
+# starting points to be corrected against drives - which is the point of having
+# them in one place rather than spread through the code.
+# ---------------------------------------------------------------------------
+TARGETS = {
+    "comfort": {
+        "peak_jerk":     (0, 12),      # m/s^3   the dominant metric here
+        "torque_hole":   (0, 60),      # rpm/s   drop in output accel mid-shift
+        "response_ms":   (0, 700),     # request -> ratio actually moving
+        "duration_ms":   (0, 1400),    # long is acceptable if it buys smoothness
+        "settle_osc":    (0, 2),       # driveline reversals after lock-up
+        "slip_energy_J": (0, 12000),
+    },
+    "agility": {
+        "peak_jerk":     (0, 30),      # tolerated - this is the point of the mode
+        "torque_hole":   (0, 120),
+        "response_ms":   (0, 350),     # spontaneity is the dominant metric here
+        "duration_ms":   (0, 800),
+        "settle_osc":    (0, 3),
+        "slip_energy_J": (0, 20000),   # faster shift, less slip time, more power
+    },
+}
 INPUT_INERTIA = 0.16          # kg m^2, fitted from logged inertia phases
 RPM2RAD = 2 * math.pi / 60.0
 DIFF, CIRC = 3.070, 1.975     # from the TCU config record
@@ -147,6 +178,38 @@ def score(log, t0, t1, g0, g1, tjerk=None, tcu_off=0.0):
                     lock_rate = max(lock_rate, (prev[2] - slip) / dt)
         prev = (c["t"], c["sensors"]["input_rpm"], slip)
 
+    # Response delay: how long before the ratio actually starts to move. This is
+    # the "spontaneity" half of shift quality and is invisible in duration alone -
+    # a shift can complete quickly having sat still for most of its length.
+    r0, r1 = RATIOS[g0], RATIOS[g1]
+    response = None
+    for c in cyc:
+        o = c["sensors"]["output_rpm"]
+        if o < 150 or c["t"] < t0:
+            continue
+        prog = ((c["sensors"]["input_rpm"] / o) - r0) / (r1 - r0)
+        if prog > 0.10:
+            response = round((c["t"] - t0) * 1000)
+            break
+
+    # Torque hole: how far output shaft acceleration falls below where it was
+    # before the shift. This is the "sag" felt separately from the jerk spike.
+    pre = [a for t, a in acc if t < t0]
+    base = statistics.median(pre[-4:]) if len(pre) >= 4 else (pre[-1] if pre else 0)
+    during = [a for t, a in acc if t0 <= t <= t1]
+    # in rpm/s of output shaft, so it is comparable across gears
+    hole = 0.0
+    if during:
+        hole = max(0.0, (base - min(during)) / (CIRC / 60.0 / DIFF))
+
+    # Driveline settling: acceleration sign reversals in the 0.6 s after the
+    # shift. A clean engagement settles; a hard one rings.
+    post = [a for t, a in acc if t1 < t <= t1 + 0.6]
+    osc = 0
+    for x, y in zip(post, post[1:]):
+        if (x - base) * (y - base) < 0:
+            osc += 1
+
     c0 = min(cyc, key=lambda c: abs(c["t"] - t0))
     return {
         "t": t0, "shift": "%d->%d" % (g0, g1), "up": g1 > g0,
@@ -157,6 +220,9 @@ def score(log, t0, t1, g0, g1, tjerk=None, tcu_off=0.0):
         "peak_jerk": round(peak_jerk, 1),
         "slip_energy_J": round(energy),
         "lockup_rpm_s": round(lock_rate),
+        "response_ms": response if response is not None else -1,
+        "torque_hole": round(hole),
+        "settle_osc": osc,
         "jerk_src": jerk_src,
     }
 
@@ -180,26 +246,50 @@ def main() -> int:
         print("no scoreable shifts")
         return 1
     rows.sort(key=lambda r: -r[args.sort])
-    print("%7s %-5s %4s %5s %5s | %7s %8s %9s %10s" % (
-        "t", "shift", "ped", "trq", "km/h", "dur_ms", "jerk", "slip_J", "lockup/s"))
+    METRICS = ["response_ms", "duration_ms", "peak_jerk", "torque_hole",
+               "settle_osc", "slip_energy_J", "lockup_rpm_s"]
+    print("%7s %-5s %4s %5s | %8s %8s %7s %7s %6s %8s %8s" % (
+        "t", "shift", "ped", "km/h", "resp_ms", "dur_ms", "jerk", "hole", "osc",
+        "slip_J", "lock/s"))
     for r in rows:
-        print("%7.1f %-5s %4d %5d %5d | %7d %8.1f %9d %10d" % (
-            r["t"], r["shift"], r["pedal"], r["torque"], r["kmh"],
-            r["duration_ms"], r["peak_jerk"], r["slip_energy_J"], r["lockup_rpm_s"]))
+        print("%7.1f %-5s %4d %5d | %8d %8d %7.1f %7d %6d %8d %8d" % (
+            r["t"], r["shift"], r["pedal"], r["kmh"], r["response_ms"], r["duration_ms"],
+            r["peak_jerk"], r["torque_hole"], r["settle_osc"], r["slip_energy_J"],
+            r["lockup_rpm_s"]))
 
     def med(k, sel=None):
-        v = [r[k] for r in rows if sel is None or sel(r)]
+        v = [r[k] for r in rows if (sel is None or sel(r)) and r[k] >= 0]
         return statistics.median(v) if v else 0
-    print("\n%-22s %8s %9s %9s %10s" % ("", "dur_ms", "jerk", "slip_J", "lockup/s"))
-    for lbl, sel in (("all", None), ("upshifts", lambda r: r["up"]),
-                     ("downshifts", lambda r: not r["up"]),
-                     ("light pedal <40%", lambda r: r["pedal"] < 40),
-                     ("heavy pedal >70%", lambda r: r["pedal"] > 70)):
+
+    print("\nMedians. There is no single quality number - these are the dimensions,")
+    print("and Comfort and Agility trade them against each other differently.\n")
+    print("%-20s %8s %8s %7s %7s %6s %8s" % (
+        "", "resp_ms", "dur_ms", "jerk", "hole", "osc", "slip_J"))
+    groups = (("all", None), ("upshifts", lambda r: r["up"]),
+              ("downshifts", lambda r: not r["up"]),
+              ("light pedal <40%", lambda r: r["pedal"] < 40),
+              ("heavy pedal >70%", lambda r: r["pedal"] > 70))
+    for lbl, sel in groups:
         n = len([r for r in rows if sel is None or sel(r)])
-        if n:
-            print("%-22s %8.0f %9.1f %9.0f %10.0f   (n=%d)" % (
-                lbl, med("duration_ms", sel), med("peak_jerk", sel),
-                med("slip_energy_J", sel), med("lockup_rpm_s", sel), n))
+        if not n:
+            continue
+        print("%-20s %8.0f %8.0f %7.1f %7.0f %6.0f %8.0f  (n=%d)" % (
+            lbl, med("response_ms", sel), med("duration_ms", sel), med("peak_jerk", sel),
+            med("torque_hole", sel), med("settle_osc", sel), med("slip_energy_J", sel), n))
+
+    print("\nAgainst the per-mode targets (median of all shifts):")
+    for mode, tgt in TARGETS.items():
+        print("  %s:" % mode)
+        for k in ("response_ms", "duration_ms", "peak_jerk", "torque_hole",
+                  "settle_osc", "slip_energy_J"):
+            if k not in tgt:
+                continue
+            lo, hi = tgt[k]
+            v = med(k)
+            verdict = "ok" if lo <= v <= hi else ("%.0fx over" % (v / hi) if hi else "over")
+            bar = "#" * min(30, int(30 * v / (hi * 1.5))) if hi else ""
+            print("    %-14s %8.0f  target <=%-7.0f %-10s %s" % (k, v, hi, verdict, bar))
+
     n50 = len([r for r in rows if r["jerk_src"] == "50Hz"])
     print("\ntotal clutch slip energy this drive: %.1f kJ over %d shifts" % (
         sum(r["slip_energy_J"] for r in rows) / 1000.0, len(rows)))
