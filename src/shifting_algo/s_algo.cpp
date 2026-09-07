@@ -155,6 +155,20 @@ calc_mod:
     return ret;
 }
 
+/**
+ * @brief Hand the applying clutch over from SPC control to line pressure.
+ *
+ * The shift valve decides what feeds the clutch: while its solenoid is energised the clutch
+ * is fed from SPC, and the moment the solenoid drops out it is fed working pressure instead
+ * (SPC no longer reaches it at all). So this phase is NOT "clamping the clutch" - it walks
+ * SPC up to SPC_MAX so that clutch pressure already matches the line pressure it is about to
+ * be handed to, and only then shuts the shift circuit off. Measured handover: p_on 14148 vs
+ * working pressure 15085, i.e. stepless.
+ *
+ * Do not slow or lower this ramp to make a shift feel gentler - that leaves SPC below line
+ * pressure when the valve opens and converts a stepless handover into a step up. The lever
+ * for a gentler engagement is the modulating pressure, not this ramp. See TRANSMISSION_NOTES.md.
+ */
 uint8_t ShiftingAlgorithm::phase_maxp(SensorData* sd) {
     uint8_t ret = STEP_RES_CONTINUE;
     uint16_t targ_mpc = this->max_p_mod_pressure();

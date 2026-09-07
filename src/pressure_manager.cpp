@@ -672,6 +672,17 @@ uint16_t PressureManager::get_tcc_solenoid_pwm_duty(uint16_t request_mbar) const
     return this->tcc_pwm_map->get_value(request_mbar, this->sensor_data->atf_temp);
 }
 
+/**
+ * @brief Actuate one of the 3 on/off shift solenoids (Y3 = 1-2 and 4-5, Y5 = 2-3, Y4 = 3-4).
+ *
+ * These select what feeds the clutch being shifted, they do not set a pressure:
+ *   enable = true  -> the clutch is fed from the SPC regulator (the only window in which a
+ *                     shift algorithm can modulate it),
+ *   enable = false -> the clutch is fed working (line) pressure, set by MPC.
+ * Because of that, both edges have to be sequenced against the pressures: raise MPC and drop
+ * SPC to fill pressure before enabling, and match SPC to line pressure before disabling.
+ * See TRANSMISSION_NOTES.md section 2.
+ */
 void PressureManager::set_shift_circuit(ShiftCircuit ss, bool enable) {
     if (CHECK_MODE_BIT_ENABLED(DEVICE_MODE_SLAVE)) {
         return;

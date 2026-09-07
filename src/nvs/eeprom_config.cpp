@@ -16,11 +16,16 @@ uint16_t CURRENT_DEVICE_MODE = DEVICE_MODE_NORMAL;
 esp_err_t EEPROM::read_nvs_map_data(const char* map_name, int16_t* dest, const int16_t* default_map, size_t map_element_count) {
     size_t byte_count = map_element_count*sizeof(int16_t);
     esp_err_t e = nvs_get_blob(MAP_NVS_HANDLE, map_name, dest, &byte_count);
+    // Seeding NVS with the default also makes `e` ESP_OK, so remember which of the two
+    // happened - otherwise a map that was just defaulted is reported as a custom map,
+    // and there is no way to tell from a log whether an edit or the built-in map is live.
+    bool was_seeded_from_default = false;
     if (e == ESP_ERR_NVS_NOT_FOUND && default_map != nullptr) {
         ESP_LOG_LEVEL(ESP_LOG_WARN, "EEPROM", "Map %s not found in NVS. Using built-in default map from prog flash", map_name);
         // Set default map data
         e = write_nvs_map_data(map_name, default_map, map_element_count);
         memcpy(dest, default_map, byte_count); // As e would be ESP_OK, the memcpy below won't get executed!
+        was_seeded_from_default = true;
     }
     if(e != ESP_OK) {
         if (default_map != nullptr) {
@@ -31,6 +36,8 @@ esp_err_t EEPROM::read_nvs_map_data(const char* map_name, int16_t* dest, const i
             ESP_LOG_LEVEL(ESP_LOG_ERROR, "EEPROM", "Map %s has no valid NVS entry and no built-in default is available", map_name);
             e = ESP_ERR_INVALID_ARG;
         }
+    } else if (was_seeded_from_default) {
+        ESP_LOG_LEVEL(ESP_LOG_INFO, "EEPROM", "Map %s active using built-in default map (now seeded into NVS)", map_name);
     } else {
         ESP_LOG_LEVEL(ESP_LOG_INFO, "EEPROM", "Map %s active using custom NVS map from config storage", map_name);
     }
