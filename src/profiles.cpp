@@ -342,20 +342,34 @@ bool StandardProfile::should_upshift(GearboxGear current_gear, SensorData* senso
         // Add some extra RPM for catalyst warm up (+1000RPM at -10C, negated at 40C and higher)
         upshift_map_val += interpolate_float(sensors->atf_temp, 1000, 0, -10, 40, InterpType::Linear);
         int time_since_last_shift = GET_CLOCK_TIME() - sensors->last_shift_time; // ms
-        // Increase the threshold higher RPMs closer to shift
-        // (Inverted since raw values are time SINCE shift)
-        upshift_map_val += interpolate_float(time_since_last_shift, 0, 1000, 5000, 0, InterpType::Linear);
+        // Anti-hunt hysteresis: hold the upshift point up briefly after any shift.
+        // (Inverted since raw values are time SINCE shift). This is only meant to stop
+        // up/down hunting - the post-upshift downshift inhibit in Gearbox::controller_loop
+        // does the heavy lifting - so it must stay small. At the old +1000 rpm over 5 s
+        // every gear in an accelerating pull-away was held ~700 rpm past its map value.
+        upshift_map_val += interpolate_float(time_since_last_shift, 0, 300, 2000, 0, InterpType::Linear);
         int mmax = sensors->max_torque;
         if (0 != mmax) {
-            // Score of 0-1
+            // Score of 0-1. The map X axis is already pedal position, so this only tops up the
+            // near-full-load end; on a diesel converted_driver_torque/max_torque is already ~0.6
+            // at a third pedal, and the old 0.2..0.8 -> +1000 rpm ramp added most of its range
+            // during ordinary part throttle driving.
             float engine_load_percent = (float)sensors->converted_driver_torque / (float)sensors->max_torque;
-            upshift_map_val += interpolate_float(engine_load_percent, 1000, 0, 0.8, 0.2, InterpType::Linear);
+            upshift_map_val += interpolate_float(engine_load_percent, 0, 400, 0.5, 1.0, InterpType::Linear);
+        }
+        // Never let the adders push the threshold past the redline (Diesel: 4500 by default).
+        // The 100 % pedal map cell is already the redline, so any adder on top of it overruns:
+        // with the pre-rescale adders a 4500 map value became 6500 and the engine reached
+        // 5150 rpm in 1st after a kickdown.
+        int16_t redline = this->is_diesel ? VEHICLE_CONFIG.red_line_rpm_diesel : VEHICLE_CONFIG.red_line_rpm_petrol;
+        if (redline > 1000 && upshift_map_val > redline - 250) {
+            upshift_map_val = redline - 250;
         }
         bool can_upshift = sensors->input_rpm > upshift_map_val;
-        if (sensors->pedal_pos == 0) {
+        if (sensors->pedal_pos == 0 && sensors->input_rpm < redline - 250) {
             can_upshift = false;
         }
-        if (sensors->brake_pressed) { can_upshift = false; }
+        if (sensors->brake_pressed && sensors->input_rpm < redline - 250) { can_upshift = false; }
         return can_upshift;
     } else {
         return false;
@@ -376,6 +390,12 @@ void StandardProfile::update(SensorData* sensors) {
     }
 }
 
+// NOTE: the downshift table is indexed on INPUT SHAFT RPM, so a threshold is really a road
+// speed (rpm / gear ratio). Shifts are also serialised - Gearbox::controller_loop only asks
+// the profile when it is not already shifting - so on a coast-down the ladder chains and each
+// shift blocks the next. Check any new threshold against the downshift TIME map and the
+// deceleration rate: a 4-3-2-1 ladder that takes longer than the car takes to stop leaves the
+// last downshift completing at standstill. See TRANSMISSION_NOTES.md section 4.
 bool StandardProfile::should_downshift(GearboxGear current_gear, SensorData* sensors) {
     if (current_gear == GearboxGear::First) { return false; }
     if (this->downshift_table != nullptr) { // TEST TABLE

@@ -1,6 +1,17 @@
 #ifndef __NVS_ALL_KEYS_H_
 #define __NVS_ALL_KEYS_H_
 
+/*
+    NVS key names for stored maps and settings. Max 15 characters (NVS limit).
+
+    IMPORTANT: a StoredMap only falls back to its `maps.cpp` default when its key is ABSENT
+    from NVS, so on a TCU that has already booted, changing a default in prog flash has no
+    effect. To make a corrected default take, BUMP THE KEY NAME here (S_DIESEL_DOWN ->
+    S_DIESEL_DN_1, ...): the old blob is ignored, the new default is seeded, and the config
+    app is unaffected because it addresses maps by numeric ID (diag/map_editor.h), not by key.
+    Doing so discards any user edits to that map, which is the point when fixing a bad default.
+    Existing versioned keys: FILL_PRESS_3, FILL_LPRESS_4, TCC_S_ADAPT_3, ADP_PT_A2, *_DN_1.
+*/
 #define CREATE_NAME_EXTERN(def, str) extern const char* NVS_KEY_##def;
 
 #define FOR_LIST(DO) \
@@ -11,17 +22,17 @@
     DO(LAST_FW, "LAST_FW")\
     /* -- MAP NAMES -- */ \
     DO(MAP_NAME_S_DIESEL_UPSHIFT , "S_DIESEL_UP")\
-    DO(MAP_NAME_S_DIESEL_DOWNSHIFT , "S_DIESEL_DOWN")\
+    DO(MAP_NAME_S_DIESEL_DOWNSHIFT , "S_DIESEL_DN_1")\
     DO(MAP_NAME_S_PETROL_UPSHIFT , "S_PETROL_UP")\
-    DO(MAP_NAME_S_PETROL_DOWNSHIFT , "S_PETROL_DOWN")\
+    DO(MAP_NAME_S_PETROL_DOWNSHIFT , "S_PETROL_DN_1")\
     DO(MAP_NAME_C_DIESEL_UPSHIFT , "C_DIESEL_UP")\
-    DO(MAP_NAME_C_DIESEL_DOWNSHIFT , "C_DIESEL_DOWN")\
+    DO(MAP_NAME_C_DIESEL_DOWNSHIFT , "C_DIESEL_DN_1")\
     DO(MAP_NAME_C_PETROL_UPSHIFT , "C_PETROL_UP")\
-    DO(MAP_NAME_C_PETROL_DOWNSHIFT , "C_PETROL_DOWN")\
+    DO(MAP_NAME_C_PETROL_DOWNSHIFT , "C_PETROL_DN_1")\
     DO(MAP_NAME_A_DIESEL_UPSHIFT , "A_DIESEL_UP")\
-    DO(MAP_NAME_A_DIESEL_DOWNSHIFT , "A_DIESEL_DOWN")\
+    DO(MAP_NAME_A_DIESEL_DOWNSHIFT , "A_DIESEL_DN_1")\
     DO(MAP_NAME_A_PETROL_UPSHIFT , "A_PETROL_UP")\
-    DO(MAP_NAME_A_PETROL_DOWNSHIFT , "A_PETROL_DOWN")\
+    DO(MAP_NAME_A_PETROL_DOWNSHIFT , "A_PETROL_DN_1")\
     DO(MAP_NAME_M_DIESEL_UPSHIFT , "M_DIESEL_UP")\
     DO(MAP_NAME_M_DIESEL_DOWNSHIFT , "M_DIESEL_DOWN")\
     DO(MAP_NAME_M_PETROL_UPSHIFT, "M_PETROL_UP")\
@@ -31,15 +42,15 @@
     DO(MAP_NAME_FILL_PRESSURE , "FILL_PRESS_3")\
     DO(MAP_NAME_FILL_LOW_PRESSURE , "FILL_LPRESS_4")\
     DO(MAP_NAME_M_UPSHIFT_TIME , "M_UPSHIFT_TIME")\
-    DO(MAP_NAME_M_DOWNSHIFT_TIME , "M_DNSHIFT_TIME")\
+    DO(MAP_NAME_M_DOWNSHIFT_TIME , "M_DNSHIFT_T1")\
     DO(MAP_NAME_C_UPSHIFT_TIME , "C_UPSHIFT_TIME")\
-    DO(MAP_NAME_C_DOWNSHIFT_TIME , "C_DNSHIFT_TIME")\
+    DO(MAP_NAME_C_DOWNSHIFT_TIME , "C_DNSHIFT_T1")\
     DO(MAP_NAME_S_UPSHIFT_TIME , "S_UPSHIFT_TIME")\
-    DO(MAP_NAME_S_DOWNSHIFT_TIME , "S_DNSHIFT_TIME")\
+    DO(MAP_NAME_S_DOWNSHIFT_TIME , "S_DNSHIFT_T1")\
     DO(MAP_NAME_A_UPSHIFT_TIME , "A_UPSHIFT_TIME")\
-    DO(MAP_NAME_A_DOWNSHIFT_TIME , "A_DNSHIFT_TIME")\
+    DO(MAP_NAME_A_DOWNSHIFT_TIME , "A_DNSHIFT_T1")\
     DO(MAP_NAME_W_UPSHIFT_TIME , "W_UPSHIFT_TIME")\
-    DO(MAP_NAME_W_DOWNSHIFT_TIME , "W_DNSHIFT_TIME")\
+    DO(MAP_NAME_W_DOWNSHIFT_TIME , "W_DNSHIFT_T1")\
     DO(MAP_NAME_R_UPSHIFT_TIME , "R_UPSHIFT_TIME")\
     DO(MAP_NAME_R_DOWNSHIFT_TIME , "R_DNSHIFT_TIME")\
     DO(MAP_NAME_HFM_TORQUE_MAP, "HFM_TRQ_MAP_A0")\

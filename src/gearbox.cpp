@@ -164,12 +164,19 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
         this->redline_rpm = 4000; // just in case
     }
     this->diff_ratio_f = (float)VEHICLE_CONFIG.diff_ratio / 1000.0;
-    this->input_rpm_delta = new DeltaTracker(25);
+    this->input_rpm_delta = new DeltaTracker(5); // 5 x 100 ms: fast enough to predict the redline
     this->pedal_delta = new DeltaTracker(25);
 }
 
 bool Gearbox::is_stationary() {
-    return this->sensor_data.input_rpm < 100 && this->sensor_data.output_rpm < 100;
+    // The output shaft is what says the car has stopped. The old test also demanded
+    // input_rpm < 100, but standing in gear the converter drags the turbine to
+    // 100-300 rpm at idle, so a genuine standstill never satisfied it: a 2-1 coast
+    // downshift that finished at a stop was still handled as a moving shift, with
+    // torque requests and flare detection live and a meaningless gear ratio
+    // (output 0 gives ratios of 0 or 100+). The input bound is kept only so a dead
+    // output speed sensor at road speed cannot fake a standstill.
+    return this->sensor_data.output_rpm < 60 && this->sensor_data.input_rpm < 1000;
 }
 
 void Gearbox::set_profile(AbstractProfile* prof)
@@ -1188,6 +1195,19 @@ void Gearbox::controller_loop()
                             this->ask_downshift = true; // Downshift is secondary
                             this->manual_shift = false;
                         }
+                    }
+                    // Engine protection: regardless of what the profile decided, force an upshift when the
+                    // input shaft is at the redline (The profile adders can push the map threshold past it)
+                    // Predictive: a shift needs ~0.5 s of bleed+fill before the ratio changes, so look
+                    // ahead by the current input RPM rate of change (rpm/s from the delta tracker).
+                    int rpm_rate = (this->input_rpm_delta != nullptr) ? this->input_rpm_delta->get_delta() : 0;
+                    int predicted_rpm = (int)this->sensor_data.input_rpm + (MAX(0, rpm_rate) / 2);
+                    if (!this->ask_upshift && this->actual_gear < GearboxGear::Fifth && this->actual_gear < this->restrict_target &&
+                        predicted_rpm >= this->redline_rpm) {
+                        ESP_LOGW("GEARBOX", "Redline reached in gear %s (%d rpm, +%d rpm/s), forcing upshift", gear_to_text(this->actual_gear), this->sensor_data.input_rpm, rpm_rate);
+                        this->ask_upshift = true;
+                        this->ask_downshift = false;
+                        this->manual_shift = false;
                     }
                     if (this->ask_upshift && this->actual_gear < GearboxGear::Fifth && this->actual_gear < this->restrict_target)
                     {

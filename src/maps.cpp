@@ -10,11 +10,20 @@ const int16_t S_DIESEL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
 };
 
 
+/*
+    Downshift maps are indexed on input shaft RPM, so the 0-20 % pedal cells decide which gear the
+    box coasts down to. They must form a descending road-speed ladder (input RPM / gear ratio), or
+    the box holds a high gear all the way to a standstill and then does two power-on downshifts
+    back to back the moment the driver touches the throttle again - which is what "harsh when
+    slowing to a stop and pulling away" is. Reference output shaft speed at 0 % pedal:
+        5->4  900 rpm / 0.833 = 1080     4->3  700 rpm / 1.000 = 700
+        3->2  650 rpm / 1.486 =  437     2->1  600 rpm / 2.423 = 248
+*/
 const int16_t S_DIESEL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-       100, 500, 850, 1050, 1200, 1400, 1500, 1700, 1800, 1900, 2000,/* 2 -> 1 */
-       150, 600, 900, 1100, 1250, 1400, 1500, 1700, 1800, 2000, 2000,/* 3 -> 2 */
+       600, 650, 850, 1050, 1200, 1400, 1500, 1700, 1800, 1900, 2000,/* 2 -> 1 */
+       650, 750, 900, 1100, 1250, 1400, 1500, 1700, 1800, 2000, 2000,/* 3 -> 2 */
       700, 850, 1000, 1150, 1300, 1400, 1550, 1700, 1800, 2100, 2000,/* 4 -> 3 */
      900, 1000, 1100, 1200, 1350, 1450, 1500, 1750, 1900, 2200, 2500 /* 5 -> 4 */
     };
@@ -32,7 +41,7 @@ const int16_t S_PETROL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
 const int16_t S_PETROL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-      75,  150,  300,  600,  900, 1200, 1400, 1600, 1800, 2000, 2200,/* 2 -> 1 */
+     600,  650,  850,  900,  900, 1200, 1400, 1600, 1800, 2000, 2200,/* 2 -> 1 */
      900,  900, 1000, 1100, 1200, 1300, 1400, 1600, 1800, 2000, 2200,/* 3 -> 2 */
      900,  900, 1000, 1100, 1200, 1300, 1400, 1600, 1800, 2000, 2200,/* 4 -> 3 */
     1000, 1050, 1100, 1200, 1300, 1400, 1500, 1600, 2000, 2400, 2800 /* 5 -> 4 */
@@ -56,8 +65,8 @@ const int16_t C_DIESEL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
 const int16_t C_DIESEL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-       0,    0,    0,    0,  300,  400,  500,  600,  700,  800,  900,/* 2 -> 1 */
-     150,  500,  850, 1050, 1200, 1300, 1400, 1500, 1600, 1700, 1800,/* 3 -> 2 */
+     600,  650,  800,  950, 1050, 1150, 1250, 1350, 1450, 1550, 1650,/* 2 -> 1 */
+     650,  750,  900, 1050, 1200, 1300, 1400, 1500, 1600, 1700, 1800,/* 3 -> 2 */
      900,  900,  900, 1050, 1200, 1300, 1400, 1500, 1600, 1700, 1800,/* 4 -> 3 */
      900,  900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800 /* 5 -> 4 */
 };
@@ -74,7 +83,7 @@ const int16_t C_PETROL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
 const int16_t C_PETROL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-       0,    0,    0,    0,  300,  400,  500,  600,  700,  800,  900,/* 2 -> 1 */
+     600,  650,  800,  950, 1050, 1150, 1250, 1350, 1450, 1550, 1650,/* 2 -> 1 */
      900,  900, 1000, 1100, 1200, 1300, 1400, 1600, 1800, 2000, 2200,/* 3 -> 2 */
      900,  900, 1000, 1100, 1200, 1300, 1400, 1600, 1800, 2000, 2200,/* 4 -> 3 */
     1000, 1050, 1100, 1200, 1300, 1400, 1500, 1600, 2000, 2400, 2800 /* 5 -> 4 */
@@ -98,8 +107,8 @@ const int16_t A_DIESEL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
 const int16_t A_DIESEL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-       100, 500, 900, 1100, 1200, 1400, 1600, 1700, 1800, 2000, 2300,/* 2 -> 1 */
-      150, 600, 1000, 1050, 1200, 1400, 1600, 1700, 1800, 2000, 2300,/* 3 -> 2 */
+       650, 700, 900, 1100, 1200, 1400, 1600, 1700, 1800, 2000, 2300,/* 2 -> 1 */
+      700, 750, 1000, 1050, 1200, 1400, 1600, 1700, 1800, 2000, 2300,/* 3 -> 2 */
       900, 900, 1000, 1100, 1200, 1300, 1500, 1600, 1700, 2000, 2300,/* 4 -> 3 */
       900, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1900, 2200 /* 5 -> 4 */
 };
@@ -116,7 +125,7 @@ const int16_t A_PETROL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
 const int16_t A_PETROL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-      75,  150,  300,  600,  900, 1200, 1400, 1600, 1800, 2000, 2200,/* 2 -> 1 */
+     650,  700,  850,  900,  900, 1200, 1400, 1600, 1800, 2000, 2200,/* 2 -> 1 */
      900,  900, 1000, 1100, 1200, 1300, 1400, 1600, 1800, 2000, 2200,/* 3 -> 2 */
      900,  900, 1000, 1100, 1200, 1300, 1400, 1600, 1800, 2000, 2200,/* 4 -> 3 */
     1000, 1050, 1100, 1200, 1300, 1400, 1500, 1600, 2000, 2400, 2800 /* 5 -> 4 */
@@ -225,9 +234,18 @@ const int16_t M_UPSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (ov
     /* Redline (100%)  */  450,  425,  400,  375,  350,  350
 };
 
+/*
+    The 0 % / 20 % pedal cells of the <1000 rpm row are the coast-down-to-a-stop cells.
+    A closed-throttle downshift has no torque to hand over, so it does not need a 2 s
+    overlap - and it cannot have one: the gearbox only picks the next gear once the
+    current shift finishes, so 4->3->2->1 at 2 s each takes longer than the car takes
+    to stop, and the 2->1 completes at standstill (felt as a clunk when the brake is
+    released). Measured 2026-09-07: 4->3 at t=252.4, 3->2 at 254.5, 2->1 at 256.0,
+    car stopped at 256.5, shift finished 257.4.
+*/
 const int16_t M_DOWNSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (overlap duration)
     /*                       0    20    40   60    80  100 <- Pedal % */
-    /* < 1000 RPM (0%) */ 2000, 1750, 1500, 1000,  750,  500, 
+    /* < 1000 RPM (0%) */  800, 1100, 1500, 1000,  750,  500, 
     /* 25% Redline     */ 1750, 1500, 1200,  800,  650,  450,
     /* 50% Redline     */ 1500, 1250,  900,  600,  600,  400,
     /* 75% Redline     */ 1000, 1000,  600,  550,  550,  350,
@@ -245,7 +263,7 @@ const int16_t S_UPSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (ov
 
 const int16_t S_DOWNSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (overlap duration)
     /*                       0    20    40   60    80  100 <- Pedal % */
-    /* < 1000 RPM (0%) */ 2000, 1750, 1500, 1000,  750,  500, 
+    /* < 1000 RPM (0%) */  800, 1100, 1500, 1000,  750,  500, 
     /* 25% Redline     */ 1750, 1500, 1200,  800,  650,  450,
     /* 50% Redline     */ 1500, 1250,  900,  600,  600,  400,
     /* 75% Redline     */ 1000, 1000,  600,  550,  550,  350,
@@ -263,7 +281,7 @@ const int16_t A_UPSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (ov
 
 const int16_t A_DOWNSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (overlap duration)
     /*                       0    20    40   60    80  100 <- Pedal % */
-    /* < 1000 RPM (0%) */ 2000, 1750, 1500, 1000,  750,  500, 
+    /* < 1000 RPM (0%) */  800, 1100, 1500, 1000,  750,  500, 
     /* 25% Redline     */ 1750, 1500, 1200,  800,  650,  450,
     /* 50% Redline     */ 1500, 1250,  900,  600,  600,  400,
     /* 75% Redline     */ 1000, 1000,  600,  550,  550,  350,
@@ -282,7 +300,7 @@ const int16_t C_UPSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (ov
 
 const int16_t C_DOWNSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (overlap duration)
     /*                       0    20    40   60    80  100 <- Pedal % */
-    /* < 1000 RPM (0%) */ 2000, 1750, 1500, 1250, 1000,  800, 
+    /* < 1000 RPM (0%) */  950, 1300, 1500, 1250, 1000,  800, 
     /* 25% Redline     */ 1800, 1600, 1400, 1250,  950,  750,
     /* 50% Redline     */ 1600, 1500, 1400, 1200,  900,  700,
     /* 75% Redline     */ 1400, 1300, 1200, 1100,  800,  650,
@@ -300,7 +318,7 @@ const int16_t W_UPSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (ov
 
 const int16_t W_DOWNSHIFT_TIME_MAP[] = { // Value = Target time in ms to shift (overlap duration)
     /*                       0    20    40   60    80  100 <- Pedal % */
-    /* < 1000 RPM (0%) */ 2000, 1750, 1500, 1250, 1000,  800, 
+    /* < 1000 RPM (0%) */  950, 1300, 1500, 1250, 1000,  800, 
     /* 25% Redline     */ 1800, 1600, 1400, 1250,  950,  750,
     /* 50% Redline     */ 1600, 1500, 1400, 1200,  900,  700,
     /* 75% Redline     */ 1400, 1300, 1200, 1100,  800,  650,
