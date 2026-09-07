@@ -185,7 +185,10 @@ bool Gearbox::is_stationary() {
 #define DEMAND_PEDAL_FULL      225u   // 90 % - treat as full throttle
 #define DEMAND_PEDAL_RISE       62u   // a quarter of pedal travel ...
                                       // ... within the 500 ms pedal_history window
-#define DEMAND_HOLD_MS       30000u   // hold Agility this long after the last demand
+#define AGILITY_DECAY_PER_S      4    // 100 -> 0 in ~25 s of gentle driving
+#define AGILITY_ENGAGE          60u   // score at which Agility takes over ...
+#define AGILITY_RELEASE         25u   // ... and the score it has to fall to first
+#define AGILITY_DECEL_RPM_S    900    // output shaft decel counted as hard braking
 
 void Gearbox::set_profile(AbstractProfile* prof)
 {
@@ -195,7 +198,7 @@ void Gearbox::set_profile(AbstractProfile* prof)
     if (nullptr != prof && prof != this->selected_profile)
     {
         this->selected_profile = prof;
-        this->agility_until_ms = 0;   // a deliberate profile change cancels any hold
+        this->agility_score = 0;      // a deliberate profile change resets the score
         portENTER_CRITICAL(&this->profile_mutex);
         this->current_profile = prof;
         portEXIT_CRITICAL(&this->profile_mutex);
@@ -210,22 +213,99 @@ void Gearbox::set_profile(AbstractProfile* prof)
  * not usable for this: it is a first order filter over 25 samples at 100 ms, so
  * its time constant is 2.5 s and a stab is smoothed away long before it shows.
  */
-bool Gearbox::driver_demands_agility(void)
+/**
+ * @brief Instantaneous agility demand, 0-100, from what the driver is doing now.
+ *
+ * The strongest single indicator is how fast the pedal went down, not where it
+ * ended up - a quarter of travel inside 500 ms is a deliberate request even if
+ * the pedal never gets near the floor. Absolute position and kickdown are the
+ * other two, and hard braking counts because someone braking hard for a corner
+ * usually wants the gear when they get back on it.
+ *
+ * The existing pedal_delta tracker cannot serve here: it is a first order filter
+ * over 25 samples at 100 ms, so its time constant is 2.5 s and a stab is smoothed
+ * away long before it shows.
+ */
+uint8_t Gearbox::agility_demand(void)
 {
     if (this->sensor_data.kickdown_pressed) {
-        return true;
+        return 100u;
     }
-    if (this->sensor_data.pedal_pos >= DEMAND_PEDAL_FULL) {
-        return true;
+    uint16_t demand = 0;
+    // absolute pedal: 40 % pedal -> 0, full pedal -> 100
+    if (this->sensor_data.pedal_pos > 100u) {
+        demand = ((uint16_t)(this->sensor_data.pedal_pos - 100u) * 100u) / 150u;
     }
+    // rate of application over the 500 ms window, the dominant term
     uint8_t lowest = UINT8_MAX;
     for (uint8_t i = 0; i < sizeof(this->pedal_history); i++) {
         if (this->pedal_history[i] < lowest) {
             lowest = this->pedal_history[i];
         }
     }
-    return (this->sensor_data.pedal_pos > lowest) &&
-           ((uint16_t)(this->sensor_data.pedal_pos - lowest) >= DEMAND_PEDAL_RISE);
+    if (this->sensor_data.pedal_pos > lowest) {
+        uint16_t rise = this->sensor_data.pedal_pos - lowest;
+        uint16_t by_rate = (rise * 100u) / DEMAND_PEDAL_RISE;   // full marks at a quarter of travel
+        if (by_rate > demand) { demand = by_rate; }
+    }
+    // hard braking - the driver is likely to want the gear on the way out
+    if (this->decel_rpm_s < -AGILITY_DECEL_RPM_S) {
+        uint16_t by_brake = ((uint16_t)(-this->decel_rpm_s - AGILITY_DECEL_RPM_S) * 100u) / AGILITY_DECEL_RPM_S;
+        if (by_brake > demand) { demand = by_brake; }
+    }
+    return (uint8_t)MIN(100u, demand);
+}
+
+/**
+ * @brief Track agility demand: rise at once, fall slowly.
+ *
+ * Asymmetric on purpose. A driver who asks for performance should get it on the
+ * same pedal application, but should not lose it because they lifted for a
+ * moment mid-overtake, so the score only falls at AGILITY_DECAY_PER_S.
+ */
+void Gearbox::update_agility_score(void)
+{
+    uint32_t now = GET_CLOCK_TIME();
+    if (0 == this->last_score_ms) {
+        this->last_score_ms = now;
+        this->last_out_rpm = this->sensor_data.output_rpm;
+        return;
+    }
+    uint32_t dt = now - this->last_score_ms;
+    if (dt < 100u) {
+        return;                     // evaluate at 10 Hz, the inputs are slower than that
+    }
+    this->decel_rpm_s = (int16_t)(((int32_t)this->sensor_data.output_rpm -
+                                   (int32_t)this->last_out_rpm) * 1000 / (int32_t)dt);
+    this->last_out_rpm = this->sensor_data.output_rpm;
+    this->last_score_ms = now;
+
+    uint8_t demand = this->agility_demand();
+    if (demand > this->agility_score) {
+        this->agility_score = demand;                      // rise immediately
+    } else {
+        uint16_t decay = (uint16_t)((AGILITY_DECAY_PER_S * dt) / 1000u);
+        this->agility_score = (this->agility_score > decay) ?
+            (uint8_t)(this->agility_score - decay) : 0u;
+    }
+}
+
+DATA_DRIVING_DYNAMICS Gearbox::get_driving_dynamics(void)
+{
+    uint8_t lowest = UINT8_MAX;
+    for (uint8_t i = 0; i < sizeof(this->pedal_history); i++) {
+        if (this->pedal_history[i] < lowest) { lowest = this->pedal_history[i]; }
+    }
+    return DATA_DRIVING_DYNAMICS {
+        .agility_score = this->agility_score,
+        .agility_demand = this->agility_demand(),
+        .pedal_pos = (uint8_t)MIN(250, (int)this->sensor_data.pedal_pos),
+        .pedal_rise = (uint8_t)((this->sensor_data.pedal_pos > lowest) ?
+                                MIN(250, (int)this->sensor_data.pedal_pos - (int)lowest) : 0),
+        .decel_rpm_s = this->decel_rpm_s,
+        .profile_id = (uint8_t)((nullptr != this->current_profile) ? this->current_profile->get_profile_id() : 0xFF),
+        .selected_id = (uint8_t)((nullptr != this->selected_profile) ? this->selected_profile->get_profile_id() : 0xFF),
+    };
 }
 
 void Gearbox::update_adaptive_profile(void)
@@ -235,20 +315,17 @@ void Gearbox::update_adaptive_profile(void)
         nullptr == agility) {
         return;
     }
-    uint32_t now = GET_CLOCK_TIME();
-    if (this->driver_demands_agility()) {
-        this->agility_until_ms = now + DEMAND_HOLD_MS;
-    }
-    bool want_agility = (this->agility_until_ms != 0) && (now < this->agility_until_ms);
-    if (!want_agility) {
-        this->agility_until_ms = 0;
-    }
+    // Hysteresis, so a score hovering at the threshold cannot swap profiles back
+    // and forth. Once engaged it stays until the driver has genuinely settled.
+    bool want_agility = (this->current_profile == (AbstractProfile*)agility)
+        ? (this->agility_score > AGILITY_RELEASE)
+        : (this->agility_score >= AGILITY_ENGAGE);
     AbstractProfile* target = want_agility ? (AbstractProfile*)agility : this->selected_profile;
     // Never swap the maps out from under a shift in progress - the shift thread
     // reads chars/target time from the profile it started with.
     if (!this->shifting && target != this->current_profile) {
-        ESP_LOG_LEVEL(ESP_LOG_INFO, "GEARBOX", "Adaptive profile -> %s",
-            want_agility ? "AGILITY (driver demand)" : "COMFORT (demand timed out)");
+        ESP_LOG_LEVEL(ESP_LOG_INFO, "GEARBOX", "Adaptive profile -> %s (agility score %d)",
+            want_agility ? "AGILITY" : "COMFORT", this->agility_score);
         portENTER_CRITICAL(&this->profile_mutex);
         this->current_profile = target;
         portEXIT_CRITICAL(&this->profile_mutex);
@@ -1529,6 +1606,7 @@ void Gearbox::controller_loop()
         if (!this->shifting && this->sensor_data.engine_rpm > 100) {
             pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
         }
+        this->update_agility_score();
         this->update_adaptive_profile();
         // High rate shift recorder. This loop is the algorithm's own 20 ms period,
         // so the capture is lossless; the sampler is O(1) and allocation free.
@@ -1539,7 +1617,7 @@ void Gearbox::controller_loop()
             this->pressure_mgr->get_active_shift_circuits(),
             (this->output_data.ctrl_type == TorqueRequestControlType::None)
                 ? INT16_MAX : (int16_t)this->output_data.torque_req_amount,
-            (int16_t)this->sensor_data.converted_torque);
+            (int16_t)this->sensor_data.converted_torque, this->agility_score);
         uint32_t time = GET_CLOCK_TIME() - start;
         if (time < 20) {
             vTaskDelay((20 - time) / portTICK_PERIOD_MS); // 50 updates/sec!

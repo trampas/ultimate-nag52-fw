@@ -88,7 +88,7 @@ const ShiftTraceHeader* ShiftTrace::get_header(void) {
  * enough: a shift's window is ~2.3 s and draining it costs ~72 ms, while the
  * shortest gap between shifts seen on the road is ~1.9 s.
  */
-static void push_event(uint32_t seq, uint8_t from, uint8_t to) {
+static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility) {
     if (trace_header.n_events == SHIFT_TRACE_EVENTS) {
         // Oldest event is about to be lost. If the host never read it, its
         // samples are long gone from the ring too - count it so a gap in the
@@ -107,13 +107,14 @@ static void push_event(uint32_t seq, uint8_t from, uint8_t to) {
     e->gear_from = from;
     e->gear_to = to;
     e->done = 0;
-    e->_pad = 0;
+    e->agility_score = agility;
     trace_header.n_events += 1;
 }
 
 void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                         uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
-                        uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque) {
+                        uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque,
+                        uint8_t agility_score) {
     if (nullptr == trace_ring || nullptr == sd || nullptr == algo) {
         return;
     }
@@ -183,7 +184,7 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
     // Shift boundaries are detected here rather than hooked into elapse_shift,
     // so the shift control path is untouched.
     if (shifting && !was_shifting) {
-        push_event(trace_header.seq, gear_actual, gear_target);
+        push_event(trace_header.seq, gear_actual, gear_target, agility_score);
         // Reset the accumulators and latch the starting conditions.
         q.t_start = s->t_ms;
         q.ratio_start = (s->output_rpm > 150) ? ((float)s->input_rpm / (float)s->output_rpm) : 0.0f;

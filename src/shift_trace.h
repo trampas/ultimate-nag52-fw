@@ -93,7 +93,7 @@ struct ShiftTraceEvent {
     uint8_t  gear_from;
     uint8_t  gear_to;
     uint8_t  done;
-    uint8_t  _pad;
+    uint8_t  agility_score; // driver agility demand 0-100 when the shift started
     ShiftQuality quality;
 } __attribute__((packed));  // 28 bytes
 
@@ -124,7 +124,8 @@ namespace ShiftTrace {
     /// One sample. Called from Gearbox::controller_loop every 20 ms.
     void sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                 uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
-                uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque);
+                uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque,
+                uint8_t agility_score);
     /// Header for the diagnostic readout, or nullptr if tracing is inactive.
     const ShiftTraceHeader* get_header(void);
 }

@@ -103,6 +103,14 @@ class ReadoutTests(unittest.TestCase):
         finally:
             rd.stop()
 
+    def test_shift_carries_the_driver_agility_score(self):
+        """The gate a learner needs: how hard was the driver pushing?"""
+        cl, rd, _ = self._client(seq=100, events=((10, 40, 2, 3, 1),))
+        try:
+            self.assertEqual(ST.read_header(cl)["events"][0]["agility_score"], 72)
+        finally:
+            rd.stop()
+
     def test_unfinished_shift_has_no_quality(self):
         cl, rd, _ = self._client(seq=100, events=((30, 60, 2, 3, 0),))
         try:

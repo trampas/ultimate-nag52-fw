@@ -25,6 +25,23 @@ struct ShiftClutchData {
     int16_t rear_sun_speed;
 };
 
+/**
+ * @brief How much agility the driver is asking for, and the inputs behind it.
+ *
+ * Driver intent is not binary, and anything that learns from a shift has to know
+ * how hard the driver was pushing when it happened, or it adapts the comfort
+ * calibration towards an objective the driver wanted for ten seconds.
+ */
+typedef struct {
+    uint8_t agility_score;   // 0-100, rises at once and decays over ~25 s
+    uint8_t agility_demand;  // the instantaneous value the score is tracking
+    uint8_t pedal_pos;
+    uint8_t pedal_rise;      // pedal travel added within the last 500 ms
+    int16_t decel_rpm_s;     // output shaft, negative when braking
+    uint8_t profile_id;      // profile actually in force
+    uint8_t selected_id;     // profile the driver asked for
+} __attribute__ ((packed)) DATA_DRIVING_DYNAMICS;
+
 struct ShiftAlgoFeedback {
     uint8_t active;
     uint8_t shift_phase;

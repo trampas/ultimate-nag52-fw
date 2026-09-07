@@ -11,6 +11,7 @@ FIRMWARE_SIZES = {
     "tcu_time": 4, "sensors": 19, "solenoids": 32, "can": 30, "sys_usage": 24,
     "tcc": 27, "pressures": 23, "shift_live": 22, "clutch_speeds": 12,
     "shift_algo": 22, "fw_header": 256, "tcm_config": 28,
+    "driving_dynamics": 8,
 }
 
 

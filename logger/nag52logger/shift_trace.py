@@ -81,10 +81,14 @@ def read_header(client) -> Dict[str, Any]:
     off = HEADER_SIZE
     for i in range(min(n_ev, N_EVENTS)):
         v = struct.unpack_from(EVENT_FMT, raw, off + i * EVENT_SIZE)
-        s0, s1, gf, gt, done = v[0], v[1], v[2], v[3], v[4]
+        s0, s1, gf, gt, done, agility = v[0], v[1], v[2], v[3], v[4], v[5]
         q = dict(zip(QUALITY_FIELDS, v[6:]))
         ev = {"seq_start": s0, "seq_end": s1, "gear_from": GEAR_NAMES.get(gf, gf),
-              "gear_to": GEAR_NAMES.get(gt, gt), "done": bool(done)}
+              "gear_to": GEAR_NAMES.get(gt, gt), "done": bool(done),
+              # how hard the driver was pushing when this shift started - the gate
+              # any future adaptation needs so it does not learn Comfort from an
+              # Agility shift
+              "agility_score": agility}
         if q.pop("valid", 0):
             # the TCU reports jerk in mm/s^3 to keep it an integer
             q["peak_jerk"] = q.pop("peak_jerk_mms3") / 1000.0
@@ -165,4 +169,5 @@ def read_shift(client, header: Dict[str, Any], event: Dict[str, Any],
            "samples": samples}
     if "quality" in event:
         out["quality"] = event["quality"]
+    out["agility_score"] = event.get("agility_score", 0)
     return out

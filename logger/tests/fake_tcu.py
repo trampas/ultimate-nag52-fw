@@ -230,7 +230,7 @@ def build_trace(n_samples: int = 60, capacity: int = 512, seq: int = 0,
     for a, b, gf, gt, done in events:
         # event + ShiftQuality (response, duration, jerk mm/s^3, hole, energy,
         # lockup, osc, valid)
-        hdr += _s.pack("<IIBBBB" + "HHHHIHBB", a, b, gf, gt, done, 0,
+        hdr += _s.pack("<IIBBBB" + "HHHHIHBB", a, b, gf, gt, done, 72,
                        420, 1100, 38500, 66, 8100, 9400, 1, 1 if done else 0)
     hdr += b"\x00" * (28 * (4 - len(events)))
     return hdr, ring

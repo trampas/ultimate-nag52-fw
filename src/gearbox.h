@@ -53,6 +53,8 @@ public:
 
     bool isShifting(void) { return this->shifting; }
     uint8_t get_targ_curr_gear(void) { return (((uint8_t)this->target_gear) & 0x0F) << 4 | ((uint8_t)this->actual_gear & 0x0F); }
+    /// Driver agility demand and the inputs behind it, for RLI_DRIVING_DYNAMIC.
+    DATA_DRIVING_DYNAMICS get_driving_dynamics(void);
     uint8_t get_profile_id(void) {
         if (this->current_profile) {
             return this->current_profile->get_profile_id();
@@ -83,10 +85,28 @@ private:
      * throttle demand switches to Agility at once and holds it, so the box does not
      * fall back to a tall gear halfway through an overtake.
      */
-    uint32_t agility_until_ms = 0;      // Agility is in force until this time
+    /**
+     * @brief How much agility the driver is asking for, 0-100.
+     *
+     * A continuous score rather than a flag, because driver intent is not binary
+     * and because anything that learns from a shift needs to know how hard the
+     * driver was pushing when it happened - otherwise it adapts Comfort towards
+     * an objective the driver only wanted for ten seconds. Production systems do
+     * the same thing (ZF calls it driver type assessment, and ignores it during
+     * special programs, which is the same gating idea).
+     *
+     * Rises almost immediately and decays over roughly 30 s of gentle driving.
+     * The profile switch takes it with hysteresis so it cannot chatter at the
+     * boundary.
+     */
+    uint8_t agility_score = 0;
     uint8_t pedal_history[5] = {0};     // 100 ms apart -> a 500 ms window
     uint8_t pedal_history_idx = 0;
-    bool driver_demands_agility(void);
+    uint32_t last_score_ms = 0;
+    uint16_t last_out_rpm = 0;
+    int16_t decel_rpm_s = 0;            // output shaft, for the braking term
+    uint8_t agility_demand(void);
+    void update_agility_score(void);
     void update_adaptive_profile(void);
     GearboxGear target_gear = GearboxGear::Park;
     GearboxGear actual_gear = GearboxGear::Park;

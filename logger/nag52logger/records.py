@@ -275,6 +275,16 @@ _add(Record("clutch_speeds", RLI_CLUTCH_SPEEDS, "Modelled clutch slip speeds (Cl
     Field("b1", "h", "rpm"), Field("b2", "h", "rpm"), Field("b3", "h", "rpm"),
 ]))
 
+_add(Record("driving_dynamics", 0x32, "Driver agility demand (DATA_DRIVING_DYNAMICS)", [
+    Field("agility_score", "B", "", desc="0-100, rises at once and decays over ~25 s"),
+    Field("agility_demand", "B", "", desc="instantaneous value the score is tracking"),
+    Field("pedal_pos", "B", "/250"),
+    Field("pedal_rise", "B", "/250", desc="pedal travel added within the last 500 ms"),
+    Field("decel_rpm_s", "h", "rpm/s", desc="output shaft, negative when braking"),
+    Field("profile_id", "B", "", desc="profile actually in force"),
+    Field("selected_id", "B", "", desc="profile the driver asked for"),
+]))
+
 _add(Record("shift_algo", RLI_SHIFTING_ALGO, "Shifting algorithm feedback (ShiftAlgoFeedback)", [
     Field("active", "B", "", desc="1 while a shift algorithm is running"),
     Field("shift_phase", "B", ""), Field("subphase_shift", "B", ""), Field("subphase_mod", "B", ""),
