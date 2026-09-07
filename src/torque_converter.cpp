@@ -18,6 +18,7 @@ const int16_t SLIP_V_WHEN_LOCKED = 10; // 10RPM for locking (Means we can monito
 const int16_t SLIP_V_OVERLOCKED = SLIP_V_WHEN_LOCKED/2;
 const int16_t SLIP_V_UNDERLOCKED = SLIP_V_WHEN_LOCKED*2;
 const uint8_t SLIP_SAMPLES_AVG = 25; // 500ms
+const int16_t TCC_STATE_HYST_RPM = 10; // Hysteresis on the slip target when deciding Open/Slip/Closed
 
 TorqueConverter::TorqueConverter(uint16_t max_gb_rating)  {
     if (0 == TCC_CURRENT_SETTINGS.tcc_max_trq_override) {
@@ -30,17 +31,20 @@ TorqueConverter::TorqueConverter(uint16_t max_gb_rating)  {
     const int16_t adapt_map_y_headers[5] = {1,2,3,4,5}; // Gear
     this->tcc_slip_map = new StoredMap(NVS_KEY_TCC_ADAPT_SLIP_MAP, TCC_SLIP_ADAPT_MAP_SIZE, adapt_map_x_headers, adapt_map_y_headers, LOAD_SIZE, 5, TCC_SLIP_ADAPT_MAP);
     if (this->tcc_slip_map->init_status() != ESP_OK) {
-        delete[] this->tcc_slip_map;
+        delete this->tcc_slip_map;
+        this->tcc_slip_map = nullptr;
     }
 
     this->tcc_lock_map = new StoredMap(NVS_KEY_TCC_ADAPT_LOCK_MAP, TCC_SLIP_ADAPT_MAP_SIZE, adapt_map_x_headers, adapt_map_y_headers, LOAD_SIZE, 5, TCC_LOCK_ADAPT_MAP);
     if (this->tcc_lock_map->init_status() != ESP_OK) {
-        delete[] this->tcc_lock_map;
+        delete this->tcc_lock_map;
+        this->tcc_lock_map = nullptr;
     }
 
     this->slip_rpm_target_map = new StoredMap(NVS_KEY_TCC_SLIP_TARGET_MAP, TCC_RPM_TARGET_MAP_SIZE, rpm_map_x_headers, rpm_map_y_headers, 11, 8, TCC_RPM_TARGET_MAP);
     if (this->slip_rpm_target_map->init_status() != ESP_OK) {
-        delete[] this->slip_rpm_target_map;
+        delete this->slip_rpm_target_map;
+        this->slip_rpm_target_map = nullptr;
     }
 
     this->init_tables_ok = (this->tcc_slip_map != nullptr) && (this->tcc_lock_map != nullptr) && (this->slip_rpm_target_map != nullptr);
@@ -150,16 +154,19 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
         targ = InternalTccState::Open;
         int pedal_as_percent = (sensors->pedal_pos*100)/250;
         slipping_rpm_targ = this->slip_rpm_target_map->get_value(pedal_as_percent, sensors->input_rpm);
+        // Thresholds with hysteresis relative to the previous target state, so that
+        // RPM/pedal jitter around a map boundary does not toggle the commanded pressure
+        int open_thresh = (this->target_tcc_state == InternalTccState::Open) ? (SLIP_V_WHEN_OPEN - TCC_STATE_HYST_RPM) : (SLIP_V_WHEN_OPEN + TCC_STATE_HYST_RPM);
+        int lock_thresh = (this->target_tcc_state == InternalTccState::Closed) ? (SLIP_V_WHEN_LOCKED + TCC_STATE_HYST_RPM) : SLIP_V_WHEN_LOCKED;
         // Can we slip?
-        if (SLIP_V_WHEN_OPEN > slipping_rpm_targ) {
+        if (open_thresh > slipping_rpm_targ) {
             targ = InternalTccState::Slipping;
             // Can we lock?
-            if (SLIP_V_WHEN_LOCKED >= slipping_rpm_targ) {
+            if (lock_thresh >= slipping_rpm_targ) {
                 targ = InternalTccState::Closed;
                 slipping_rpm_targ = MAX(SLIP_V_WHEN_LOCKED, slipping_rpm_targ);
             }
         }
-        slipping_rpm_targ = slipping_rpm_targ;
         if (is_shifting) {
             // Check previous target
             bool open_tcc = false;
@@ -201,7 +208,7 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
             slipping_rpm_targ = MAX(this->slip_target, 50);
         } 
         // Engine is requesting full TCC open
-        else if (TCC_CURRENT_SETTINGS.react_on_engine_open_request) {
+        else if (engine_req_state == TccReqState::Open && TCC_CURRENT_SETTINGS.react_on_engine_open_request) {
             targ = InternalTccState::Open;
             slipping_rpm_targ = SLIP_V_WHEN_OPEN;
         }
@@ -337,12 +344,14 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
         this->prefill_running = false;
     }
     // OEM EGS - Below 60C, TCC pressure is reduced by a factor based on
-    // ATF temperature
+    // ATF temperature. Scale the output only - the internal pressure model and the
+    // state promotion above compare against the unscaled command.
+    uint16_t output_pressure = this->tcc_commanded_pressure;
     if (sensors->atf_temp < TCC_CURRENT_SETTINGS.tcc_temp_multiplier.raw_max) {
         float mul = interpolate_float(sensors->atf_temp, &TCC_CURRENT_SETTINGS.tcc_temp_multiplier, InterpType::Linear);
-        this->tcc_commanded_pressure = (float)this->tcc_commanded_pressure*mul;
+        output_pressure = (float)this->tcc_commanded_pressure*mul;
     }
-    pm->set_target_tcc_pressure(this->tcc_commanded_pressure);
+    pm->set_target_tcc_pressure(output_pressure);
 }
 
 InternalTccState TorqueConverter::__get_internal_state(void) {
@@ -418,4 +427,17 @@ void TorqueConverter::shift_start(bool upshift, bool release_shifting) {
 }
 void TorqueConverter::shift_end() {
     this->is_shifting = false;
+}
+
+void TorqueConverter::reset() {
+    // Called when the gearbox bypasses update() and forces the TCC open,
+    // so that the internal pressure model does not claim a settled locked state on re-entry
+    this->tcc_commanded_pressure = 0;
+    this->tcc_actual_pressure = 0;
+    this->current_tcc_state = InternalTccState::Open;
+    this->target_tcc_state = InternalTccState::Open;
+    this->slip_target = SLIP_V_WHEN_OPEN;
+    this->prefill_done = false;
+    this->prefill_running = false;
+    // NOTE: is_shifting is owned by the shift thread (shift_start/shift_end) and is not touched here
 }

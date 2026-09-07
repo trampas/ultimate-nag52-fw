@@ -142,7 +142,9 @@ uint32_t IRAM_ATTR InrushControlSolenoid::on_timer_interrupt_new() {
             pwm_en = !pwm_en;
             // Phase on/off for pwm
 
-            ret = MIN(!pwm_en ? this->pwm_on_time : this->pwm_off_time, total - this->hold_time);
+            // Remaining hold time (guarded: total is always < hold_time in this phase)
+            uint32_t remaining = (total < this->hold_time) ? (this->hold_time - total) : 0;
+            ret = MIN(!pwm_en ? this->pwm_on_time : this->pwm_off_time, remaining);
             if (total+ret >= this->hold_time) {
                 if (this->off_time == 0) {
                     // We go back to this phase (Constant hold)

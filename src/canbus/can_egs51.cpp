@@ -122,9 +122,9 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
             ret.m_converted_driver = MAX(driver_converted - this->req_static_torque_delta, static_converted);
         } else {
             this->req_static_torque_delta = driver_converted - static_converted;
+            ret.m_converted_driver = driver_converted;
         }
 
-        ret.m_converted_driver = driver_converted;
         ret.m_converted_static = static_converted;
     }
     return ret;

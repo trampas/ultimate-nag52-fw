@@ -193,6 +193,7 @@ private:
     bool init_ss_recovery = false;
     bool mpc_flushing = false;
     uint8_t mpc_flush_timer = 0;
+    uint16_t last_mpc_raw_output = 0;
     uint64_t last_ss_on_time = 0;
     ShiftPressures* ptr_shift_pressures = nullptr;
 

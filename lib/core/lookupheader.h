@@ -5,6 +5,7 @@
 
 class LookupHeader {
     public:
+        virtual ~LookupHeader() = default; // Derived headers are deleted through this base pointer
         int16_t get_value(const uint16_t index) const;
         uint16_t get_size(void) const;
         int16_t* get_data(void) const;  

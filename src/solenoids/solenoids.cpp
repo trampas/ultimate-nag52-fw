@@ -39,7 +39,8 @@ each channel:
 uint8_t adc_read_buf[I2S_DMA_BUF_LEN];
 bool first_read_complete = false;
 uint64_t isr_done = 0;
-uint8_t CHANNEL_ID_MAP[ADC_CHANNEL_9] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+// Indexed by the 4 bit channel field of adc_digi_output_data_t (0-15)
+uint8_t CHANNEL_ID_MAP[16] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 void read_solenoids_i2s(void*) {
     PwmSolenoid* const sol_order[6] = { sol_mpc, sol_spc, sol_y3, sol_y4, sol_y5, sol_tcc };
@@ -55,7 +56,7 @@ void read_solenoids_i2s(void*) {
         adc_pattern[i].channel = sol_order[i]->get_adc_channel() & 0x7;
         adc_pattern[i].unit = ADC_UNIT_1;
         adc_pattern[i].bit_width = SOC_ADC_DIGI_MAX_BITWIDTH; // 12bits
-        CHANNEL_ID_MAP[(uint8_t)sol_order[i]->get_adc_channel()] = i;
+        CHANNEL_ID_MAP[(uint8_t)sol_order[i]->get_adc_channel() & 0xF] = i;
     }
     adc_continuous_config_t dig_cfg = {
         .pattern_num = 6,
@@ -80,7 +81,7 @@ void read_solenoids_i2s(void*) {
             for (int i = 0; i < read_len; i += SOC_ADC_DIGI_RESULT_BYTES) {
                 // adc_digi_output_data_t *p = (adc_digi_output_data_t*)&adc_read_buf[i];
                 adc_digi_output_data_t* p = reinterpret_cast<adc_digi_output_data_t*>(&adc_read_buf[i]);
-                uint8_t channel_idx = CHANNEL_ID_MAP[p->type1.channel];
+                uint8_t channel_idx = CHANNEL_ID_MAP[p->type1.channel & 0xF];
                 if (channel_idx != 0xFF) {
                     if (p->type1.data != 0) {
                         s.peak_total[channel_idx] += p->type1.data;
@@ -138,7 +139,8 @@ void update_solenoids(void*) {
         }
         if (INT16_MAX != atf) {
             atf_temp = atf * 10.0;
-            temp_compensation = (((atf_temp - (SOL_CURRENT_SETTINGS.cc_reference_temp * 10.0)) / 10.0) * SOL_CURRENT_SETTINGS.cc_temp_coefficient_wires) / 10.0;
+            // Copper resistance factor: 1 + (dT * coefficient[%/C] / 100)
+            temp_compensation = 1.0 + ((((atf_temp - (SOL_CURRENT_SETTINGS.cc_reference_temp * 10.0)) / 10.0) * SOL_CURRENT_SETTINGS.cc_temp_coefficient_wires) / 100.0);
         }
         if (write_pwm) {
             // MOVED TO CURRENT READING TASK SO READINGS ARE SYNCED

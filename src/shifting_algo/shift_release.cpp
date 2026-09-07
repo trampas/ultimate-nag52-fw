@@ -12,7 +12,7 @@ ReleasingShift::ReleasingShift(ShiftInterfaceData* data) : ShiftingAlgorithm(dat
     this->trq_req_timer = 3; // 100ms for torque request down ramp
     this->cycles_high_filling = data->prefill_info.fill_cycles;
     if (data->adaptation_mgr) {
-        int8_t offset = data->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
+        int16_t offset = data->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
         if (((int16_t)(this->cycles_high_filling) + offset) > 1) {
             this->cycles_high_filling += offset;
         } else {
@@ -74,7 +74,13 @@ uint8_t ReleasingShift::step_internal(
 
     // Set ramp value on first iteration
     if (this->spc_ramp_val == 0) {
-        this->spc_ramp_val = 8;
+        float ramp_multi = 1.0;
+        if (manual == sid->profile) {
+            ramp_multi = REL_CURRENT_SETTINGS.spc_ramp_multi_m;
+        } else if (race == sid->profile) {
+            ramp_multi = REL_CURRENT_SETTINGS.spc_ramp_multi_r;
+        }
+        this->spc_ramp_val = MAX(1.0, (float)REL_CURRENT_SETTINGS.spc_ramp_speed * ramp_multi);
     }
 
     if (phase_id == PHASE_BLEED) {
@@ -126,9 +132,15 @@ uint8_t ReleasingShift::step_internal(
                 intervension_out = sd->indicated_torque * 0.8;
             }
         }
+        // A torque *reduction* request can never be negative (indicated torque may be negative when coasting,
+        // and torque_req_val is unsigned)
+        intervension_out = MAX(0, intervension_out);
 
         if (emergency_limit) {
+            // Off clutch torque capacity exceeded - request the reduction immediately, and keep the
+            // ramp value in sync so the request does not drop to 0 when the emergency clears
             this->torque_req_out = intervension_out;
+            this->torque_req_val = intervension_out;
         }
         else {
             if (trq_req_up_ramp) {
@@ -146,8 +158,8 @@ uint8_t ReleasingShift::step_internal(
                     this->trq_req_timer -= 1;
                 }
             }
+            this->torque_req_out = this->torque_req_val;
         }
-        this->torque_req_out = this->torque_req_val;
     }
 
     if (sid->trq_req_en) {
@@ -158,8 +170,8 @@ uint8_t ReleasingShift::step_internal(
 
     // Output to CAN
     if (0 != torque_req_out && sid->trq_req_en) {
-        torque_req_out = MIN(torque_req_out, sd->indicated_torque);
-        sid->ptr_w_trq_req->amount = sd->indicated_torque - torque_req_out;
+        torque_req_out = MIN((int)torque_req_out, MAX(0, (int)sd->indicated_torque));
+        sid->ptr_w_trq_req->amount = MAX(0, sd->indicated_torque - torque_req_out);
         sid->ptr_w_trq_req->bounds = TorqueRequestBounds::LessThan;
         sid->ptr_w_trq_req->ty = this->trq_req_up_ramp ? TorqueRequestControlType::BackToDemandTorque : TorqueRequestControlType::NormalSpeed;
     }
@@ -372,7 +384,8 @@ uint8_t ReleasingShift::phase_fill_release_mpc() {
             ret = PHASE_OVERLAP;
         }
     }
-    if (sid->ptr_r_clutch_speeds->on_clutch_speed <= this->threshold_rpm) {
+    if (!this->trq_req_down_ramp && sid->ptr_r_clutch_speeds->on_clutch_speed <= this->threshold_rpm) {
+        // Arm once, so the ramp timer actually counts down
         this->trq_req_down_ramp = true;
         this->trq_req_timer = this->cycles_mod_ramp_to_sync;
     }
@@ -493,7 +506,7 @@ const uint8_t momentum_factors[8] = { 100, 100, 100, 100, 80, 80, 100, 100 }; //
 
 uint16_t ReleasingShift::calc_sync_mod_pressure() {
     // Freeing torque factored with momentum
-    float raw = MAX(0, abs_input_trq + this->correction_trq + this->torque_adder);
+    float raw = MAX(0, abs_input_trq + this->correction_trq + this->trq_adder);
     float torque_new_clutch = raw;
     float freeing = (this->freeing_trq * momentum_factors[sid->inf.map_idx]) / 100.0;
 

@@ -55,6 +55,9 @@ uint16_t calc_rpm(PcntMemData* cb) {
     pcnt_unit_clear_count(cb->handle);
     if (0 != pulses) {
         int t = (now - cb->last_time_us) / pulses;
+        if (t <= 0) {
+            t = 1; // Guard divide by zero
+        }
         val = (int)(60 * 1000 * 1000) / (t * (int)cb->pulses_rev);
         //if (val < 60) {
         //    val = 0;
@@ -107,9 +110,14 @@ void Sensors::update(SensorDataRaw* dest) {
             adc_cali_raw_to_voltage(adc2_cal, adc_res, &adc_voltage);
 
             int resistance = (adc_voltage * pcb_gpio_matrix->sensor_data.atf_r2_resistance) / (3300 - adc_voltage);
-
-            float out_x10 = interpolate_linear_array((int16_t)resistance, NUM_TEMP_POINTS, TFT_RESISTANCE_TAB[0], TFT_RESISTANCE_TAB[1]);
-            dest->atf_temp_c = (int16_t)(out_x10 / 10.0);
+            // Plausibility: A resistance well beyond the end of the sensor table (~175C) means
+            // a bad connection, not a hot gearbox. Report invalid rather than max temperature.
+            if (resistance > (int)TFT_RESISTANCE_TAB[0][NUM_TEMP_POINTS-1] * 12 / 10) {
+                dest->atf_temp_c = INT_MAX;
+            } else {
+                float out_x10 = interpolate_linear_array((int16_t)resistance, NUM_TEMP_POINTS, TFT_RESISTANCE_TAB[0], TFT_RESISTANCE_TAB[1]);
+                dest->atf_temp_c = (int16_t)(out_x10 / 10.0);
+            }
         }
     }
 }

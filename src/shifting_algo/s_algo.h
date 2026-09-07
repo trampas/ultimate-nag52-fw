@@ -79,9 +79,12 @@ public:
 
     void reset_all_subphase_data();
     virtual uint8_t max_shift_stage_id() = 0;
+    // True if any phase was force-advanced by the emergency timer (shift did not complete cleanly)
+    bool did_time_out() const { return this->shift_timed_out; }
 
 protected:
     bool upshifting = false;
+    bool shift_timed_out = false;
     ShiftInterfaceData* sid;
     uint8_t subphase_mod = 0;
     uint16_t timer_mod = 0;
@@ -130,7 +133,7 @@ protected:
     uint16_t calc_mod_with_filling_trq(int p_shift);
     uint16_t calc_mpc_sol_shift_ps(int p_shift, int p_mod);
     void reset_for_next_phase();
-    uint16_t correct_shift_shift_pressure(int16_t pressure);
+    uint16_t correct_shift_shift_pressure(int pressure);
 
     uint16_t set_p_apply_clutch_with_spring(int p);
 

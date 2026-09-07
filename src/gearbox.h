@@ -136,6 +136,10 @@ private:
     int32_t cached_input_rpm = 0;
     int32_t cached_engine_rpm = 0;
     int32_t cached_output_rpm = 0;
+    uint8_t engine_rpm_missing_cycles = 0;
+    uint8_t speeds_invalid_cycles = 0;
+    bool last_shift_was_upshift = false;
+    uint8_t pedal_at_last_shift = 0;
 };
 
 extern Gearbox* gearbox;

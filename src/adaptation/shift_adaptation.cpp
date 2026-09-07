@@ -1,5 +1,6 @@
 
 #include "shift_adaptation.h"
+#include "tcu_maths.h"
 #include <string.h>
 #include <esp_log.h>
 #include "nvs.h"
@@ -36,7 +37,7 @@ esp_err_t ShiftAdaptationSystem::save(void) {
     return ESP_OK;
 }
 
-int8_t ShiftAdaptationSystem::get_prefill_cycles_offset(uint8_t shift_idx) {
+int16_t ShiftAdaptationSystem::get_prefill_cycles_offset(uint8_t shift_idx) {
     int16_t ret = 0;
     if (nullptr != this->prefill_time_map) {
         ret = this->prefill_time_map->get_current_data()[shift_idx];
@@ -74,7 +75,7 @@ void ShiftAdaptationSystem::offset_prefill_cycles(uint8_t shift_idx, int8_t offs
         ptr[shift_idx] += offset;
         if (ptr[shift_idx] > ADP_CURRENT_SETTINGS.prefill_max_time_delta) {
             ptr[shift_idx] = ADP_CURRENT_SETTINGS.prefill_max_time_delta;
-            ESP_LOGW("ADAPT", "Prefill cycles min limit reached");
+            ESP_LOGW("ADAPT", "Prefill cycles max limit reached");
         } else if (ptr[shift_idx] < -ADP_CURRENT_SETTINGS.prefill_max_time_delta) {
             ptr[shift_idx] = -ADP_CURRENT_SETTINGS.prefill_max_time_delta;
             ESP_LOGW("ADAPT", "Prefill cycles min limit reached");
@@ -84,10 +85,18 @@ void ShiftAdaptationSystem::offset_prefill_cycles(uint8_t shift_idx, int8_t offs
     }
 }
 
+// Maximum learned torque offset (Nm) for applying/freeing torque adaptation.
+// Bounds the feed-forward correction so a biased torque signal cannot drift it without limit.
+const int16_t MAX_TRQ_ADAPT_OFFSET_NM = 50;
+
+static int16_t clamp_i16(int32_t v, int32_t lim) {
+    return (int16_t)MAX(-lim, MIN(lim, v));
+}
+
 void ShiftAdaptationSystem::offset_spc_pressure(uint8_t shift_idx, int16_t offset) {
     if (nullptr != this->spc_offset_map) {
         int16_t* ptr = this->spc_offset_map->get_current_data();
-        ptr[shift_idx] += offset;
+        ptr[shift_idx] = clamp_i16((int32_t)ptr[shift_idx] + offset, ADP_CURRENT_SETTINGS.prefill_max_pressure_delta);
         ESP_LOGI("ADAPT", "SPC pressure offset by %d to %d", offset, ptr[shift_idx]);
     }
 }
@@ -95,7 +104,7 @@ void ShiftAdaptationSystem::offset_spc_pressure(uint8_t shift_idx, int16_t offse
 void ShiftAdaptationSystem::offset_freeing_trq(uint8_t shift_idx, int16_t offset) {
     if (nullptr != this->freeing_torque_offset) {
         int16_t* ptr = this->freeing_torque_offset->get_current_data();
-        ptr[shift_idx] += offset;
+        ptr[shift_idx] = clamp_i16((int32_t)ptr[shift_idx] + offset, MAX_TRQ_ADAPT_OFFSET_NM);
         ESP_LOGI("ADAPT", "Free. Trq offset by %d to %d", offset, ptr[shift_idx]);
     }
 }
@@ -103,7 +112,7 @@ void ShiftAdaptationSystem::offset_freeing_trq(uint8_t shift_idx, int16_t offset
 void ShiftAdaptationSystem::offset_applying_trq(uint8_t shift_idx, int16_t offset) {
     if (nullptr != this->applying_torque_offset) {
         int16_t* ptr = this->applying_torque_offset->get_current_data();
-        ptr[shift_idx] += offset;
+        ptr[shift_idx] = clamp_i16((int32_t)ptr[shift_idx] + offset, MAX_TRQ_ADAPT_OFFSET_NM);
         ESP_LOGI("ADAPT", "Appl. Trq offset by %d to %d", offset, ptr[shift_idx]);
     }
 }

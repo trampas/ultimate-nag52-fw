@@ -30,7 +30,6 @@ private:
     float freeing_trq = 0;
     float loss_torque = 0;
     float loss_torque_tmp = 0;
-    uint16_t torque_adder = 0;
 
     float calculate_freeing_trq_multiplier();
     void phase_fill_release_spc();

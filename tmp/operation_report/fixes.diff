@@ -1,0 +1,1722 @@
+diff --git a/lib/core/lookupheader.h b/lib/core/lookupheader.h
+index 779174b..88653af 100644
+--- a/lib/core/lookupheader.h
++++ b/lib/core/lookupheader.h
+@@ -5,6 +5,7 @@
+ 
+ class LookupHeader {
+     public:
++        virtual ~LookupHeader() = default; // Derived headers are deleted through this base pointer
+         int16_t get_value(const uint16_t index) const;
+         uint16_t get_size(void) const;
+         int16_t* get_data(void) const;  
+diff --git a/lib/core/lookupmap.cpp b/lib/core/lookupmap.cpp
+index 987b3f0..f76ed05 100644
+--- a/lib/core/lookupmap.cpp
++++ b/lib/core/lookupmap.cpp
+@@ -127,17 +127,21 @@ LookupByteMap::LookupByteMap(uint8_t* _xHeader, const uint16_t _xHeaderSize, uin
+     this->x_alloc = static_cast<int16_t*>(TCU_HEAP_ALLOC(_xHeaderSize * sizeof(int16_t)));
+     this->y_alloc = static_cast<int16_t*>(TCU_HEAP_ALLOC(_yHeaderSize * sizeof(int16_t)));
+     this->z_alloc = static_cast<int16_t*>(TCU_HEAP_ALLOC(_dataSize * sizeof(int16_t)));
++    this->z_size = _dataSize;
++    this->table = nullptr;
++    this->yHeader = nullptr;
++    this->yHeaderSize = 0;
+ 
+-    for (auto i = 0; i < _xHeaderSize; i++) {
+-        this->x_alloc[i] = _xHeader[i];
+-    }
+-    for (auto i = 0; i < _yHeaderSize; i++) {
+-        this->y_alloc[i] = _yHeader[i];
+-    }
+-    for (auto i = 0; i < _dataSize; i++) {
+-        this->z_alloc[i] = _data[i];
+-    }
+     if (nullptr != this->x_alloc && nullptr != this->y_alloc && nullptr != this->z_alloc) {
++        for (auto i = 0; i < _xHeaderSize; i++) {
++            this->x_alloc[i] = _xHeader[i];
++        }
++        for (auto i = 0; i < _yHeaderSize; i++) {
++            this->y_alloc[i] = _yHeader[i];
++        }
++        for (auto i = 0; i < _dataSize; i++) {
++            this->z_alloc[i] = _data[i];
++        }
+         this->table = new LookupRefTable(x_alloc, _xHeaderSize, z_alloc, _dataSize);
+         this->yHeader = new LookupRefHeader(y_alloc, _yHeaderSize);
+         this->yHeaderSize = _yHeaderSize;
+diff --git a/lib/core/lookupmap.h b/lib/core/lookupmap.h
+index 996f4fa..5d74f01 100644
+--- a/lib/core/lookupmap.h
++++ b/lib/core/lookupmap.h
+@@ -15,6 +15,7 @@ const int MAX_LOOKUP_CACHE = 5; // I don't think any map has more than this many
+ 
+ class LookupMap {
+     public:
++        virtual ~LookupMap() = default;
+         float get_value(const float xValue, const float yValue);
+         float get_value(const float xValue, const float yValue, const uint8_t lookup_cache_idx);
+         void get_y_headers(uint16_t *size, int16_t **headers);
+diff --git a/lib/core/lookuptable.h b/lib/core/lookuptable.h
+index bf878ca..88a3c90 100644
+--- a/lib/core/lookuptable.h
++++ b/lib/core/lookuptable.h
+@@ -7,6 +7,7 @@ using namespace std;
+ 
+ class LookupTable {
+     public:
++        virtual ~LookupTable() = default; // Derived tables are deleted through this base pointer
+         float get_value(float xValue);
+         /// @brief This functions generates a corresponding header-value based on the parameter. This function does only work on tables with increasing x-values.
+         /// @param xValue the value to be looked up
+diff --git a/src/adaptation/shift_adaptation.cpp b/src/adaptation/shift_adaptation.cpp
+index 9d6119a..363cf11 100644
+--- a/src/adaptation/shift_adaptation.cpp
++++ b/src/adaptation/shift_adaptation.cpp
+@@ -1,5 +1,6 @@
+ 
+ #include "shift_adaptation.h"
++#include "tcu_maths.h"
+ #include <string.h>
+ #include <esp_log.h>
+ #include "nvs.h"
+@@ -36,7 +37,7 @@ esp_err_t ShiftAdaptationSystem::save(void) {
+     return ESP_OK;
+ }
+ 
+-int8_t ShiftAdaptationSystem::get_prefill_cycles_offset(uint8_t shift_idx) {
++int16_t ShiftAdaptationSystem::get_prefill_cycles_offset(uint8_t shift_idx) {
+     int16_t ret = 0;
+     if (nullptr != this->prefill_time_map) {
+         ret = this->prefill_time_map->get_current_data()[shift_idx];
+@@ -74,7 +75,7 @@ void ShiftAdaptationSystem::offset_prefill_cycles(uint8_t shift_idx, int8_t offs
+         ptr[shift_idx] += offset;
+         if (ptr[shift_idx] > ADP_CURRENT_SETTINGS.prefill_max_time_delta) {
+             ptr[shift_idx] = ADP_CURRENT_SETTINGS.prefill_max_time_delta;
+-            ESP_LOGW("ADAPT", "Prefill cycles min limit reached");
++            ESP_LOGW("ADAPT", "Prefill cycles max limit reached");
+         } else if (ptr[shift_idx] < -ADP_CURRENT_SETTINGS.prefill_max_time_delta) {
+             ptr[shift_idx] = -ADP_CURRENT_SETTINGS.prefill_max_time_delta;
+             ESP_LOGW("ADAPT", "Prefill cycles min limit reached");
+@@ -84,10 +85,18 @@ void ShiftAdaptationSystem::offset_prefill_cycles(uint8_t shift_idx, int8_t offs
+     }
+ }
+ 
++// Maximum learned torque offset (Nm) for applying/freeing torque adaptation.
++// Bounds the feed-forward correction so a biased torque signal cannot drift it without limit.
++const int16_t MAX_TRQ_ADAPT_OFFSET_NM = 50;
++
++static int16_t clamp_i16(int32_t v, int32_t lim) {
++    return (int16_t)MAX(-lim, MIN(lim, v));
++}
++
+ void ShiftAdaptationSystem::offset_spc_pressure(uint8_t shift_idx, int16_t offset) {
+     if (nullptr != this->spc_offset_map) {
+         int16_t* ptr = this->spc_offset_map->get_current_data();
+-        ptr[shift_idx] += offset;
++        ptr[shift_idx] = clamp_i16((int32_t)ptr[shift_idx] + offset, ADP_CURRENT_SETTINGS.prefill_max_pressure_delta);
+         ESP_LOGI("ADAPT", "SPC pressure offset by %d to %d", offset, ptr[shift_idx]);
+     }
+ }
+@@ -95,7 +104,7 @@ void ShiftAdaptationSystem::offset_spc_pressure(uint8_t shift_idx, int16_t offse
+ void ShiftAdaptationSystem::offset_freeing_trq(uint8_t shift_idx, int16_t offset) {
+     if (nullptr != this->freeing_torque_offset) {
+         int16_t* ptr = this->freeing_torque_offset->get_current_data();
+-        ptr[shift_idx] += offset;
++        ptr[shift_idx] = clamp_i16((int32_t)ptr[shift_idx] + offset, MAX_TRQ_ADAPT_OFFSET_NM);
+         ESP_LOGI("ADAPT", "Free. Trq offset by %d to %d", offset, ptr[shift_idx]);
+     }
+ }
+@@ -103,7 +112,7 @@ void ShiftAdaptationSystem::offset_freeing_trq(uint8_t shift_idx, int16_t offset
+ void ShiftAdaptationSystem::offset_applying_trq(uint8_t shift_idx, int16_t offset) {
+     if (nullptr != this->applying_torque_offset) {
+         int16_t* ptr = this->applying_torque_offset->get_current_data();
+-        ptr[shift_idx] += offset;
++        ptr[shift_idx] = clamp_i16((int32_t)ptr[shift_idx] + offset, MAX_TRQ_ADAPT_OFFSET_NM);
+         ESP_LOGI("ADAPT", "Appl. Trq offset by %d to %d", offset, ptr[shift_idx]);
+     }
+ }
+diff --git a/src/adaptation/shift_adaptation.h b/src/adaptation/shift_adaptation.h
+index 8089050..9bbcef9 100644
+--- a/src/adaptation/shift_adaptation.h
++++ b/src/adaptation/shift_adaptation.h
+@@ -11,7 +11,7 @@ public:
+     ShiftAdaptationSystem();
+     void init_shift();
+     void update();
+-    int8_t get_prefill_cycles_offset(uint8_t shift_idx);
++    int16_t get_prefill_cycles_offset(uint8_t shift_idx);
+     int16_t get_adapt_spc_offset(uint8_t shift_idx);
+     int16_t get_freeing_torque_offset(uint8_t shift_idx);
+     int16_t get_applying_torque_offset(uint8_t shift_idx);
+diff --git a/src/canbus/can_custom.cpp b/src/canbus/can_custom.cpp
+index 9012e99..12337ab 100644
+--- a/src/canbus/can_custom.cpp
++++ b/src/canbus/can_custom.cpp
+@@ -100,7 +100,7 @@ int16_t CustomCan::get_engine_coolant_temp(const uint32_t expire_time_ms) {
+     int16_t ret = INT16_MAX;
+     if (this->engine.get_ENGINE_100(GET_CLOCK_TIME(), expire_time_ms, &engine_data)) {
+         if (engine_data.T_COOLANT != UINT8_MAX) {
+-            ret = (int16_t)engine_data.PEDAL - 40;
++            ret = (int16_t)engine_data.T_COOLANT - 40;
+         }
+     }
+     return ret;
+diff --git a/src/canbus/can_egs51.cpp b/src/canbus/can_egs51.cpp
+index 3f6a5c2..556e0e9 100644
+--- a/src/canbus/can_egs51.cpp
++++ b/src/canbus/can_egs51.cpp
+@@ -122,9 +122,9 @@ CanTorqueData Egs51Can::get_torque_data(const uint32_t expire_time_ms) {
+             ret.m_converted_driver = MAX(driver_converted - this->req_static_torque_delta, static_converted);
+         } else {
+             this->req_static_torque_delta = driver_converted - static_converted;
++            ret.m_converted_driver = driver_converted;
+         }
+ 
+-        ret.m_converted_driver = driver_converted;
+         ret.m_converted_static = static_converted;
+     }
+     return ret;
+diff --git a/src/canbus/can_egs52.cpp b/src/canbus/can_egs52.cpp
+index 4bd07e3..63af5fe 100644
+--- a/src/canbus/can_egs52.cpp
++++ b/src/canbus/can_egs52.cpp
+@@ -179,12 +179,13 @@ CanTorqueData Egs52Can::get_torque_data(const uint32_t expire_time_ms) {
+     MS_210_EGS52 ms210;
+     CanTorqueData ret = TORQUE_NDEF;
+     if (this->ecu_ms.get_MS_312(GET_CLOCK_TIME(), expire_time_ms, &ms312)) {
+-        if (UINT16_MAX != ms312.M_STA) {ret.m_converted_static = ((int16_t)ms312.M_STA / 4) - 500;}
+-        if (UINT16_MAX != ms312.M_MIN) {ret.m_min = ((int16_t)ms312.M_MIN / 4) - 500;}
+-        if (UINT16_MAX != ms312.M_MAX) {ret.m_max = ((int16_t)ms312.M_MAX / 4) - 500;}
++        // 13 bit fields. 0x1FFF is the 'Signal not available' marker
++        if (0x1FFF != ms312.M_STA) {ret.m_converted_static = ((int16_t)ms312.M_STA / 4) - 500;}
++        if (0x1FFF != ms312.M_MIN) {ret.m_min = ((int16_t)ms312.M_MIN / 4) - 500;}
++        if (0x1FFF != ms312.M_MAX) {ret.m_max = ((int16_t)ms312.M_MAX / 4) - 500;}
+     }
+     if (this->ecu_ms.get_MS_212(GET_CLOCK_TIME(), expire_time_ms, &ms212)) {
+-        if (UINT16_MAX != ms212.M_ESPV) {ret.m_converted_driver = ((int16_t)ms212.M_ESPV / 4) - 500;}
++        if (0x1FFF != ms212.M_ESPV) {ret.m_converted_driver = ((int16_t)ms212.M_ESPV / 4) - 500;}
+     }
+     if (INT16_MAX != ret.m_max) {
+         // Get factor to correct it by
+diff --git a/src/canbus/can_egs53.cpp b/src/canbus/can_egs53.cpp
+index 7618d81..7799491 100644
+--- a/src/canbus/can_egs53.cpp
++++ b/src/canbus/can_egs53.cpp
+@@ -46,7 +46,7 @@ uint16_t Egs53Can::get_front_right_wheel(const uint32_t expire_time_ms)
+ {
+ 	WHL_STAT2_EGS53 whl_stat;
+     uint16_t ret = UINT16_MAX;
+-    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms*1000, &whl_stat)) {
++    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms, &whl_stat)) {
+         if (whl_stat.WhlDir_FR_Stat != WHL_STAT2_WhlDir_FR_Stat_EGS53::SNA) {
+             ret = whl_stat.WhlRPM_FR;
+         }
+@@ -57,7 +57,7 @@ uint16_t Egs53Can::get_front_right_wheel(const uint32_t expire_time_ms)
+ uint16_t Egs53Can::get_front_left_wheel(const uint32_t expire_time_ms) { // TODO
+     WHL_STAT2_EGS53 whl_stat;
+     uint16_t ret = UINT16_MAX;
+-    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms*1000, &whl_stat)) {
++    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms, &whl_stat)) {
+         if (whl_stat.WhlDir_FL_Stat != WHL_STAT2_WhlDir_FL_Stat_EGS53::SNA) {
+             ret = whl_stat.WhlRPM_FL;
+         }
+@@ -68,7 +68,7 @@ uint16_t Egs53Can::get_front_left_wheel(const uint32_t expire_time_ms) { // TODO
+ uint16_t Egs53Can::get_rear_right_wheel(const uint32_t expire_time_ms) {
+     WHL_STAT2_EGS53 whl_stat;
+     uint16_t ret = UINT16_MAX;
+-    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms*1000, &whl_stat)) {
++    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms, &whl_stat)) {
+         if (whl_stat.WhlDir_RR_Stat != WHL_STAT2_WhlDir_RR_Stat_EGS53::SNA) {
+             ret = whl_stat.WhlRPM_RR;
+         }
+@@ -79,7 +79,7 @@ uint16_t Egs53Can::get_rear_right_wheel(const uint32_t expire_time_ms) {
+ uint16_t Egs53Can::get_rear_left_wheel(const uint32_t expire_time_ms) {
+     WHL_STAT2_EGS53 whl_stat;
+     uint16_t ret = UINT16_MAX;
+-    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms*1000, &whl_stat)) {
++    if (this->ecm_ecu.get_WHL_STAT2(GET_CLOCK_TIME(), expire_time_ms, &whl_stat)) {
+         if (whl_stat.WhlDir_RL_Stat != WHL_STAT2_WhlDir_RL_Stat_EGS53::SNA) {
+             ret = whl_stat.WhlRPM_RL;
+         }
+@@ -89,7 +89,7 @@ uint16_t Egs53Can::get_rear_left_wheel(const uint32_t expire_time_ms) {
+ 
+ ShifterPosition Egs53Can::internal_can_shifter_get_shifter_position(const uint32_t expire_time_ms) {
+     SBW_RS_ISM_EGS53 tslm;
+-    if (this->tslm_ecu.get_SBW_RS_ISM(GET_CLOCK_TIME(), expire_time_ms*1000, &tslm)) {
++    if (this->tslm_ecu.get_SBW_RS_ISM(GET_CLOCK_TIME(), expire_time_ms, &tslm)) {
+         switch (tslm.TSL_Posn_ISM) {
+             case SBW_RS_ISM_TSL_Posn_ISM_EGS53::D:
+                 return ShifterPosition::D;
+@@ -127,7 +127,7 @@ bool Egs53Can::get_engine_is_limp(const uint32_t expire_time_ms) { // TODO
+ 
+ bool Egs53Can::get_kickdown(const uint32_t expire_time_ms) { // TODO
+     ENG_RS3_PT_EGS53 eng_rs3;
+-    if (this->ecm_ecu.get_ENG_RS3_PT(GET_CLOCK_TIME(), expire_time_ms*1000, &eng_rs3)) {
++    if (this->ecm_ecu.get_ENG_RS3_PT(GET_CLOCK_TIME(), expire_time_ms, &eng_rs3)) {
+         return eng_rs3.KickDnSw_Psd;
+     }
+     return false;
+@@ -135,10 +135,10 @@ bool Egs53Can::get_kickdown(const uint32_t expire_time_ms) { // TODO
+ 
+ uint8_t Egs53Can::get_pedal_value(const uint32_t expire_time_ms) {
+     ENG_RS3_PT_EGS53 eng_rs3;
+-    if (this->ecm_ecu.get_ENG_RS3_PT(GET_CLOCK_TIME(), expire_time_ms*1000, &eng_rs3)) {
++    if (this->ecm_ecu.get_ENG_RS3_PT(GET_CLOCK_TIME(), expire_time_ms, &eng_rs3)) {
+         return eng_rs3.AccelPdlPosn_Raw; // Use RAW position, not 'modified' value from ECM!
+     }
+-    return 0;
++    return 0xFF; // SNV marker (Same as the other CAN layers) so the gearbox applies its substitute value
+ }
+ 
+ CanTorqueData Egs53Can::get_torque_data(const uint32_t expire_time_ms) {
+@@ -151,16 +151,16 @@ CanTorqueData Egs53Can::get_torque_data(const uint32_t expire_time_ms) {
+         this->ecm_ecu.get_ENG_RS2_PT(GET_CLOCK_TIME(), expire_time_ms, &rs2_pt) &&
+         this->ecm_ecu.get_ENG_RS1_PT(GET_CLOCK_TIME(), expire_time_ms, &rs1_pt)
+     ) {
+-        if (rs2_pt.EngTrqStatic != INT16_MAX) {
++        if (rs2_pt.EngTrqStatic != 0x1FFF) {
+             sta = (rs2_pt.EngTrqStatic / 4) - 500;
+         }
+-        if (rs2_pt.EngTrqMaxETC != INT16_MAX) {
++        if (rs2_pt.EngTrqMaxETC != 0x1FFF) {
+             ret.m_max = (rs2_pt.EngTrqMaxETC / 4) - 500;
+         }
+-        if (rs2_pt.EngTrqMinTTC != INT16_MAX) {
++        if (rs2_pt.EngTrqMinTTC != 0x1FFF) {
+             ret.m_min = (rs2_pt.EngTrqMinTTC / 4) - 500;
+         }
+-        if (rs1_pt.EngTrqSel_D_TTC != INT16_MAX) {
++        if (rs1_pt.EngTrqSel_D_TTC != 0x1FFF) {
+             esp = (rs1_pt.EngTrqSel_D_TTC / 4) - 500;
+         }
+     }
+@@ -172,8 +172,8 @@ CanTorqueData Egs53Can::get_torque_data(const uint32_t expire_time_ms) {
+         int indicated = 0;
+         // Calculate converted torque from ESP
+         // Chrysler cars don't seem to report MAX/MIN
+-        if (INT_MAX != ret.m_max && INT_MAX != ret.m_min) {
+-            tmp = MIN(esp, ret.m_max);
++        if (INT16_MAX != ret.m_max && INT16_MAX != ret.m_min) {
++            tmp = MAX(MIN(esp, ret.m_max), ret.m_min);
+         }
+         if (tmp <= 0) {
+             tmp = MIN(tmp, static_converted);
+@@ -208,7 +208,7 @@ CanTorqueData Egs53Can::get_torque_data(const uint32_t expire_time_ms) {
+ PaddlePosition Egs53Can::get_paddle_position(const uint32_t expire_time_ms) {
+     SBW_RQ_SCCM_EGS53 sbw_rq;
+     PaddlePosition ret = PaddlePosition::SNV;
+-    if (this->ecm_ecu.get_SBW_RQ_SCCM(GET_CLOCK_TIME(), expire_time_ms*1000, &sbw_rq)) {
++    if (this->ecm_ecu.get_SBW_RQ_SCCM(GET_CLOCK_TIME(), expire_time_ms, &sbw_rq)) {
+         switch(sbw_rq.StW_Sw_Stat3) {
+             case SBW_RQ_SCCM_StW_Sw_Stat3_EGS53::MINUS: // Minus
+                 ret = PaddlePosition::Minus;
+@@ -232,7 +232,7 @@ PaddlePosition Egs53Can::get_paddle_position(const uint32_t expire_time_ms) {
+ int16_t Egs53Can::get_engine_coolant_temp(const uint32_t expire_time_ms) {
+     ECM_A1_EGS53 ecm_a1;
+     uint16_t res = INT16_MAX;
+-    if (this->ecm_ecu.get_ECM_A1(GET_CLOCK_TIME(), expire_time_ms*1000, &ecm_a1)) {
++    if (this->ecm_ecu.get_ECM_A1(GET_CLOCK_TIME(), expire_time_ms, &ecm_a1)) {
+         if (ecm_a1.EngCoolTemp != UINT8_MAX) {
+             res = ecm_a1.EngCoolTemp - 40;
+         }
+@@ -243,7 +243,7 @@ int16_t Egs53Can::get_engine_coolant_temp(const uint32_t expire_time_ms) {
+ int16_t Egs53Can::get_engine_oil_temp(const uint32_t expire_time_ms) { // TODO
+     ECM_A1_EGS53 ecm_a1;
+     uint16_t res = INT16_MAX;
+-    if (this->ecm_ecu.get_ECM_A1(GET_CLOCK_TIME(), expire_time_ms*1000, &ecm_a1)) {
++    if (this->ecm_ecu.get_ECM_A1(GET_CLOCK_TIME(), expire_time_ms, &ecm_a1)) {
+         if (ecm_a1.EngOilTemp != UINT8_MAX) {
+             res = ecm_a1.EngOilTemp - 40;
+         }
+@@ -254,7 +254,7 @@ int16_t Egs53Can::get_engine_oil_temp(const uint32_t expire_time_ms) { // TODO
+ int16_t Egs53Can::get_engine_iat_temp(const uint32_t expire_time_ms) {
+     ECM_A1_EGS53 ecm_a1;
+     uint16_t res = INT16_MAX;
+-    if (this->ecm_ecu.get_ECM_A1(GET_CLOCK_TIME(), expire_time_ms*1000, &ecm_a1)) {
++    if (this->ecm_ecu.get_ECM_A1(GET_CLOCK_TIME(), expire_time_ms, &ecm_a1)) {
+         if (ecm_a1.IntkAirTemp != UINT8_MAX) {
+             res = ecm_a1.IntkAirTemp - 40;
+         }
+@@ -264,7 +264,7 @@ int16_t Egs53Can::get_engine_iat_temp(const uint32_t expire_time_ms) {
+ 
+ uint16_t Egs53Can::get_engine_rpm(const uint32_t expire_time_ms) {
+     ENG_RS3_PT_EGS53 eng_rs3;
+-    if (this->ecm_ecu.get_ENG_RS3_PT(GET_CLOCK_TIME(), expire_time_ms*1000, &eng_rs3)) {
++    if (this->ecm_ecu.get_ENG_RS3_PT(GET_CLOCK_TIME(), expire_time_ms, &eng_rs3)) {
+         return eng_rs3.EngRPM;
+     }
+     return UINT16_MAX; // UNDEFINED
+@@ -277,7 +277,7 @@ bool Egs53Can::get_is_starting(const uint32_t expire_time_ms) { // TODO
+ bool Egs53Can::get_profile_btn_press(const uint32_t expire_time_ms) {
+     bool result = false;
+     SBW_RS_ISM_EGS53 tslm;
+-    if (this->tslm_ecu.get_SBW_RS_ISM(GET_CLOCK_TIME(), expire_time_ms*10000, &tslm)) {
++    if (this->tslm_ecu.get_SBW_RS_ISM(GET_CLOCK_TIME(), expire_time_ms, &tslm)) {
+         result = tslm.TxDrvProgSw_Psd_V3;
+     }
+     return result;
+diff --git a/src/canbus/can_hfm.cpp b/src/canbus/can_hfm.cpp
+index 7112d4d..4327fbd 100644
+--- a/src/canbus/can_hfm.cpp
++++ b/src/canbus/can_hfm.cpp
+@@ -178,7 +178,8 @@ uint8_t HfmCan::get_pedal_value(const uint32_t expire_time_ms)
+             uint8_t dki = hfm210.DKI;
+             if (VEHICLE_CONFIG.throttlevalve_maxopeningangle > dki)
+             {
+-                result = (uint8_t)(100.F * (((float)dki) / ((float)VEHICLE_CONFIG.throttlevalve_maxopeningangle)));
++                // SensorData::pedal_pos is 0-250 (EGS convention), not 0-100
++                result = (uint8_t)(250.F * (((float)dki) / ((float)VEHICLE_CONFIG.throttlevalve_maxopeningangle)));
+             }
+         }
+     }
+diff --git a/src/driver_dynamics/dynamics.cpp b/src/driver_dynamics/dynamics.cpp
+index f0d30d6..dee4ea9 100644
+--- a/src/driver_dynamics/dynamics.cpp
++++ b/src/driver_dynamics/dynamics.cpp
+@@ -13,8 +13,9 @@ void DeltaTracker::update(int32_t val) {
+         first_val = false;
+     } else {
+         int delta = val - this->last_value;
+-        this->tracked_delta = first_order_filter(25, delta*100, this->tracked_delta);
++        this->tracked_delta = first_order_filter(this->samples, delta*100, this->tracked_delta);
+     }
++    this->last_value = val;
+ }
+ 
+ void DeltaTracker::reset() {
+diff --git a/src/egs_calibration/calibration.cpp b/src/egs_calibration/calibration.cpp
+index fa3d247..704c6da 100644
+--- a/src/egs_calibration/calibration.cpp
++++ b/src/egs_calibration/calibration.cpp
+@@ -19,6 +19,39 @@ uint16_t crc(const uint8_t* buffer, uint16_t len) {
+     return res;
+ }
+ 
++// Sanity check the values that are used as divisors in the control code.
++// A zeroed block would otherwise cause divide-by-zero exceptions at runtime.
++static esp_err_t check_calibration_plausible(const CalibrationInfo* c) {
++    // Index the packed struct directly (avoids taking an unaligned pointer)
++    bool ratio_zero = false;
++    for (int i = 1; i <= 5; i++) {
++        if (c->mech_cal.ratio_table[i] == 0) {
++            ratio_zero = true;
++        }
++    }
++    if (ratio_zero) {
++        ESP_LOGE("CAL", "Calibration load failed. Ratio table has 0'ed values!");
++        return ESP_ERR_INVALID_ARG;
++    }
++    if (c->hydr_cal.p_multi_1 == 0 || c->hydr_cal.p_multi_other == 0) {
++        ESP_LOGE("CAL", "Calibration load failed. Hydraulic p_multi has 0'ed values!");
++        return ESP_ERR_INVALID_ARG;
++    }
++    for (int i = 0; i < SHIFT_ARRAY_LEN; i++) {
++        if (c->hydr_cal.shift_spc_gain[i] == 0) {
++            ESP_LOGE("CAL", "Calibration load failed. shift_spc_gain[%d] is 0!", i);
++            return ESP_ERR_INVALID_ARG;
++        }
++        if (c->mech_cal.turbine_drag[i] == 0 || c->mech_cal.intertia_torque[i] == 0) {
++            ESP_LOGW("CAL", "Mechanical calibration entry %d has a 0 turbine_drag/inertia value", i);
++        }
++    }
++    if (c->tcc_cal.multiplier_map_z[0] == 0 || c->tcc_cal.multiplier_map_z[1] == 0) {
++        ESP_LOGW("CAL", "TCC multiplier map has 0'ed values");
++    }
++    return ESP_OK;
++}
++
+ esp_err_t EGSCal::init_egs_calibration() {
+     // First of all, allocate our buffer
+     esp_err_t ret = ESP_OK;
+@@ -48,11 +81,9 @@ esp_err_t EGSCal::init_egs_calibration() {
+                 ret = ESP_ERR_INVALID_CRC;
+                 goto exit;
+             }
+-            // Guard against zeroed mechanical CAL
+-            const uint16_t* r_table = CAL_RAM_PTR->mech_cal.ratio_table;
+-            if (r_table[1] == 0 || r_table[2] == 0  || r_table[3] == 0  || r_table[4] == 0  || r_table[5] == 0) {
+-                ESP_LOGE("CAL", "Calibration load failed. Ratio table has 0'ed values!");
+-                ret = ESP_ERR_INVALID_ARG;
++            // Guard against zeroed CAL
++            ret = check_calibration_plausible(CAL_RAM_PTR);
++            if (ESP_OK != ret) {
+                 goto exit;
+             }
+             // All OK!
+@@ -83,34 +114,32 @@ esp_err_t EGSCal::reload_egs_calibration() {
+                 if (tmp->magic != 0xDEADBEEFu) {
+                     // Magic failed
+                     ret = ESP_ERR_INVALID_VERSION;
+-                    goto exit;
+                 }
+-                if (tmp->len != sizeof(CalibrationInfo)) {
++                else if (tmp->len != sizeof(CalibrationInfo)) {
+                     // Size mismatch (Maybe data is added?)
+                     ESP_LOGE("CAL", "Calibration load failed. Length mismatch. Length at info is %d, calibration size is %d", (int)tmp->len, (int)sizeof(CalibrationInfo));
+                     ret = ESP_ERR_INVALID_SIZE;
+-                    goto exit;
+-                }
+-                uint16_t crc_calculated = crc(&(reinterpret_cast<uint8_t*>(tmp))[8], sizeof(CalibrationInfo)-8);
+-                if (crc_calculated != tmp->crc) {
+-                    // CRC Error
+-                    ESP_LOGE("CAL", "Calibration load failed. CRC error. Wanted %04X, got %04X", crc_calculated, tmp->crc);
+-                    ret = ESP_ERR_INVALID_CRC;
+-                    goto exit;
+                 }
+-                // Guard against zeroed mechanical CAL
+-                const uint16_t* r_table = CAL_RAM_PTR->mech_cal.ratio_table;
+-                if (r_table[1] == 0 || r_table[2] == 0  || r_table[3] == 0  || r_table[4] == 0  || r_table[5] == 0) {
+-                    ESP_LOGE("CAL", "Calibration load failed. Ratio table has 0'ed values!");
+-                    ret = ESP_ERR_INVALID_ARG;
+-                    goto exit;
++                else {
++                    uint16_t crc_calculated = crc(&(reinterpret_cast<uint8_t*>(tmp))[8], sizeof(CalibrationInfo)-8);
++                    if (crc_calculated != tmp->crc) {
++                        // CRC Error
++                        ESP_LOGE("CAL", "Calibration load failed. CRC error. Wanted %04X, got %04X", crc_calculated, tmp->crc);
++                        ret = ESP_ERR_INVALID_CRC;
++                    }
++                    else {
++                        // Guard against zeroed CAL (Check the NEW block, not the one already in use)
++                        ret = check_calibration_plausible(tmp);
++                        if (ESP_OK == ret) {
++                            // Copy the temporery CalInfo to the in use one!
++                            memcpy(CAL_RAM_PTR, tmp, sizeof(CalibrationInfo));
++                        }
++                    }
+                 }
+-                // Copy the temporery CalInfo to the in use one!
+-                memcpy(CAL_RAM_PTR, tmp, sizeof(CalibrationInfo));
+             }
++            // Always release the temp buffer (Previously leaked on the early-exit paths)
+             TCU_FREE(tmp);
+         }
+     }
+-exit:
+     return ret;
+ }
+\ No newline at end of file
+diff --git a/src/gearbox.cpp b/src/gearbox.cpp
+index bf64825..6101dab 100644
+--- a/src/gearbox.cpp
++++ b/src/gearbox.cpp
+@@ -11,6 +11,7 @@
+ #include "shifting_algo/shift_crossover.h"
+ #include "shifting_algo/shift_release.h"
+ #include "tcu_io/tcu_io.hpp"
++#include <math.h>
+ 
+ #define SBS SBS_CURRENT_SETTINGS
+ 
+@@ -37,6 +38,12 @@ int calc_input_rpm_from_req_gear(const int output_rpm, const GearboxGear req_gea
+     case GearboxGear::Fifth:
+         calculated *= gb_config->bounds[4].ratio;
+         break;
++    case GearboxGear::Reverse_First:
++        calculated *= abs(gb_config->bounds[5].ratio);
++        break;
++    case GearboxGear::Reverse_Second:
++        calculated *= abs(gb_config->bounds[6].ratio);
++        break;
+     default:
+         break;
+     }
+@@ -109,16 +116,28 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
+         .ratio = r5,
+         .ratio_min_drift = r5 * (float)0.9,
+     };
++    // Reverse ratios are negative, so the 1.1x value is the (more negative) minimum
+     this->gearboxConfig.bounds[5] = GearRatioInfo{ // R1 
+-        .ratio_max_drift = rr1 * (float)1.1,
++        .ratio_max_drift = rr1 * (float)0.9,
+         .ratio = rr1,
+-        .ratio_min_drift = rr1 * (float)0.9,
++        .ratio_min_drift = rr1 * (float)1.1,
+     };
+     this->gearboxConfig.bounds[6] = GearRatioInfo{ // R2 
+-        .ratio_max_drift = rr2 * (float)1.1,
++        .ratio_max_drift = rr2 * (float)0.9,
+         .ratio = rr2,
+-        .ratio_min_drift = rr2 * (float)0.9,
++        .ratio_min_drift = rr2 * (float)1.1,
+     };
++    // Cap neighbouring forward gear bands at the geometric midpoint so they cannot overlap
++    // (With +/-10%, 4th (0.90-1.10) and 5th (0.75-0.91) overlap and the first-hit scan picks 4th)
++    for (int i = 0; i < 4; i++) {
++        float mid = sqrtf(this->gearboxConfig.bounds[i].ratio * this->gearboxConfig.bounds[i+1].ratio);
++        if (this->gearboxConfig.bounds[i].ratio_min_drift < mid) {
++            this->gearboxConfig.bounds[i].ratio_min_drift = mid;
++        }
++        if (this->gearboxConfig.bounds[i+1].ratio_max_drift > mid) {
++            this->gearboxConfig.bounds[i+1].ratio_max_drift = mid;
++        }
++    }
+     // IMPORTANT - Set the Ratio2/Ratio1 multiplier for the sensor RPM reading algorithm!
+     TCUIO::set_2_1_ratio(r1 / r2);
+ 
+@@ -524,7 +543,11 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
+             total_elapsed += SHIFT_DELAY_MS;
+         }
+         if (result) { // Only set gear on conformation!
++            if (algo->did_time_out()) {
++                ESP_LOGW("SHIFT", "Shift %d->%d completed via emergency timer, gear will be verified by ratio", sd.curr_g, sd.targ_g);
++            }
+             this->actual_gear = gear_from_idx(sd.targ_g);
++            this->gear_disagree_count = 0; // Gear is now known
+         }
+         else {
+             if (!is_shifter_in_valid_drive_pos(this->shifter_pos)) {
+@@ -543,6 +566,13 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
+         this->set_torque_request(TorqueRequestControlType::None, TorqueRequestBounds::LessThan, 0);
+         this->abort_shift = false;
+         this->sensor_data.last_shift_time = GET_CLOCK_TIME();
++        // Arm the post-upshift downshift inhibit only for a completed, automatic upshift
++        this->last_shift_was_upshift = is_upshift && result && !manually_requested;
++        this->pedal_at_last_shift = this->sensor_data.pedal_pos;
++        // The TCC must always be told the shift is over, even if the algorithm exited abnormally
++        if (this->tcc != nullptr) {
++            this->tcc->shift_end();
++        }
+         this->flaring = false;
+         memset(&this->algo_feedback, 0x00, sizeof(ShiftAlgoFeedback));
+         delete algo;
+@@ -595,7 +625,8 @@ void Gearbox::shift_thread()
+                 prefill = pressure_manager->make_fill_data(Clutch::B2).fill_pressure_on_clutch;
+                 spring = pressure_manager->get_spring_pressure(Clutch::B2);
+             }
+-            pressure_mgr->set_target_shift_pressure(((spring + (prefill)) / 1.993) + HYDR_PTR->shift_reg_spring_pressure); // TODO - 1.993 = spc multi [0]
++            // Clutch pressure -> SPC solenoid pressure via the 1-2 circuit gain (x1000)
++            pressure_mgr->set_target_shift_pressure(((spring + (prefill)) / ((float)HYDR_PTR->shift_spc_gain[0] / 1000.0)) + HYDR_PTR->shift_reg_spring_pressure);
+             pressure_mgr->set_target_modulating_pressure(3000);
+             this->pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
+             // N/P -> R/D
+@@ -691,6 +722,7 @@ void Gearbox::shift_thread()
+         {
+             this->actual_gear = curr_target; // R1/R2
+         }
++        this->gear_disagree_count = 0; // Garage shift establishes a known gear
+         goto cleanup;
+     }
+     else
+@@ -905,7 +937,7 @@ void Gearbox::controller_loop()
+             this->cached_output_rpm = first_order_filter(3, speed_sensors.output * 100, this->cached_output_rpm);
+             this->sensor_data.output_rpm = this->cached_output_rpm / 100;
+             bool stationary = this->is_stationary();
+-            if (!stationary)
++            if (!stationary && this->sensor_data.output_rpm > 0)
+             {
+                 // Store our ratio
+                 this->sensor_data.gear_ratio = (float)this->sensor_data.input_rpm / (float)this->sensor_data.output_rpm;
+@@ -946,15 +978,18 @@ void Gearbox::controller_loop()
+                     gear_disagree_count = 0;
+                 }
+             }
+-            else
+-            {
+-                gear_disagree_count = 0;
+-            }
++            // NOTE: Do not clear gear_disagree_count when slow, stationary or shifting.
++            // It is deliberately set non-zero at startup (booted in D) so that the gear
++            // must be verified by ratio before the profile is allowed to shift.
+         }
+         else
+         {
+             speeds_valid = false;
+-            gear_disagree_count = 0;
++        }
++        if (speeds_valid) {
++            this->speeds_invalid_cycles = 0;
++        } else if (this->speeds_invalid_cycles < UINT8_MAX) {
++            this->speeds_invalid_cycles += 1;
+         }
+         if (speeds_valid && !this->is_stationary())
+         {
+@@ -966,16 +1001,13 @@ void Gearbox::controller_loop()
+         }
+         uint8_t p_tmp = egs_can_hal->get_pedal_value(1000);
+         this->pedal_last = this->sensor_data.pedal_pos;
+-        if (p_tmp != 0xFF)
+-        {
+-            this->sensor_data.pedal_pos = p_tmp;
+-        }
+-        else {
+-            p_tmp = 250 / 4; // 25% as a fallback
++        if (p_tmp == 0xFF) {
++            p_tmp = 250 / 4; // 25% as a fallback (Applied to both raw and smoothed so they agree)
+         }
++        this->sensor_data.pedal_pos = p_tmp;
+         this->sensor_data.pedal_pos_smoothed = linear_interp_with_percentage(80, p_tmp, this->sensor_data.pedal_pos_smoothed);
+ 
+-        if (GET_CLOCK_TIME() - start > 100) {
++        if (start - this->last_delta_time > 100) {
+             // Update every 100ms, not every EGS cycle, values multiplied by 10
+             // to get them in terms of 1 second (1s/100ms = 10)
+             if (this->pedal_delta) {
+@@ -993,7 +1025,17 @@ void Gearbox::controller_loop()
+         tmp_rpm = egs_can_hal->get_engine_rpm(1000);
+         if (tmp_rpm == UINT16_MAX)
+         {
+-            tmp_rpm = this->sensor_data.engine_rpm; // Sub last value!
++            // Substitute the last value for a short while, then treat the engine as stopped
++            if (this->engine_rpm_missing_cycles < 10) {
++                this->engine_rpm_missing_cycles += 1;
++                tmp_rpm = this->sensor_data.engine_rpm; // Sub last value!
++            } else {
++                tmp_rpm = 0;
++            }
++        }
++        else
++        {
++            this->engine_rpm_missing_cycles = 0;
+         }
+         this->cached_engine_rpm = first_order_filter(3, tmp_rpm * 100, this->cached_engine_rpm);
+         this->sensor_data.engine_rpm = this->cached_engine_rpm / 100;
+@@ -1147,7 +1189,7 @@ void Gearbox::controller_loop()
+                             this->manual_shift = false;
+                         }
+                     }
+-                    if (this->ask_upshift && this->actual_gear < GearboxGear::Fifth)
++                    if (this->ask_upshift && this->actual_gear < GearboxGear::Fifth && this->actual_gear < this->restrict_target)
+                     {
+                         // Check RPMs
+                         GearboxGear next = next_gear(this->actual_gear);
+@@ -1159,9 +1201,20 @@ void Gearbox::controller_loop()
+                     }
+                     else if ((this->ask_downshift || sensor_data.kickdown_pressed) && this->actual_gear > GearboxGear::First)
+                     {
++                        // Post-upshift downshift inhibit. Several map cells land the post-upshift
++                        // input RPM below the downshift line, which causes up/down hunting at a
++                        // steady pedal. Hold the downshift for a short while after an automatic
++                        // upshift unless the driver clearly asks for it.
++                        bool inhibit = this->last_shift_was_upshift &&
++                            !this->manual_shift &&
++                            !sensor_data.kickdown_pressed &&
++                            !sensor_data.brake_pressed &&
++                            this->restrict_target >= this->actual_gear &&
++                            (GET_CLOCK_TIME() - sensor_data.last_shift_time) < 2000 &&
++                            sensor_data.pedal_pos <= (this->pedal_at_last_shift + 25);
+                         // Check RPMs
+                         GearboxGear prev = prev_gear(this->actual_gear);
+-                        if (calc_input_rpm_from_req_gear(this->sensor_data.output_rpm, prev, &this->gearboxConfig) < this->redline_rpm - 500)
++                        if (!inhibit && calc_input_rpm_from_req_gear(this->sensor_data.output_rpm, prev, &this->gearboxConfig) < this->redline_rpm - 500)
+                         {
+                             this->target_gear = prev;
+                         }
+@@ -1182,9 +1235,16 @@ void Gearbox::controller_loop()
+                     }
+                 }
+             }
++            else if (is_fwd_gear(this->actual_gear) && this->speeds_invalid_cycles < 5) {
++                // Transient sensor dropout in a forward gear - hold the current TCC pressure
++                // rather than dumping it (which causes a thump under lock).
++            }
+             else { // Cannot read, or not in foward gear!
+                 this->tcc_percent = 0;
+                 this->pressure_mgr->set_target_tcc_pressure(0);
++                if (this->tcc != nullptr && !this->shifting) {
++                    this->tcc->reset();
++                }
+                 egs_can_hal->set_clutch_status(TccClutchStatus::Open);
+                 // sol_tcc->write_pwm_12_bit(0);
+             }
+@@ -1196,6 +1256,8 @@ void Gearbox::controller_loop()
+         }
+         else if (!shifting)
+         {
++            // Engine not running - solenoids off (update_pressures is skipped below in this state)
++            this->pressure_mgr->set_target_tcc_pressure(0);
+             sol_mpc->set_current_target(0);
+             sol_spc->set_current_target(0);
+             sol_tcc->set_duty(0);
+@@ -1206,10 +1268,6 @@ void Gearbox::controller_loop()
+ 
+         int16_t tmp_atf = TCUIO::atf_temperature();
+         if (INT16_MAX != tmp_atf)
+-        {
+-            this->sensor_data.atf_temp = tmp_atf;
+-        }
+-        else
+         {
+             if (!temp_cal)
+             {
+@@ -1378,7 +1436,11 @@ void Gearbox::controller_loop()
+             }
+         }
+         portEXIT_CRITICAL(&this->profile_mutex);
+-        pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
++        // While shifting, the shift thread owns the solenoid update (with the correct change
++        // state). With the engine stopped the solenoids were switched off above.
++        if (!this->shifting && this->sensor_data.engine_rpm > 100) {
++            pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
++        }
+         uint32_t time = GET_CLOCK_TIME() - start;
+         if (time < 20) {
+             vTaskDelay((20 - time) / portTICK_PERIOD_MS); // 50 updates/sec!
+@@ -1406,6 +1468,11 @@ bool Gearbox::process_speed_sensors()
+                 ok = false;
+             }
+         }
++        // A dead N2 sensor reads 0 (no pulses). N2 can never be 0 whilst moving in a forward gear,
++        // so treat that as a sensor fault (Otherwise turbine = 0 in 5th and a 5-4 is triggered).
++        if (is_fwd_gear(this->actual_gear) && this->speed_sensors.output > 250 && n2 < 50) {
++            ok = false;
++        }
+         if (ok) {
+             this->speed_sensors.turbine = turbine;
+         }
+diff --git a/src/gearbox.h b/src/gearbox.h
+index 7349703..ecb391a 100644
+--- a/src/gearbox.h
++++ b/src/gearbox.h
+@@ -136,6 +136,10 @@ private:
+     int32_t cached_input_rpm = 0;
+     int32_t cached_engine_rpm = 0;
+     int32_t cached_output_rpm = 0;
++    uint8_t engine_rpm_missing_cycles = 0;
++    uint8_t speeds_invalid_cycles = 0;
++    bool last_shift_was_upshift = false;
++    uint8_t pedal_at_last_shift = 0;
+ };
+ 
+ extern Gearbox* gearbox;
+diff --git a/src/inputcomponents/kickdownswitch.cpp b/src/inputcomponents/kickdownswitch.cpp
+index 547522c..f1c3685 100644
+--- a/src/inputcomponents/kickdownswitch.cpp
++++ b/src/inputcomponents/kickdownswitch.cpp
+@@ -7,7 +7,7 @@ bool KickdownSwitch::last_state = false; // Initialize the last state to false
+ bool KickdownSwitch::is_kickdown_newly_pressed(EgsBaseCan *egs_can_hal, uint32_t expire_time_ms)
+ {
+     bool current_state = pcb_gpio_matrix->is_kickdown_pressed() || egs_can_hal->get_kickdown(expire_time_ms);
+-    bool result = current_state != KickdownSwitch::last_state;
++    bool result = current_state && !KickdownSwitch::last_state; // Rising edge only (Not release)
+     KickdownSwitch::last_state = current_state;
+     return result;
+ }
+diff --git a/src/models/clutch_speed.cpp b/src/models/clutch_speed.cpp
+index c4248a1..1749127 100644
+--- a/src/models/clutch_speed.cpp
++++ b/src/models/clutch_speed.cpp
+@@ -8,10 +8,11 @@
+ // Inverse - Only used in Reverse gear as rear sun gear spins in reverse due to B3 being applied
+ int16_t get_speed_long_eq(const uint16_t output_speed, const uint16_t input, const float r_low, const float r_high, bool invert = false) {
+     float num = 0;
++    // Same form as the inline B2 speed calculation in get_shifting_clutch_speeds
+     if (invert) {
+-        num = r_high * ((r_low * (float)output_speed) + (float)input);
++        num = ((r_low * (float)output_speed) + (float)input);
+     } else {
+-        num = r_high * ((r_low * (float)output_speed) - (float)input);
++        num = ((r_low * (float)output_speed) - (float)input);
+     }
+     return num / (r_low - r_high);
+ }
+diff --git a/src/models/input_torque.cpp b/src/models/input_torque.cpp
+index 287d40c..9c69153 100644
+--- a/src/models/input_torque.cpp
++++ b/src/models/input_torque.cpp
+@@ -17,6 +17,9 @@ int16_t InputTorqueModel::get_input_torque(uint16_t engine_rpm, uint16_t input_r
+ }
+ 
+ float InputTorqueModel::get_input_torque_factor(uint16_t engine, uint16_t input) {
++    if (engine == 0) {
++        return 1.0; // Engine stopped - no multiplication (avoids NaN from 0/0)
++    }
+     float rpm_multi = ((float)input) / ((float)engine);
+ 
+     //Interpolate map, but faster, since its just 4 values, no need to allocate a whole map for this
+diff --git a/src/pressure_manager.cpp b/src/pressure_manager.cpp
+index a99c9cd..02409e7 100644
+--- a/src/pressure_manager.cpp
++++ b/src/pressure_manager.cpp
+@@ -29,6 +29,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+         if (!this->momentum_upshifts[i]->is_allocated()) {
+             ESP_LOGE("PM", "Momentum upshift map %d failed to allocate!", i);
+             delete this->momentum_upshifts[i];
++            this->momentum_upshifts[i] = nullptr;
+         }
+     }
+ 
+@@ -40,6 +41,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+         if (!this->momentum_downshifts[i]->is_allocated()) {
+             ESP_LOGE("PM", "Momentum downshift map %d failed to allocate!", i);
+             delete this->momentum_downshifts[i];
++            this->momentum_downshifts[i] = nullptr;
+         }
+     }
+ 
+@@ -51,6 +53,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+         if (!this->torque_adder_upshifts[i]->is_allocated()) {
+             ESP_LOGE("PM", "Torque adder upshift map %d failed to allocate!", i);
+             delete this->torque_adder_upshifts[i];
++            this->torque_adder_upshifts[i] = nullptr;
+         }
+     }
+ 
+@@ -62,6 +65,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+         if (!this->torque_adder_downshifts[i]->is_allocated()) {
+             ESP_LOGE("PM", "Torque adder doownshift map %d failed to allocate!", i);
+             delete this->torque_adder_downshifts[i];
++            this->torque_adder_downshifts[i] = nullptr;
+         }
+     }
+ 
+@@ -72,7 +76,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+     default_data = TCC_PWM_MAP;
+     tcc_pwm_map = new StoredMap(key_name, TCC_PWM_MAP_SIZE, pwm_tcc_x_headers, pwm_tcc_y_headers, 7, 5, default_data);
+     if (this->tcc_pwm_map->init_status() != ESP_OK) {
+-        delete[] this->tcc_pwm_map;
++        delete this->tcc_pwm_map;
++        this->tcc_pwm_map = nullptr;
+     }
+ 
+     /** Pressure fill time map **/
+@@ -88,7 +93,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+     default_data = LARGE_NAG_FILL_TIME_MAP;
+     fill_time_map = new StoredMap(key_name, FILL_TIME_MAP_SIZE, fill_t_x_headers, fill_t_y_headers, 4, 5, default_data);
+     if (this->fill_time_map->init_status() != ESP_OK) {
+-        delete[] this->fill_time_map;
++        delete this->fill_time_map;
++        this->fill_time_map = nullptr;
+     }
+ 
+     /** Pressure fill pressure map **/
+@@ -105,7 +111,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+     default_data = NAG_FILL_PRESSURE_MAP;
+     fill_pressure_map = new StoredMap(key_name, FILL_PRESSURE_MAP_SIZE, fill_p_x_headers, fill_p_y_headers, 1, 6, default_data);
+     if (this->fill_pressure_map->init_status() != ESP_OK) {
+-        delete[] this->fill_pressure_map;
++        delete this->fill_pressure_map;
++        this->fill_pressure_map = nullptr;
+     }
+ 
+     /** Pressure fill pressure map **/
+@@ -121,7 +128,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
+     default_data = NAG_FILL_LOW_PRESSURE_MAP;
+     fill_low_pressure_map = new StoredMap(key_name, LOW_FILL_PRESSURE_MAP_SIZE, fill_lp_x_headers, fill_lp_y_headers, 1, 5, default_data);
+     if (this->fill_low_pressure_map->init_status() != ESP_OK) {
+-        delete[] this->fill_low_pressure_map;
++        delete this->fill_low_pressure_map;
++        this->fill_low_pressure_map = nullptr;
+     }
+ 
+     // Init MPC and SPC req pressures
+@@ -158,6 +166,9 @@ uint16_t PressureManager::calc_current_linear_sol(uint16_t p_targ, GearboxGear c
+     }
+ 
+     int line_pressure = ((int)HYDR_PTR->lp_reg_spring_pressure + (int)this->target_modulating_pressure)*1000;
++    if (factor <= 0) {
++        factor = 1000; // Guard (Calibration loader also rejects a zeroed p_multi)
++    }
+     int wp = extra_p + (line_pressure / factor);
+     if (wp <= 0) {
+         wp = 0;
+@@ -281,9 +292,12 @@ uint16_t PressureManager::p_clutch_with_coef(GearboxGear gear, Clutch clutch, ui
+         default:
+             coef = 1.F;
+     }
++    if (coef <= 0.F) {
++        coef = 1.F; // Guard against a zeroed user setting
++    }
+     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
+     float calc = ((float)abs_torque_nm * friction_val) / coef;
+-    return calc;
++    return MIN(calc, (float)UINT16_MAX);
+ }
+ 
+ int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clutch, int16_t torque_nm, CoefficientTy coef_ty) {
+@@ -302,9 +316,12 @@ int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clut
+         default:
+             coef = 1.F;
+     }
++    if (coef <= 0.F) {
++        coef = 1.F; // Guard against a zeroed user setting
++    }
+     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
+     float calc = ((float)torque_nm * friction_val) / coef;
+-    return calc;
++    return MAX((float)INT16_MIN, MIN(calc, (float)INT16_MAX));
+ }
+ 
+ // Clutches that are held (Not moving) during shifts
+@@ -445,6 +462,9 @@ uint16_t PressureManager::calc_max_torque_for_clutch(GearboxGear gear, Clutch cl
+             coef = 1.F;
+     }
+     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
++    if (friction_val <= 0.F) {
++        return 0; // Clutch is not loaded in this gear (Avoids divide by zero)
++    }
+     float calc =  ((float)pressure * coef) / (float)friction_val;
+     return calc;
+ }
+@@ -466,6 +486,9 @@ int PressureManager::calc_max_torque_for_clutch_signed(GearboxGear gear, Clutch
+             coef = 1.F;
+     }
+     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
++    if (friction_val <= 0.F) {
++        return 0; // Clutch is not loaded in this gear (Avoids divide by zero)
++    }
+     float calc =  ((float)pressure * coef) / (float)friction_val;
+     return calc;
+ }
+@@ -510,9 +533,12 @@ uint16_t PressureManager::find_working_mpc_pressure(GearboxGear curr_g, bool flu
+     // MPC pressure surge reduction
+     // - Reduces the slow buildup of pressure when we are working
+     //   below min MPC pressure
++    // Track the un-clamped output so the flush logic can see when we are really below min MPC
++    // (target_modulating_pressure is always clamped to >= min_mpc_pressure, so it never qualifies)
++    uint16_t raw_output = output;
+     if (
+         flush_logic &&
+-        (this->target_modulating_pressure < HYDR_PTR->min_mpc_pressure) && // Last call was below min
++        (this->last_mpc_raw_output < HYDR_PTR->min_mpc_pressure) && // Last call was below min
+         (0 == output) && // Current call is 0 pressure
+         ((sensor_data->atf_temp+50) >= HYDR_PTR->mpc_flush_temp_threshold) && // +50 to convert between our temperature and EGS Cal
+         (0 != HYDR_PTR->mpc_no_flush_time)// MPC Flushing is enabled for this box
+@@ -531,6 +557,9 @@ uint16_t PressureManager::find_working_mpc_pressure(GearboxGear curr_g, bool flu
+         this->mpc_flush_timer = 0;
+     }
+ 
++    if (flush_logic) {
++        this->last_mpc_raw_output = raw_output;
++    }
+     if (false == this->mpc_flushing) {
+         output = MAX(output, HYDR_PTR->min_mpc_pressure);
+     }
+diff --git a/src/pressure_manager.h b/src/pressure_manager.h
+index 911da4b..ffffa8e 100644
+--- a/src/pressure_manager.h
++++ b/src/pressure_manager.h
+@@ -193,6 +193,7 @@ private:
+     bool init_ss_recovery = false;
+     bool mpc_flushing = false;
+     uint8_t mpc_flush_timer = 0;
++    uint16_t last_mpc_raw_output = 0;
+     uint64_t last_ss_on_time = 0;
+     ShiftPressures* ptr_shift_pressures = nullptr;
+ 
+diff --git a/src/profiles.cpp b/src/profiles.cpp
+index b3a8135..d2097dc 100644
+--- a/src/profiles.cpp
++++ b/src/profiles.cpp
+@@ -38,7 +38,8 @@ AbstractProfile::AbstractProfile(bool is_diesel,
+     }
+     this->upshift_table = new StoredMap(key_name, SHIFT_MAP_SIZE, shift_table_x_header, upshift_y_headers, SHIFT_MAP_X_SIZE, SHIFT_MAP_Y_SIZE, default_map);
+     if (this->upshift_table->init_status() != ESP_OK) {
+-        delete[] this->upshift_table;
++        delete this->upshift_table;
++        this->upshift_table = nullptr;
+     }
+ 
+     /** Downshift map **/
+@@ -51,7 +52,8 @@ AbstractProfile::AbstractProfile(bool is_diesel,
+     }
+     this->downshift_table = new StoredMap(key_name, SHIFT_MAP_SIZE, shift_table_x_header, downshift_y_headers, SHIFT_MAP_X_SIZE, SHIFT_MAP_Y_SIZE, default_map);
+     if (this->downshift_table->init_status() != ESP_OK) {
+-        delete[] this->downshift_table;
++        delete this->downshift_table;
++        this->downshift_table = nullptr;
+     }
+ 
+     // Up/downshift time tables
+@@ -60,11 +62,13 @@ AbstractProfile::AbstractProfile(bool is_diesel,
+     int16_t shift_rpm_points[5] = {(int16_t)1000,  (int16_t)(1000+(step_size)), (int16_t)(1000+(step_size*2)), (int16_t)(1000+(step_size*3)), redline};
+     this->upshift_time_map = new StoredMap(upshift_time_map_name, SHIFT_TIME_MAP_SIZE, shift_time_table_x_header, const_cast<int16_t*>(shift_rpm_points), 6, 5, def_upshift_time_data);
+     if (this->upshift_time_map->init_status() != ESP_OK) {
+-        delete[] this->upshift_time_map;
++        delete this->upshift_time_map;
++        this->upshift_time_map = nullptr;
+     }
+     this->downshift_time_map = new StoredMap(downshift_time_map_name, SHIFT_TIME_MAP_SIZE, shift_time_table_x_header, const_cast<int16_t*>(shift_rpm_points), 6, 5, def_downshift_time_data);
+     if (this->downshift_time_map->init_status() != ESP_OK) {
+-        delete[] this->downshift_time_map;
++        delete this->downshift_time_map;
++        this->downshift_time_map = nullptr;
+     }
+ }
+ 
+@@ -374,7 +378,7 @@ void StandardProfile::update(SensorData* sensors) {
+ 
+ bool StandardProfile::should_downshift(GearboxGear current_gear, SensorData* sensors) {
+     if (current_gear == GearboxGear::First) { return false; }
+-    if (this->upshift_table != nullptr) { // TEST TABLE
++    if (this->downshift_table != nullptr) { // TEST TABLE
+         return sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
+     } else {
+         return false;
+diff --git a/src/sensors.cpp b/src/sensors.cpp
+index dfb4a37..0dd8d15 100644
+--- a/src/sensors.cpp
++++ b/src/sensors.cpp
+@@ -55,6 +55,9 @@ uint16_t calc_rpm(PcntMemData* cb) {
+     pcnt_unit_clear_count(cb->handle);
+     if (0 != pulses) {
+         int t = (now - cb->last_time_us) / pulses;
++        if (t <= 0) {
++            t = 1; // Guard divide by zero
++        }
+         val = (int)(60 * 1000 * 1000) / (t * (int)cb->pulses_rev);
+         //if (val < 60) {
+         //    val = 0;
+@@ -107,9 +110,14 @@ void Sensors::update(SensorDataRaw* dest) {
+             adc_cali_raw_to_voltage(adc2_cal, adc_res, &adc_voltage);
+ 
+             int resistance = (adc_voltage * pcb_gpio_matrix->sensor_data.atf_r2_resistance) / (3300 - adc_voltage);
+-
+-            float out_x10 = interpolate_linear_array((int16_t)resistance, NUM_TEMP_POINTS, TFT_RESISTANCE_TAB[0], TFT_RESISTANCE_TAB[1]);
+-            dest->atf_temp_c = (int16_t)(out_x10 / 10.0);
++            // Plausibility: A resistance well beyond the end of the sensor table (~175C) means
++            // a bad connection, not a hot gearbox. Report invalid rather than max temperature.
++            if (resistance > (int)TFT_RESISTANCE_TAB[0][NUM_TEMP_POINTS-1] * 12 / 10) {
++                dest->atf_temp_c = INT_MAX;
++            } else {
++                float out_x10 = interpolate_linear_array((int16_t)resistance, NUM_TEMP_POINTS, TFT_RESISTANCE_TAB[0], TFT_RESISTANCE_TAB[1]);
++                dest->atf_temp_c = (int16_t)(out_x10 / 10.0);
++            }
+         }
+     }
+ }
+diff --git a/src/shifting_algo/s_algo.cpp b/src/shifting_algo/s_algo.cpp
+index 21a607d..3b02b85 100644
+--- a/src/shifting_algo/s_algo.cpp
++++ b/src/shifting_algo/s_algo.cpp
+@@ -52,8 +52,9 @@ uint8_t ShiftingAlgorithm::step(
+     this->abs_input_trq = abs_input_torque;
+     this->pm = pm;
+     this->sd = sd;
+-    if (0 == this->first_order_pump_trq_filter) {
+-        this->first_order_pump_trq_filter = (sd->tcc_trq_multiplier*10 * sd->pump_torque);
++    if (0 == this->first_order_pump_trq_filter && INT16_MAX != sd->pump_torque) {
++        // Seed at 1x real value (the filter below stores 1x and works internally at 10x)
++        this->first_order_pump_trq_filter = (sd->tcc_trq_multiplier * sd->pump_torque);
+     }
+ 
+     // Decrease our timers
+@@ -78,6 +79,8 @@ uint8_t ShiftingAlgorithm::step(
+         // Only if we are continuing the same phase (Stuck)
+         // do we override with this
+         if (step_res == STEP_RES_CONTINUE) {
++            ESP_LOGW("SHIFT", "Emergency timer expired in phase %d, forcing next phase", phase_id);
++            this->shift_timed_out = true;
+             step_res = STEP_RES_NEXT;
+         }
+     }
+@@ -103,11 +106,14 @@ uint8_t ShiftingAlgorithm::step(
+ 
+ uint8_t ShiftingAlgorithm::phase_bleed(PressureManager* pm) {
+     uint8_t ret = STEP_RES_CONTINUE;
+-    this->trq_at_release_clutch = MAX((float)(VEHICLE_CONFIG.engine_drag_torque/100.0) * 0.75, abs_input_trq);
+-    int targ_spc = this->set_p_apply_clutch_with_spring(this->calc_high_filling_p());
++    // engine_drag_torque is stored as Nm x10, so /10.0 gives real Nm (0.75x drag torque floor)
++    this->trq_at_release_clutch = MAX((float)(VEHICLE_CONFIG.engine_drag_torque/10.0) * 0.75, abs_input_trq);
++    uint16_t high_fill_p = this->calc_high_filling_p();
++    int targ_spc = this->set_p_apply_clutch_with_spring(high_fill_p);
+     if (0 == this->subphase_mod) {
+         // Initial variables set
+         this->subphase_mod += 1;
++        this->p_apply_clutch = sid->SPC_MAX; // SPC is at max before the shift starts, ramp down from here
+         // Release downshift only (EGS53)
+         if (this->is_release_shift() && !upshifting) {
+             this->timer_mod = interpolate_float(sd->atf_temp, 20, 3, -45, -10, InterpType::Linear);
+@@ -130,7 +136,7 @@ uint8_t ShiftingAlgorithm::phase_bleed(PressureManager* pm) {
+         ret = STEP_RES_FAILURE;
+         goto calc_mod;
+     }
+-    this->p_apply_clutch = linear_ramp_with_timer(sid->SPC_MAX, targ_spc, this->timer_mod);
++    this->p_apply_clutch = linear_ramp_with_timer(this->p_apply_clutch, targ_spc, this->timer_mod);
+     this->shift_sol_pressure = this->correct_shift_shift_pressure(p_apply_clutch);
+ 
+ calc_mod:
+@@ -142,7 +148,8 @@ calc_mod:
+     }
+     else {
+         uint16_t mod_with_freewheeling = this->calc_mod_with_filling_trq_and_freewheeling(targ_spc);
+-        uint16_t uVar3 = this->calc_mod_min_abs_trq(targ_spc);
++        // Pass the raw filling pressure (calc_mod_min_abs_trq adds the release spring itself)
++        uint16_t uVar3 = this->calc_mod_min_abs_trq(high_fill_p);
+         this->mod_sol_pressure = MAX(mod_with_freewheeling, uVar3);
+     }
+     return ret;
+@@ -189,7 +196,7 @@ uint8_t ShiftingAlgorithm::phase_end_ctrl() {
+ 
+ uint16_t ShiftingAlgorithm::calc_max_trq_on_clutch(uint16_t pressure, CoefficientTy coef) {
+     uint16_t ret = 0;
+-    short p_corrected = pressure + this->centrifugal_force_on_clutch - sid->release_spring_on_clutch;
++    int p_corrected = pressure + this->centrifugal_force_on_clutch - sid->release_spring_on_clutch;
+     if (p_corrected > 0) {
+         ret = pm->calc_max_torque_for_clutch(sid->targ_g, sid->applying, p_corrected, coef);
+     }
+@@ -245,7 +252,7 @@ void ShiftingAlgorithm::reset_for_next_phase() {
+ }
+ 
+ uint16_t ShiftingAlgorithm::set_p_apply_clutch_with_spring(int p) {
+-    short res = MAX(0, p + sid->release_spring_on_clutch - this->centrifugal_force_on_clutch);
++    int res = MAX(0, p + sid->release_spring_on_clutch - this->centrifugal_force_on_clutch);
+     return MIN(res, sid->SPC_MAX);
+ }
+ 
+@@ -322,7 +329,7 @@ uint8_t ShiftingAlgorithm::adapt_p_map_idx() {
+     return cell_id;
+ }
+ 
+-uint16_t ShiftingAlgorithm::correct_shift_shift_pressure(int16_t pressure) {
++uint16_t ShiftingAlgorithm::correct_shift_shift_pressure(int pressure) {
+     // TODO - Move max_p to global constant so it can be referred in other functions
+     uint16_t max_p = pm->get_max_shift_pressure(sid->inf.map_idx);
+     // Corrections (See below at adapting system for more details why we transform the map idx)
+@@ -344,7 +351,7 @@ uint16_t ShiftingAlgorithm::correct_shift_shift_pressure(int16_t pressure) {
+ 
+ 
+ short ShiftingAlgorithm::calc_correction_trq(ShiftStyle style, short momentum) {
+-    short intertia = ShiftHelpers::get_shift_intertia(sid->inf.map_idx);
++    int intertia = MAX(1, (int)ShiftHelpers::get_shift_intertia(sid->inf.map_idx)); // Guard divide by zero
+     if (this->upshifting) {
+         this->target_turbine_speed -= ((momentum * 20) / intertia);
+         this->target_turbine_speed = MAX(0, this->target_turbine_speed);
+@@ -432,13 +439,16 @@ void ShiftingAlgorithm::adaptation_step() {
+     // Fill pressure adaptation (Done for all algorithms)
+     
+     // Boundary conditions (Every cycle)
+-    int tcc_trq = ((sd->tcc_trq_multiplier*10) * sd->pump_torque); // 10x real value
+-    if ((sid->shift_flags & SHIFT_FLAG_COAST_54_43) != 0) {
+-        this->first_order_pump_trq_filter = first_order_filter(2, tcc_trq, this->first_order_pump_trq_filter*10);
+-    } else {
+-        this->first_order_pump_trq_filter = first_order_filter(10, tcc_trq, this->first_order_pump_trq_filter*10);
++    if (INT16_MAX != sd->pump_torque) {
++        int tcc_trq = ((sd->tcc_trq_multiplier*10) * sd->pump_torque); // 10x real value
++        int filtered;
++        if ((sid->shift_flags & SHIFT_FLAG_COAST_54_43) != 0) {
++            filtered = first_order_filter(2, tcc_trq, (int)this->first_order_pump_trq_filter*10);
++        } else {
++            filtered = first_order_filter(10, tcc_trq, (int)this->first_order_pump_trq_filter*10);
++        }
++        this->first_order_pump_trq_filter = filtered / 10; // Reduce to 1x real value
+     }
+-    this->first_order_pump_trq_filter /= 10; // Reduce to 1x real value
+     if (this->do_fill_pressure_adaptation) {
+         if (abs_input_trq > this->adapting_trq_limit && this->phase_id < 3) {
+             this->do_fill_pressure_adaptation = false;
+@@ -456,7 +466,7 @@ void ShiftingAlgorithm::adaptation_step() {
+             this->do_fill_pressure_adaptation = false;
+         }
+         if (!this->do_fill_pressure_adaptation) {
+-            this->fill_pressure_adaptation_stage = 4; // Jump to analysis if cancelled early
++            this->fill_pressure_adaptation_stage = 5; // Cancelled early - do not analyse partial data
+         }
+     }
+     if (this->timer_p_adapt > 0) {
+@@ -512,16 +522,15 @@ void ShiftingAlgorithm::adaptation_step() {
+             int theoretical_p = MAX(0, this->p_apply_clutch + this->centrifugal_force_on_clutch - sid->release_spring_on_clutch);
+             int theoretical_t = pm->calc_max_torque_for_clutch(sid->targ_g, sid->applying, theoretical_p, CoefficientTy::Sliding);
+             this->adapting_p_adapt_trq += (theoretical_t - this->first_order_pump_trq_filter);
+-            if (this->phase_id > 4 || sid->ptr_r_clutch_speeds->on_clutch_speed < 100) {
++            if (this->phase_id >= 4 || sid->ptr_r_clutch_speeds->on_clutch_speed < 100) {
+                 // On clutch is applied or we moved to boost pressure phase in crossover shift.
+                 // (Jump to analysis)
+                 fill_pressure_adaptation_stage = 4;
+             }
+         }
+     } else if (4 == fill_pressure_adaptation_stage) {
+-        if (this->timer_p_adapt != 0 && this->adapting_turbine_spd != 0) {
+-            // 4 runs no matter what, so we don't care about if we are allowed or not
+-            int time = 0xFF - this->timer_p_adapt;
++        int time = 0xFF - this->timer_p_adapt;
++        if (this->timer_p_adapt != 0 && this->adapting_turbine_spd != 0 && this->do_fill_pressure_adaptation && time >= 3) {
+             int avg_trq = this->adapting_p_adapt_trq / time;
+             int d_inertia = ((MECH_PTR->intertia_torque[sid->inf.map_idx]) * (this->adapting_turbine_spd - sd->input_rpm)) / (time*20);
+             int correction_p = 0;
+@@ -537,8 +546,8 @@ void ShiftingAlgorithm::adaptation_step() {
+ 
+                     float scalar = interpolate_float(time, 0.25, 0.5, 4, 8, InterpType::Linear);
+                     int new_v = (int)((float)old_v + (float)correction_p * scalar);
+-                    int lim = (2000*sid->inf.pressure_multi_spc_int)/1000;
+-                    if (new_v > sid->inf.pressure_multi_spc_int) {
++                    int lim = ADP_CURRENT_SETTINGS.prefill_max_pressure_delta;
++                    if (new_v > lim) {
+                         new_v = lim;
+                     } else if (new_v < -lim) {
+                         new_v = -lim;
+@@ -611,8 +620,8 @@ void ShiftingAlgorithm::adaptation_step() {
+     } else if (this->torque_adaptation_stage == 2 && this->do_torque_adaptation) {
+         // Analyze phase
+         if (this->pid_count != 0 && nullptr != sid->adaptation_mgr) {
+-            float avg_pid_torque = this->pid_sum / this->pid_count;
+-            float avg_abs_torque = this->abs_input_trq / this->pid_count;
++            float avg_pid_torque = (float)this->pid_sum / (float)this->pid_count;
++            float avg_abs_torque = (float)this->abs_sum / (float)this->pid_count;
+             float scalar = interpolate_float(
+                 avg_abs_torque,
+                 0.10, // 10% at low torque
+diff --git a/src/shifting_algo/s_algo.h b/src/shifting_algo/s_algo.h
+index 0ec94db..b3dbaae 100644
+--- a/src/shifting_algo/s_algo.h
++++ b/src/shifting_algo/s_algo.h
+@@ -79,9 +79,12 @@ public:
+ 
+     void reset_all_subphase_data();
+     virtual uint8_t max_shift_stage_id() = 0;
++    // True if any phase was force-advanced by the emergency timer (shift did not complete cleanly)
++    bool did_time_out() const { return this->shift_timed_out; }
+ 
+ protected:
+     bool upshifting = false;
++    bool shift_timed_out = false;
+     ShiftInterfaceData* sid;
+     uint8_t subphase_mod = 0;
+     uint16_t timer_mod = 0;
+@@ -130,7 +133,7 @@ protected:
+     uint16_t calc_mod_with_filling_trq(int p_shift);
+     uint16_t calc_mpc_sol_shift_ps(int p_shift, int p_mod);
+     void reset_for_next_phase();
+-    uint16_t correct_shift_shift_pressure(int16_t pressure);
++    uint16_t correct_shift_shift_pressure(int pressure);
+ 
+     uint16_t set_p_apply_clutch_with_spring(int p);
+ 
+diff --git a/src/shifting_algo/shift_crossover.cpp b/src/shifting_algo/shift_crossover.cpp
+index 3199991..6ddde7c 100644
+--- a/src/shifting_algo/shift_crossover.cpp
++++ b/src/shifting_algo/shift_crossover.cpp
+@@ -142,7 +142,7 @@ uint8_t CrossoverShift::phase_fill() {
+         // Set vars
+         this->cycles_high_filling = sid->prefill_info.fill_cycles;
+         if (this->sid->adaptation_mgr) {
+-            int8_t offset = sid->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
++            int16_t offset = sid->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
+             if (((int16_t)(this->cycles_high_filling) + offset) > 0) {
+                 this->cycles_high_filling += offset;
+             } else {
+@@ -407,10 +407,11 @@ uint8_t CrossoverShift::phase_overlap2() {
+         this->momentum_ctrl_filtered = linear_interp_with_percentage(80, this->momentum_ctrl, this->momentum_ctrl_filtered);
+         this->correction_trq = this->calc_correction_trq(this->upshifting ? ShiftStyle::Crossover_Up : ShiftStyle::Crossover_Dn, this->momentum_ctrl_filtered);
+ 
++        // NOTE: The off clutch slipping is the condition that ended PHASE_OVERLAP, so it must not
++        // also end this sub-phase, otherwise downshifts skip the sync ramp entirely.
+         if (
+             0 == this->timer_shift || 
+-            sid->ptr_r_clutch_speeds->on_clutch_speed < this->threshold_rpm ||
+-            (sid->ptr_r_clutch_speeds->off_clutch_speed > CRS_CURRENT_SETTINGS.clutch_stationary_rpm && !upshifting)
++            sid->ptr_r_clutch_speeds->on_clutch_speed < this->threshold_rpm
+         ) {
+             // Next phase (No timer, just ends when clutch speed is hit)
+             this->subphase_shift += 1;
+@@ -656,7 +657,7 @@ void CrossoverShift::overlap2_adapt() {
+     }
+ }
+ 
+-int8_t CrossoverShift::calc_t_adapt_offset_adv(int8_t cycle_change) {
++int8_t CrossoverShift::calc_t_adapt_offset_adv(int cycle_change) {
+     float sqrt_high_p = sqrt((float)sid->prefill_info.fill_pressure_on_clutch);
+     float sqrt_low_p = sqrt((float)sid->prefill_info.low_fill_pressure_on_clutch);
+     float cycles_high = (float)cycles_high_filling;
+diff --git a/src/shifting_algo/shift_crossover.h b/src/shifting_algo/shift_crossover.h
+index 2a7660c..a0fee38 100644
+--- a/src/shifting_algo/shift_crossover.h
++++ b/src/shifting_algo/shift_crossover.h
+@@ -25,7 +25,7 @@ private:
+     void fill_adapt();
+     void overlap_adapt();
+     void overlap2_adapt();
+-    int8_t calc_t_adapt_offset_adv(int8_t cycle_change);
++    int8_t calc_t_adapt_offset_adv(int cycle_change);
+     
+     uint16_t p_apply_overlap_begin = 0;
+ 
+@@ -41,10 +41,7 @@ private:
+     uint16_t get_trq_boost_adder();
+     int16_t calc_momentum_overlap_2();
+ 
+-    uint8_t trq_req_timer = 0;
+-    bool trq_req_up_ramp = false;
+     bool fill_via_ramp = false;
+-    uint16_t torque_req_val = 0;
+     int16_t torque_adapt_val = 0;
+     int16_t trq_req_compensate_val = 0;
+     
+diff --git a/src/shifting_algo/shift_release.cpp b/src/shifting_algo/shift_release.cpp
+index 9f27999..7526c34 100644
+--- a/src/shifting_algo/shift_release.cpp
++++ b/src/shifting_algo/shift_release.cpp
+@@ -12,7 +12,7 @@ ReleasingShift::ReleasingShift(ShiftInterfaceData* data) : ShiftingAlgorithm(dat
+     this->trq_req_timer = 3; // 100ms for torque request down ramp
+     this->cycles_high_filling = data->prefill_info.fill_cycles;
+     if (data->adaptation_mgr) {
+-        int8_t offset = data->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
++        int16_t offset = data->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
+         if (((int16_t)(this->cycles_high_filling) + offset) > 1) {
+             this->cycles_high_filling += offset;
+         } else {
+@@ -74,7 +74,13 @@ uint8_t ReleasingShift::step_internal(
+ 
+     // Set ramp value on first iteration
+     if (this->spc_ramp_val == 0) {
+-        this->spc_ramp_val = 8;
++        float ramp_multi = 1.0;
++        if (manual == sid->profile) {
++            ramp_multi = REL_CURRENT_SETTINGS.spc_ramp_multi_m;
++        } else if (race == sid->profile) {
++            ramp_multi = REL_CURRENT_SETTINGS.spc_ramp_multi_r;
++        }
++        this->spc_ramp_val = MAX(1.0, (float)REL_CURRENT_SETTINGS.spc_ramp_speed * ramp_multi);
+     }
+ 
+     if (phase_id == PHASE_BLEED) {
+@@ -126,9 +132,15 @@ uint8_t ReleasingShift::step_internal(
+                 intervension_out = sd->indicated_torque * 0.8;
+             }
+         }
++        // A torque *reduction* request can never be negative (indicated torque may be negative when coasting,
++        // and torque_req_val is unsigned)
++        intervension_out = MAX(0, intervension_out);
+ 
+         if (emergency_limit) {
++            // Off clutch torque capacity exceeded - request the reduction immediately, and keep the
++            // ramp value in sync so the request does not drop to 0 when the emergency clears
+             this->torque_req_out = intervension_out;
++            this->torque_req_val = intervension_out;
+         }
+         else {
+             if (trq_req_up_ramp) {
+@@ -146,8 +158,8 @@ uint8_t ReleasingShift::step_internal(
+                     this->trq_req_timer -= 1;
+                 }
+             }
++            this->torque_req_out = this->torque_req_val;
+         }
+-        this->torque_req_out = this->torque_req_val;
+     }
+ 
+     if (sid->trq_req_en) {
+@@ -158,8 +170,8 @@ uint8_t ReleasingShift::step_internal(
+ 
+     // Output to CAN
+     if (0 != torque_req_out && sid->trq_req_en) {
+-        torque_req_out = MIN(torque_req_out, sd->indicated_torque);
+-        sid->ptr_w_trq_req->amount = sd->indicated_torque - torque_req_out;
++        torque_req_out = MIN((int)torque_req_out, MAX(0, (int)sd->indicated_torque));
++        sid->ptr_w_trq_req->amount = MAX(0, sd->indicated_torque - torque_req_out);
+         sid->ptr_w_trq_req->bounds = TorqueRequestBounds::LessThan;
+         sid->ptr_w_trq_req->ty = this->trq_req_up_ramp ? TorqueRequestControlType::BackToDemandTorque : TorqueRequestControlType::NormalSpeed;
+     }
+@@ -372,7 +384,8 @@ uint8_t ReleasingShift::phase_fill_release_mpc() {
+             ret = PHASE_OVERLAP;
+         }
+     }
+-    if (sid->ptr_r_clutch_speeds->on_clutch_speed <= this->threshold_rpm) {
++    if (!this->trq_req_down_ramp && sid->ptr_r_clutch_speeds->on_clutch_speed <= this->threshold_rpm) {
++        // Arm once, so the ramp timer actually counts down
+         this->trq_req_down_ramp = true;
+         this->trq_req_timer = this->cycles_mod_ramp_to_sync;
+     }
+@@ -493,7 +506,7 @@ const uint8_t momentum_factors[8] = { 100, 100, 100, 100, 80, 80, 100, 100 }; //
+ 
+ uint16_t ReleasingShift::calc_sync_mod_pressure() {
+     // Freeing torque factored with momentum
+-    float raw = MAX(0, abs_input_trq + this->correction_trq + this->torque_adder);
++    float raw = MAX(0, abs_input_trq + this->correction_trq + this->trq_adder);
+     float torque_new_clutch = raw;
+     float freeing = (this->freeing_trq * momentum_factors[sid->inf.map_idx]) / 100.0;
+ 
+diff --git a/src/shifting_algo/shift_release.h b/src/shifting_algo/shift_release.h
+index 297f135..8b47fe7 100644
+--- a/src/shifting_algo/shift_release.h
++++ b/src/shifting_algo/shift_release.h
+@@ -30,7 +30,6 @@ private:
+     float freeing_trq = 0;
+     float loss_torque = 0;
+     float loss_torque_tmp = 0;
+-    uint16_t torque_adder = 0;
+ 
+     float calculate_freeing_trq_multiplier();
+     void phase_fill_release_spc();
+diff --git a/src/shifting_algo/shifting_algo_helpers.cpp b/src/shifting_algo/shifting_algo_helpers.cpp
+index 4994660..54069e7 100644
+--- a/src/shifting_algo/shifting_algo_helpers.cpp
++++ b/src/shifting_algo/shifting_algo_helpers.cpp
+@@ -13,7 +13,7 @@ float ShiftHelpers::calcualte_abs_engine_inertia(uint8_t shift_idx, uint16_t eng
+ 
+ float ShiftHelpers::get_shift_intertia(uint8_t shift_idx) {
+     float r = (float)(MECH_PTR->intertia_torque[shift_idx]) + (float)(VEHICLE_CONFIG.engine_drag_torque/10);
+-    return r;
++    return MAX(1.0F, r); // Used as a divisor by the shift algorithms
+ }
+ 
+ void ShiftHelpers::calc_shift_flags(ShiftInterfaceData* sid, SensorData* sd) {
+@@ -24,7 +24,7 @@ void ShiftHelpers::calc_shift_flags(ShiftInterfaceData* sid, SensorData* sd) {
+             sid->shift_flags &= ~SHIFT_FLAG_COAST;
+             sid->shift_flags |= SHIFT_FLAG_COAST_54_43;
+         }
+-        if (sid->change == GearChange::_1_2 || sid->change == GearChange::_3_2) {
++        if (sid->change == GearChange::_2_1 || sid->change == GearChange::_3_2) {
+             sid->shift_flags |= SHIFT_FLAG_COAST_32_21;
+         }
+     }
+diff --git a/src/solenoids/cc_solenoid.cpp b/src/solenoids/cc_solenoid.cpp
+index 4f73761..4db779f 100644
+--- a/src/solenoids/cc_solenoid.cpp
++++ b/src/solenoids/cc_solenoid.cpp
+@@ -40,8 +40,13 @@ void ConstantCurrentSolenoid::update_when_reading(uint16_t battery) {
+     // Pull in new values
+     uint16_t prev_current_req = this->saved_current_target;
+     if (battery > 9000 && this->current_target != 0) {
+-        // Assume 14.4V for stability
+-        int32_t max_current_ma = SOL_CURRENT_SETTINGS.cc_vref_solenoid / SOL_CURRENT_SETTINGS.cc_reference_resistance;
++        // Feed-forward from the measured battery voltage (mV / Ohm = mA). The PID trim then only
++        // has to correct for coil resistance/temperature, not supply voltage.
++        float ref_resistance = SOL_CURRENT_SETTINGS.cc_reference_resistance;
++        if (ref_resistance < 0.5) {
++            ref_resistance = 5.3; // Guard against a zeroed setting (Divide by zero)
++        }
++        int32_t max_current_ma = (float)battery / ref_resistance;
+         uint16_t observed_current = this->get_current();
+         this->saved_current_target = this->current_target;
+         int32_t error = 1000 * ((int32_t)prev_current_req - (int32_t)observed_current) / (float)max_current_ma;
+diff --git a/src/solenoids/inrush_solenoid.cpp b/src/solenoids/inrush_solenoid.cpp
+index 059b998..f3307b6 100644
+--- a/src/solenoids/inrush_solenoid.cpp
++++ b/src/solenoids/inrush_solenoid.cpp
+@@ -142,7 +142,9 @@ uint32_t IRAM_ATTR InrushControlSolenoid::on_timer_interrupt_new() {
+             pwm_en = !pwm_en;
+             // Phase on/off for pwm
+ 
+-            ret = MIN(!pwm_en ? this->pwm_on_time : this->pwm_off_time, total - this->hold_time);
++            // Remaining hold time (guarded: total is always < hold_time in this phase)
++            uint32_t remaining = (total < this->hold_time) ? (this->hold_time - total) : 0;
++            ret = MIN(!pwm_en ? this->pwm_on_time : this->pwm_off_time, remaining);
+             if (total+ret >= this->hold_time) {
+                 if (this->off_time == 0) {
+                     // We go back to this phase (Constant hold)
+diff --git a/src/solenoids/pwm_solenoid.cpp b/src/solenoids/pwm_solenoid.cpp
+index a32f22f..fd3384d 100644
+--- a/src/solenoids/pwm_solenoid.cpp
++++ b/src/solenoids/pwm_solenoid.cpp
+@@ -51,11 +51,17 @@ set_err:
+ 
+ uint16_t PwmSolenoid::get_current() const {
+     uint32_t raw = this->current_adc_reading;
+-    uint16_t ret = 0;
++    int voltage_mv = 0; // adc_cali_raw_to_voltage writes a full int
+     if (0 != raw) {
+-        adc_cali_raw_to_voltage(adc1_cal, raw, reinterpret_cast<int*>(&ret));
++        if (ESP_OK != adc_cali_raw_to_voltage(adc1_cal, raw, &voltage_mv)) {
++            voltage_mv = 0;
++        }
++    }
++    float scaled = voltage_mv * pcb_gpio_matrix->sensor_data.current_sense_multi;
++    if (scaled < 0) {
++        scaled = 0;
+     }
+-    return ret * pcb_gpio_matrix->sensor_data.current_sense_multi;
++    return (uint16_t)scaled;
+ }
+ 
+ uint16_t PwmSolenoid::get_pwm_raw() const
+diff --git a/src/solenoids/solenoids.cpp b/src/solenoids/solenoids.cpp
+index e756f9b..8e2f189 100644
+--- a/src/solenoids/solenoids.cpp
++++ b/src/solenoids/solenoids.cpp
+@@ -39,7 +39,8 @@ each channel:
+ uint8_t adc_read_buf[I2S_DMA_BUF_LEN];
+ bool first_read_complete = false;
+ uint64_t isr_done = 0;
+-uint8_t CHANNEL_ID_MAP[ADC_CHANNEL_9] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
++// Indexed by the 4 bit channel field of adc_digi_output_data_t (0-15)
++uint8_t CHANNEL_ID_MAP[16] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+ 
+ void read_solenoids_i2s(void*) {
+     PwmSolenoid* const sol_order[6] = { sol_mpc, sol_spc, sol_y3, sol_y4, sol_y5, sol_tcc };
+@@ -55,7 +56,7 @@ void read_solenoids_i2s(void*) {
+         adc_pattern[i].channel = sol_order[i]->get_adc_channel() & 0x7;
+         adc_pattern[i].unit = ADC_UNIT_1;
+         adc_pattern[i].bit_width = SOC_ADC_DIGI_MAX_BITWIDTH; // 12bits
+-        CHANNEL_ID_MAP[(uint8_t)sol_order[i]->get_adc_channel()] = i;
++        CHANNEL_ID_MAP[(uint8_t)sol_order[i]->get_adc_channel() & 0xF] = i;
+     }
+     adc_continuous_config_t dig_cfg = {
+         .pattern_num = 6,
+@@ -80,7 +81,7 @@ void read_solenoids_i2s(void*) {
+             for (int i = 0; i < read_len; i += SOC_ADC_DIGI_RESULT_BYTES) {
+                 // adc_digi_output_data_t *p = (adc_digi_output_data_t*)&adc_read_buf[i];
+                 adc_digi_output_data_t* p = reinterpret_cast<adc_digi_output_data_t*>(&adc_read_buf[i]);
+-                uint8_t channel_idx = CHANNEL_ID_MAP[p->type1.channel];
++                uint8_t channel_idx = CHANNEL_ID_MAP[p->type1.channel & 0xF];
+                 if (channel_idx != 0xFF) {
+                     if (p->type1.data != 0) {
+                         s.peak_total[channel_idx] += p->type1.data;
+@@ -138,7 +139,8 @@ void update_solenoids(void*) {
+         }
+         if (INT16_MAX != atf) {
+             atf_temp = atf * 10.0;
+-            temp_compensation = (((atf_temp - (SOL_CURRENT_SETTINGS.cc_reference_temp * 10.0)) / 10.0) * SOL_CURRENT_SETTINGS.cc_temp_coefficient_wires) / 10.0;
++            // Copper resistance factor: 1 + (dT * coefficient[%/C] / 100)
++            temp_compensation = 1.0 + ((((atf_temp - (SOL_CURRENT_SETTINGS.cc_reference_temp * 10.0)) / 10.0) * SOL_CURRENT_SETTINGS.cc_temp_coefficient_wires) / 100.0);
+         }
+         if (write_pwm) {
+             // MOVED TO CURRENT READING TASK SO READINGS ARE SYNCED
+diff --git a/src/stored_data.h b/src/stored_data.h
+index 4dce243..60b1919 100644
+--- a/src/stored_data.h
++++ b/src/stored_data.h
+@@ -5,6 +5,7 @@
+ 
+ class StoredData {
+ 	public:
++        virtual ~StoredData() = default;
+     	esp_err_t init_status(void);
+ 
+         virtual esp_err_t read_from_eeprom(const char *key_name, uint16_t expected_size) = 0;
+diff --git a/src/tcu_io/tcu_io.cpp b/src/tcu_io/tcu_io.cpp
+index 9478d33..5354b26 100644
+--- a/src/tcu_io/tcu_io.cpp
++++ b/src/tcu_io/tcu_io.cpp
+@@ -5,6 +5,7 @@
+ #include "tcu_io.hpp"
+ #include "sensors.h"
+ #include <limits>
++#include <climits>
+ 
+ float RATIO_2_1 = 1.61;
+ float DIFF_RATIO_F = 1.00;
+@@ -126,9 +127,11 @@ esp_err_t TCUIO::setup_io_layer() {
+     init_onepoll(&onepoll_rl_speed);
+     init_onepoll(&onepoll_rr_speed);
+ 
+-    // CAN Matrix inputs
++    // CAN Matrix inputs (Invalid until the first frame arrives)
+     init_onepoll(&onepoll_motor_temperature);
++    onepoll_motor_temperature.e_counter = 254;
+     init_onepoll(&onepoll_motor_oil_temperature);
++    onepoll_motor_oil_temperature.e_counter = 254;
+ 
+     DIFF_RATIO_F = (float)VEHICLE_CONFIG.diff_ratio / 1000.0;
+     return ret;
+@@ -146,8 +149,10 @@ void update_tft_sensor() {
+     bool reset_average = was_reading_from_engine != atf_from_engine_temp; // State change
+     int temperature = 25;
+     if (atf_from_engine_temp) {
+-        // Request value from CAN
+-        temperature = onepoll_motor_temperature.current_value;
++        // Request value from CAN (Only if it is valid, otherwise flag as error so the
++        // smoothed sensor holds its last value instead of filtering towards 0C)
++        int16_t motor_temp = get_onepoll_sensor_val(&onepoll_motor_temperature, 5);
++        temperature = (INT16_MAX == motor_temp) ? INT_MAX : motor_temp;
+     } else {
+         // Use TFT value
+         temperature = raw_sensors.atf_temp_c;
+diff --git a/src/torque_converter.cpp b/src/torque_converter.cpp
+index 14b7ca2..58beef7 100644
+--- a/src/torque_converter.cpp
++++ b/src/torque_converter.cpp
+@@ -18,6 +18,7 @@ const int16_t SLIP_V_WHEN_LOCKED = 10; // 10RPM for locking (Means we can monito
+ const int16_t SLIP_V_OVERLOCKED = SLIP_V_WHEN_LOCKED/2;
+ const int16_t SLIP_V_UNDERLOCKED = SLIP_V_WHEN_LOCKED*2;
+ const uint8_t SLIP_SAMPLES_AVG = 25; // 500ms
++const int16_t TCC_STATE_HYST_RPM = 10; // Hysteresis on the slip target when deciding Open/Slip/Closed
+ 
+ TorqueConverter::TorqueConverter(uint16_t max_gb_rating)  {
+     if (0 == TCC_CURRENT_SETTINGS.tcc_max_trq_override) {
+@@ -30,17 +31,20 @@ TorqueConverter::TorqueConverter(uint16_t max_gb_rating)  {
+     const int16_t adapt_map_y_headers[5] = {1,2,3,4,5}; // Gear
+     this->tcc_slip_map = new StoredMap(NVS_KEY_TCC_ADAPT_SLIP_MAP, TCC_SLIP_ADAPT_MAP_SIZE, adapt_map_x_headers, adapt_map_y_headers, LOAD_SIZE, 5, TCC_SLIP_ADAPT_MAP);
+     if (this->tcc_slip_map->init_status() != ESP_OK) {
+-        delete[] this->tcc_slip_map;
++        delete this->tcc_slip_map;
++        this->tcc_slip_map = nullptr;
+     }
+ 
+     this->tcc_lock_map = new StoredMap(NVS_KEY_TCC_ADAPT_LOCK_MAP, TCC_SLIP_ADAPT_MAP_SIZE, adapt_map_x_headers, adapt_map_y_headers, LOAD_SIZE, 5, TCC_LOCK_ADAPT_MAP);
+     if (this->tcc_lock_map->init_status() != ESP_OK) {
+-        delete[] this->tcc_lock_map;
++        delete this->tcc_lock_map;
++        this->tcc_lock_map = nullptr;
+     }
+ 
+     this->slip_rpm_target_map = new StoredMap(NVS_KEY_TCC_SLIP_TARGET_MAP, TCC_RPM_TARGET_MAP_SIZE, rpm_map_x_headers, rpm_map_y_headers, 11, 8, TCC_RPM_TARGET_MAP);
+     if (this->slip_rpm_target_map->init_status() != ESP_OK) {
+-        delete[] this->slip_rpm_target_map;
++        delete this->slip_rpm_target_map;
++        this->slip_rpm_target_map = nullptr;
+     }
+ 
+     this->init_tables_ok = (this->tcc_slip_map != nullptr) && (this->tcc_lock_map != nullptr) && (this->slip_rpm_target_map != nullptr);
+@@ -150,16 +154,19 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
+         targ = InternalTccState::Open;
+         int pedal_as_percent = (sensors->pedal_pos*100)/250;
+         slipping_rpm_targ = this->slip_rpm_target_map->get_value(pedal_as_percent, sensors->input_rpm);
++        // Thresholds with hysteresis relative to the previous target state, so that
++        // RPM/pedal jitter around a map boundary does not toggle the commanded pressure
++        int open_thresh = (this->target_tcc_state == InternalTccState::Open) ? (SLIP_V_WHEN_OPEN - TCC_STATE_HYST_RPM) : (SLIP_V_WHEN_OPEN + TCC_STATE_HYST_RPM);
++        int lock_thresh = (this->target_tcc_state == InternalTccState::Closed) ? (SLIP_V_WHEN_LOCKED + TCC_STATE_HYST_RPM) : SLIP_V_WHEN_LOCKED;
+         // Can we slip?
+-        if (SLIP_V_WHEN_OPEN > slipping_rpm_targ) {
++        if (open_thresh > slipping_rpm_targ) {
+             targ = InternalTccState::Slipping;
+             // Can we lock?
+-            if (SLIP_V_WHEN_LOCKED >= slipping_rpm_targ) {
++            if (lock_thresh >= slipping_rpm_targ) {
+                 targ = InternalTccState::Closed;
+                 slipping_rpm_targ = MAX(SLIP_V_WHEN_LOCKED, slipping_rpm_targ);
+             }
+         }
+-        slipping_rpm_targ = slipping_rpm_targ;
+         if (is_shifting) {
+             // Check previous target
+             bool open_tcc = false;
+@@ -201,7 +208,7 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
+             slipping_rpm_targ = MAX(this->slip_target, 50);
+         } 
+         // Engine is requesting full TCC open
+-        else if (TCC_CURRENT_SETTINGS.react_on_engine_open_request) {
++        else if (engine_req_state == TccReqState::Open && TCC_CURRENT_SETTINGS.react_on_engine_open_request) {
+             targ = InternalTccState::Open;
+             slipping_rpm_targ = SLIP_V_WHEN_OPEN;
+         }
+@@ -337,12 +344,14 @@ void TorqueConverter::update(GearboxGear curr_gear, GearboxGear targ_gear, Press
+         this->prefill_running = false;
+     }
+     // OEM EGS - Below 60C, TCC pressure is reduced by a factor based on
+-    // ATF temperature
++    // ATF temperature. Scale the output only - the internal pressure model and the
++    // state promotion above compare against the unscaled command.
++    uint16_t output_pressure = this->tcc_commanded_pressure;
+     if (sensors->atf_temp < TCC_CURRENT_SETTINGS.tcc_temp_multiplier.raw_max) {
+         float mul = interpolate_float(sensors->atf_temp, &TCC_CURRENT_SETTINGS.tcc_temp_multiplier, InterpType::Linear);
+-        this->tcc_commanded_pressure = (float)this->tcc_commanded_pressure*mul;
++        output_pressure = (float)this->tcc_commanded_pressure*mul;
+     }
+-    pm->set_target_tcc_pressure(this->tcc_commanded_pressure);
++    pm->set_target_tcc_pressure(output_pressure);
+ }
+ 
+ InternalTccState TorqueConverter::__get_internal_state(void) {
+@@ -418,4 +427,17 @@ void TorqueConverter::shift_start(bool upshift, bool release_shifting) {
+ }
+ void TorqueConverter::shift_end() {
+     this->is_shifting = false;
++}
++
++void TorqueConverter::reset() {
++    // Called when the gearbox bypasses update() and forces the TCC open,
++    // so that the internal pressure model does not claim a settled locked state on re-entry
++    this->tcc_commanded_pressure = 0;
++    this->tcc_actual_pressure = 0;
++    this->current_tcc_state = InternalTccState::Open;
++    this->target_tcc_state = InternalTccState::Open;
++    this->slip_target = SLIP_V_WHEN_OPEN;
++    this->prefill_done = false;
++    this->prefill_running = false;
++    // NOTE: is_shifting is owned by the shift thread (shift_start/shift_end) and is not touched here
+ }
+\ No newline at end of file
+diff --git a/src/torque_converter.h b/src/torque_converter.h
+index 6d0f499..264a6bb 100644
+--- a/src/torque_converter.h
++++ b/src/torque_converter.h
+@@ -48,6 +48,7 @@ class TorqueConverter {
+         
+         void shift_start(bool upshift, bool release_shifting);
+         void shift_end();
++    void reset();
+         int16_t get_slip_filtered();
+         InternalTccState __get_internal_state(void);
+         uint8_t get_current_state();

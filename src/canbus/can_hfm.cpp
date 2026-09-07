@@ -178,7 +178,8 @@ uint8_t HfmCan::get_pedal_value(const uint32_t expire_time_ms)
             uint8_t dki = hfm210.DKI;
             if (VEHICLE_CONFIG.throttlevalve_maxopeningangle > dki)
             {
-                result = (uint8_t)(100.F * (((float)dki) / ((float)VEHICLE_CONFIG.throttlevalve_maxopeningangle)));
+                // SensorData::pedal_pos is 0-250 (EGS convention), not 0-100
+                result = (uint8_t)(250.F * (((float)dki) / ((float)VEHICLE_CONFIG.throttlevalve_maxopeningangle)));
             }
         }
     }

@@ -48,6 +48,7 @@ class TorqueConverter {
         
         void shift_start(bool upshift, bool release_shifting);
         void shift_end();
+    void reset();
         int16_t get_slip_filtered();
         InternalTccState __get_internal_state(void);
         uint8_t get_current_state();

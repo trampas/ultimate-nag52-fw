@@ -25,7 +25,7 @@ private:
     void fill_adapt();
     void overlap_adapt();
     void overlap2_adapt();
-    int8_t calc_t_adapt_offset_adv(int8_t cycle_change);
+    int8_t calc_t_adapt_offset_adv(int cycle_change);
     
     uint16_t p_apply_overlap_begin = 0;
 
@@ -41,10 +41,7 @@ private:
     uint16_t get_trq_boost_adder();
     int16_t calc_momentum_overlap_2();
 
-    uint8_t trq_req_timer = 0;
-    bool trq_req_up_ramp = false;
     bool fill_via_ramp = false;
-    uint16_t torque_req_val = 0;
     int16_t torque_adapt_val = 0;
     int16_t trq_req_compensate_val = 0;
     

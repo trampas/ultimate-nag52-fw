@@ -142,7 +142,7 @@ uint8_t CrossoverShift::phase_fill() {
         // Set vars
         this->cycles_high_filling = sid->prefill_info.fill_cycles;
         if (this->sid->adaptation_mgr) {
-            int8_t offset = sid->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
+            int16_t offset = sid->adaptation_mgr->get_prefill_cycles_offset(sid->inf.map_idx);
             if (((int16_t)(this->cycles_high_filling) + offset) > 0) {
                 this->cycles_high_filling += offset;
             } else {
@@ -407,10 +407,11 @@ uint8_t CrossoverShift::phase_overlap2() {
         this->momentum_ctrl_filtered = linear_interp_with_percentage(80, this->momentum_ctrl, this->momentum_ctrl_filtered);
         this->correction_trq = this->calc_correction_trq(this->upshifting ? ShiftStyle::Crossover_Up : ShiftStyle::Crossover_Dn, this->momentum_ctrl_filtered);
 
+        // NOTE: The off clutch slipping is the condition that ended PHASE_OVERLAP, so it must not
+        // also end this sub-phase, otherwise downshifts skip the sync ramp entirely.
         if (
             0 == this->timer_shift || 
-            sid->ptr_r_clutch_speeds->on_clutch_speed < this->threshold_rpm ||
-            (sid->ptr_r_clutch_speeds->off_clutch_speed > CRS_CURRENT_SETTINGS.clutch_stationary_rpm && !upshifting)
+            sid->ptr_r_clutch_speeds->on_clutch_speed < this->threshold_rpm
         ) {
             // Next phase (No timer, just ends when clutch speed is hit)
             this->subphase_shift += 1;
@@ -656,7 +657,7 @@ void CrossoverShift::overlap2_adapt() {
     }
 }
 
-int8_t CrossoverShift::calc_t_adapt_offset_adv(int8_t cycle_change) {
+int8_t CrossoverShift::calc_t_adapt_offset_adv(int cycle_change) {
     float sqrt_high_p = sqrt((float)sid->prefill_info.fill_pressure_on_clutch);
     float sqrt_low_p = sqrt((float)sid->prefill_info.low_fill_pressure_on_clutch);
     float cycles_high = (float)cycles_high_filling;

@@ -13,8 +13,9 @@ void DeltaTracker::update(int32_t val) {
         first_val = false;
     } else {
         int delta = val - this->last_value;
-        this->tracked_delta = first_order_filter(25, delta*100, this->tracked_delta);
+        this->tracked_delta = first_order_filter(this->samples, delta*100, this->tracked_delta);
     }
+    this->last_value = val;
 }
 
 void DeltaTracker::reset() {

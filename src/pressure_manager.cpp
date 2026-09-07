@@ -29,6 +29,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         if (!this->momentum_upshifts[i]->is_allocated()) {
             ESP_LOGE("PM", "Momentum upshift map %d failed to allocate!", i);
             delete this->momentum_upshifts[i];
+            this->momentum_upshifts[i] = nullptr;
         }
     }
 
@@ -40,6 +41,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         if (!this->momentum_downshifts[i]->is_allocated()) {
             ESP_LOGE("PM", "Momentum downshift map %d failed to allocate!", i);
             delete this->momentum_downshifts[i];
+            this->momentum_downshifts[i] = nullptr;
         }
     }
 
@@ -51,6 +53,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         if (!this->torque_adder_upshifts[i]->is_allocated()) {
             ESP_LOGE("PM", "Torque adder upshift map %d failed to allocate!", i);
             delete this->torque_adder_upshifts[i];
+            this->torque_adder_upshifts[i] = nullptr;
         }
     }
 
@@ -62,6 +65,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         if (!this->torque_adder_downshifts[i]->is_allocated()) {
             ESP_LOGE("PM", "Torque adder doownshift map %d failed to allocate!", i);
             delete this->torque_adder_downshifts[i];
+            this->torque_adder_downshifts[i] = nullptr;
         }
     }
 
@@ -72,7 +76,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
     default_data = TCC_PWM_MAP;
     tcc_pwm_map = new StoredMap(key_name, TCC_PWM_MAP_SIZE, pwm_tcc_x_headers, pwm_tcc_y_headers, 7, 5, default_data);
     if (this->tcc_pwm_map->init_status() != ESP_OK) {
-        delete[] this->tcc_pwm_map;
+        delete this->tcc_pwm_map;
+        this->tcc_pwm_map = nullptr;
     }
 
     /** Pressure fill time map **/
@@ -88,7 +93,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
     default_data = LARGE_NAG_FILL_TIME_MAP;
     fill_time_map = new StoredMap(key_name, FILL_TIME_MAP_SIZE, fill_t_x_headers, fill_t_y_headers, 4, 5, default_data);
     if (this->fill_time_map->init_status() != ESP_OK) {
-        delete[] this->fill_time_map;
+        delete this->fill_time_map;
+        this->fill_time_map = nullptr;
     }
 
     /** Pressure fill pressure map **/
@@ -105,7 +111,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
     default_data = NAG_FILL_PRESSURE_MAP;
     fill_pressure_map = new StoredMap(key_name, FILL_PRESSURE_MAP_SIZE, fill_p_x_headers, fill_p_y_headers, 1, 6, default_data);
     if (this->fill_pressure_map->init_status() != ESP_OK) {
-        delete[] this->fill_pressure_map;
+        delete this->fill_pressure_map;
+        this->fill_pressure_map = nullptr;
     }
 
     /** Pressure fill pressure map **/
@@ -121,7 +128,8 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
     default_data = NAG_FILL_LOW_PRESSURE_MAP;
     fill_low_pressure_map = new StoredMap(key_name, LOW_FILL_PRESSURE_MAP_SIZE, fill_lp_x_headers, fill_lp_y_headers, 1, 5, default_data);
     if (this->fill_low_pressure_map->init_status() != ESP_OK) {
-        delete[] this->fill_low_pressure_map;
+        delete this->fill_low_pressure_map;
+        this->fill_low_pressure_map = nullptr;
     }
 
     // Init MPC and SPC req pressures
@@ -158,6 +166,9 @@ uint16_t PressureManager::calc_current_linear_sol(uint16_t p_targ, GearboxGear c
     }
 
     int line_pressure = ((int)HYDR_PTR->lp_reg_spring_pressure + (int)this->target_modulating_pressure)*1000;
+    if (factor <= 0) {
+        factor = 1000; // Guard (Calibration loader also rejects a zeroed p_multi)
+    }
     int wp = extra_p + (line_pressure / factor);
     if (wp <= 0) {
         wp = 0;
@@ -281,9 +292,12 @@ uint16_t PressureManager::p_clutch_with_coef(GearboxGear gear, Clutch clutch, ui
         default:
             coef = 1.F;
     }
+    if (coef <= 0.F) {
+        coef = 1.F; // Guard against a zeroed user setting
+    }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
     float calc = ((float)abs_torque_nm * friction_val) / coef;
-    return calc;
+    return MIN(calc, (float)UINT16_MAX);
 }
 
 int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clutch, int16_t torque_nm, CoefficientTy coef_ty) {
@@ -302,9 +316,12 @@ int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clut
         default:
             coef = 1.F;
     }
+    if (coef <= 0.F) {
+        coef = 1.F; // Guard against a zeroed user setting
+    }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
     float calc = ((float)torque_nm * friction_val) / coef;
-    return calc;
+    return MAX((float)INT16_MIN, MIN(calc, (float)INT16_MAX));
 }
 
 // Clutches that are held (Not moving) during shifts
@@ -445,6 +462,9 @@ uint16_t PressureManager::calc_max_torque_for_clutch(GearboxGear gear, Clutch cl
             coef = 1.F;
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
+    if (friction_val <= 0.F) {
+        return 0; // Clutch is not loaded in this gear (Avoids divide by zero)
+    }
     float calc =  ((float)pressure * coef) / (float)friction_val;
     return calc;
 }
@@ -466,6 +486,9 @@ int PressureManager::calc_max_torque_for_clutch_signed(GearboxGear gear, Clutch 
             coef = 1.F;
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
+    if (friction_val <= 0.F) {
+        return 0; // Clutch is not loaded in this gear (Avoids divide by zero)
+    }
     float calc =  ((float)pressure * coef) / (float)friction_val;
     return calc;
 }
@@ -510,9 +533,12 @@ uint16_t PressureManager::find_working_mpc_pressure(GearboxGear curr_g, bool flu
     // MPC pressure surge reduction
     // - Reduces the slow buildup of pressure when we are working
     //   below min MPC pressure
+    // Track the un-clamped output so the flush logic can see when we are really below min MPC
+    // (target_modulating_pressure is always clamped to >= min_mpc_pressure, so it never qualifies)
+    uint16_t raw_output = output;
     if (
         flush_logic &&
-        (this->target_modulating_pressure < HYDR_PTR->min_mpc_pressure) && // Last call was below min
+        (this->last_mpc_raw_output < HYDR_PTR->min_mpc_pressure) && // Last call was below min
         (0 == output) && // Current call is 0 pressure
         ((sensor_data->atf_temp+50) >= HYDR_PTR->mpc_flush_temp_threshold) && // +50 to convert between our temperature and EGS Cal
         (0 != HYDR_PTR->mpc_no_flush_time)// MPC Flushing is enabled for this box
@@ -531,6 +557,9 @@ uint16_t PressureManager::find_working_mpc_pressure(GearboxGear curr_g, bool flu
         this->mpc_flush_timer = 0;
     }
 
+    if (flush_logic) {
+        this->last_mpc_raw_output = raw_output;
+    }
     if (false == this->mpc_flushing) {
         output = MAX(output, HYDR_PTR->min_mpc_pressure);
     }
