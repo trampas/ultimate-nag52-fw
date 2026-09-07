@@ -229,14 +229,22 @@ Useful proxies that the log *can* support:
 
 ---
 
-## 8. Algorithms and published work
+## 8. Configuration surface
+
+[CONFIGURATION.md](CONFIGURATION.md) maps every calibration surface - the 56 NVS keys,
+125 module settings, 44 maps, the flash calibration blocks and the offline envelope - and
+says who is supposed to supply each. The short version: the genuinely per-car set is about
+six numbers, and three constants that looked essential turned out to cancel at the point of
+use.
+
+## 9. Algorithms and published work
 
 `tmp/algorithms/` holds the research notes: the RLS mass and grade estimator, how
 the industry measures shift quality, driver type recognition, an annotated
 bibliography, and the numbers our own drives produced. This file covers what is
 specific to this gearbox; that directory covers the general methods.
 
-## 9. Tools
+## 10. Tools
 
 * **`tmp/shift_replay/`** — compiles the real `ShiftingAlgorithm` / `PressureManager` for the
   host and replays logged shifts through them. Open loop: logged RPMs do not react to changed
@@ -266,7 +274,7 @@ cmd 0x01 = live (RAM)   0x02 = built-in default (flash)   0x08 = stored (NVS)
 
 ---
 
-## 10. Pitfalls that have already cost time
+## 11. Pitfalls that have already cost time
 
 * Assuming the end-of-shift SPC ramp is a harshness source. It is pressure matching (§2).
 * Editing a map default and expecting the car to use it (§5).
