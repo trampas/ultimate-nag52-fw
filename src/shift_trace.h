@@ -57,6 +57,36 @@ struct ShiftTraceSample {
     int16_t  engine_torque; // what the engine reports it is making (CAN static torque)
 } __attribute__((packed));  // 30 bytes
 
+/**
+ * @brief Objective shift quality, computed on the TCU as the shift happens.
+ *
+ * There is no single number for shift quality and no mode-independent one:
+ * Comfort wants low jerk and will pay for it in duration, Agility wants
+ * spontaneity and accepts jerk to get it. So this is a vector, and what counts
+ * as good has to be decided per driving mode by whoever consumes it.
+ *
+ * Nothing in the firmware acts on these yet - they are recorded so that a shift
+ * can be judged from the car rather than only from an offline log, and so that
+ * any future adaptation has a reward signal to learn against. Today the same
+ * numbers are produced offline by scripts/shift_quality.py; keeping the two in
+ * step is the point of computing them the same way.
+ *
+ * Metrics follow the published ones: jerk is the measure that correlates with
+ * subjective shift feel (SAE 650465), duration is reported with it because a
+ * shift can always be made smooth by making it long, and slip energy is the
+ * wear and thermal load the friction material has to absorb.
+ */
+struct ShiftQuality {
+    uint16_t response_ms;   // request until the ratio actually starts to move
+    uint16_t duration_ms;
+    uint16_t peak_jerk;     // mm/s^3 (m/s^3 x1000) of vehicle longitudinal jerk
+    uint16_t torque_hole;   // rpm/s of output shaft accel lost mid-shift
+    uint32_t slip_energy_j; // joules dissipated in the applying clutch
+    uint16_t lockup_rate;   // rpm/s at which the applying clutch slip collapses
+    uint8_t  settle_osc;    // driveline accel reversals after engagement
+    uint8_t  valid;
+} __attribute__((packed));  // 16 bytes
+
 struct ShiftTraceEvent {
     uint32_t seq_start;     // sample index at which the shift began
     uint32_t seq_end;       // sample index at which it ended (valid when done)
@@ -64,7 +94,8 @@ struct ShiftTraceEvent {
     uint8_t  gear_to;
     uint8_t  done;
     uint8_t  _pad;
-} __attribute__((packed));  // 12 bytes
+    ShiftQuality quality;
+} __attribute__((packed));  // 28 bytes
 
 struct ShiftTraceHeader {
     uint32_t magic;
@@ -83,8 +114,9 @@ struct ShiftTraceHeader {
 // the header carries sample_size so a mismatch is reported rather than silently
 // mis-decoded. Pin them here so the two cannot drift apart unnoticed.
 static_assert(sizeof(ShiftTraceSample) == 30, "ShiftTraceSample must stay 30 bytes");
-static_assert(sizeof(ShiftTraceEvent) == 12, "ShiftTraceEvent must stay 12 bytes");
-static_assert(sizeof(ShiftTraceHeader) == 24 + (12 * SHIFT_TRACE_EVENTS), "ShiftTraceHeader layout changed");
+static_assert(sizeof(ShiftQuality) == 16, "ShiftQuality must stay 16 bytes");
+static_assert(sizeof(ShiftTraceEvent) == 28, "ShiftTraceEvent must stay 28 bytes");
+static_assert(sizeof(ShiftTraceHeader) == 24 + (28 * SHIFT_TRACE_EVENTS), "ShiftTraceHeader layout changed");
 
 namespace ShiftTrace {
     /// Allocate the ring. Safe to fail - tracing is then simply inactive.

@@ -42,8 +42,14 @@ SAMPLE_FIELDS = ["t_ms", "input_rpm", "output_rpm", "engine_rpm", "input_torque"
                  "subphase_mod", "flags", "pedal", "gear", "trq_req_amount",
                  "engine_torque"]
 
-# struct ShiftTraceEvent - 12 bytes
-EVENT_FMT = "<IIBBBB"
+# struct ShiftQuality - 16 bytes, computed on the TCU as the shift happens.
+# There is no single quality number and no mode-independent one, so this is a
+# vector; scripts/shift_quality.py judges it against per-mode targets.
+QUALITY_FMT = "<HHHHIHBB"
+QUALITY_FIELDS = ["response_ms", "duration_ms", "peak_jerk_mms3", "torque_hole",
+                  "slip_energy_j", "lockup_rate", "settle_osc", "valid"]
+# struct ShiftTraceEvent - 28 bytes
+EVENT_FMT = "<IIBBBB" + QUALITY_FMT[1:]
 EVENT_SIZE = struct.calcsize(EVENT_FMT)
 # struct ShiftTraceHeader - fixed part, then 4 events
 HEADER_FMT = "<IBBHIIIB3x"
@@ -74,9 +80,16 @@ def read_header(client) -> Dict[str, Any]:
     events = []
     off = HEADER_SIZE
     for i in range(min(n_ev, N_EVENTS)):
-        s0, s1, gf, gt, done, _ = struct.unpack_from(EVENT_FMT, raw, off + i * EVENT_SIZE)
-        events.append({"seq_start": s0, "seq_end": s1, "gear_from": GEAR_NAMES.get(gf, gf),
-                       "gear_to": GEAR_NAMES.get(gt, gt), "done": bool(done)})
+        v = struct.unpack_from(EVENT_FMT, raw, off + i * EVENT_SIZE)
+        s0, s1, gf, gt, done = v[0], v[1], v[2], v[3], v[4]
+        q = dict(zip(QUALITY_FIELDS, v[6:]))
+        ev = {"seq_start": s0, "seq_end": s1, "gear_from": GEAR_NAMES.get(gf, gf),
+              "gear_to": GEAR_NAMES.get(gt, gt), "done": bool(done)}
+        if q.pop("valid", 0):
+            # the TCU reports jerk in mm/s^3 to keep it an integer
+            q["peak_jerk"] = q.pop("peak_jerk_mms3") / 1000.0
+            ev["quality"] = q
+        events.append(ev)
     return {"version": ver, "sample_size": ssize, "capacity": cap, "buffer_addr": addr,
             "seq": seq, "dropped": dropped, "events": events}
 
@@ -147,6 +160,9 @@ def read_shift(client, header: Dict[str, Any], event: Dict[str, Any],
             return None                            # overwritten mid-read, discard
     except (TraceUnavailable, KwpError):
         pass
-    return {"gear_from": event["gear_from"], "gear_to": event["gear_to"],
-            "seq_start": event["seq_start"], "seq_end": event["seq_end"],
-            "samples": samples}
+    out = {"gear_from": event["gear_from"], "gear_to": event["gear_to"],
+           "seq_start": event["seq_start"], "seq_end": event["seq_end"],
+           "samples": samples}
+    if "quality" in event:
+        out["quality"] = event["quality"]
+    return out

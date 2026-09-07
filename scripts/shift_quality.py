@@ -21,6 +21,12 @@ T_clutch = I * dw/dt + T_input, with I = 0.16 kg m^2 fitted from 302 inertia
 phase samples across four drives (R^2 0.84-0.96 per shift type on upshifts).
 That makes slip_energy a good relative measure and a rough absolute one.
 
+Firmware from 2026-09 onward computes the same vector on the TCU itself and puts
+it in the shift trace (see ShiftQuality in src/shift_trace.h). Where a log has
+those, this prints both so the two can be checked against each other - the
+offline tool is the reference, the on-TCU one is what any future adaptation would
+actually learn from.
+
 Usage:  scripts/shift_quality.py logger/logs/<log>.jsonl [--csv out.csv]
 """
 from __future__ import annotations
@@ -289,6 +295,20 @@ def main() -> int:
             verdict = "ok" if lo <= v <= hi else ("%.0fx over" % (v / hi) if hi else "over")
             bar = "#" * min(30, int(30 * v / (hi * 1.5))) if hi else ""
             print("    %-14s %8.0f  target <=%-7.0f %-10s %s" % (k, v, hi, verdict, bar))
+
+    # Cross-check against what the TCU computed for itself, if this log has it.
+    tcu = [t["quality"] for t in getattr(log, "shift_traces", []) if "quality" in t]
+    if tcu:
+        print("\nTCU-computed quality for %d shifts (median), against this tool:" % len(tcu))
+        print("  %-16s %10s %10s" % ("", "on TCU", "offline"))
+        for k, mine in (("response_ms", "response_ms"), ("duration_ms", "duration_ms"),
+                        ("peak_jerk", "peak_jerk"), ("torque_hole", "torque_hole"),
+                        ("slip_energy_j", "slip_energy_J"), ("settle_osc", "settle_osc")):
+            v = [q[k] for q in tcu if k in q]
+            if v:
+                print("  %-16s %10.1f %10.1f" % (k, statistics.median(v), med(mine)))
+        print("  A large disagreement means the two implementations have drifted;")
+        print("  they are meant to compute the same thing the same way.")
 
     n50 = len([r for r in rows if r["jerk_src"] == "50Hz"])
     print("\ntotal clutch slip energy this drive: %.1f kJ over %d shifts" % (

@@ -23,7 +23,7 @@ class LayoutTests(unittest.TestCase):
     def test_struct_sizes_match_the_firmware_header(self):
         # src/shift_trace.h pins these with static_asserts.
         self.assertEqual(ST.SAMPLE_SIZE, 30)
-        self.assertEqual(ST.EVENT_SIZE, 12)
+        self.assertEqual(ST.EVENT_SIZE, 28)
         self.assertEqual(ST.HEADER_SIZE, 24)
 
     def test_chunk_size_leaves_headroom_in_the_bridge_fifo(self):
@@ -87,6 +87,26 @@ class ReadoutTests(unittest.TestCase):
             self.assertEqual(sh["samples"][0]["seq"], 20)      # 30 - 10 pre
             self.assertTrue(any(x["shifting"] for x in sh["samples"]))
             self.assertFalse(sh["samples"][0]["shifting"])     # context is quiet
+        finally:
+            rd.stop()
+
+    def test_quality_vector_decodes(self):
+        """The TCU computes the metrics itself; check they survive the wire."""
+        cl, rd, _ = self._client(seq=100, events=((10, 40, 2, 3, 1),))
+        try:
+            q = ST.read_header(cl)["events"][0]["quality"]
+            self.assertEqual(q["response_ms"], 420)
+            self.assertEqual(q["duration_ms"], 1100)
+            self.assertAlmostEqual(q["peak_jerk"], 38.5)     # sent as mm/s^3
+            self.assertEqual(q["slip_energy_j"], 8100)
+            self.assertEqual(q["settle_osc"], 1)
+        finally:
+            rd.stop()
+
+    def test_unfinished_shift_has_no_quality(self):
+        cl, rd, _ = self._client(seq=100, events=((30, 60, 2, 3, 0),))
+        try:
+            self.assertNotIn("quality", ST.read_header(cl)["events"][0])
         finally:
             rd.stop()
 

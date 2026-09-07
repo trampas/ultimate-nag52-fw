@@ -2,11 +2,50 @@
 #include "tcu_alloc.h"
 #include "clock.hpp"
 #include "esp_log.h"
+#include "nvs/eeprom_config.h"
+#include "egs_calibration/calibration_structs.h"
+#include <math.h>
 #include <string.h>
 
 static ShiftTraceHeader trace_header = {};
 static ShiftTraceSample* trace_ring = nullptr;
 static bool was_shifting = false;
+
+/**
+ * @brief Running state for the shift quality metrics.
+ *
+ * Accumulated one sample at a time so it costs O(1) per control loop iteration
+ * and needs no allocation. See ShiftQuality in the header for what each number
+ * means and why they are a vector rather than a score.
+ */
+static struct {
+    uint32_t t_start;
+    float ratio_start;
+    float ratio_target;
+    float accel_base;       // output shaft accel before the shift, rpm/s
+    float accel_prev;
+    uint16_t out_prev;
+    uint16_t in_prev;
+    uint32_t t_prev;
+    int32_t slip_prev;
+    float energy;
+    float peak_jerk;
+    float min_accel;
+    uint16_t response_ms;
+    uint16_t lockup_rate;
+    uint8_t osc;
+    bool settling;
+} q = {};
+
+// Vehicle longitudinal speed per rpm of output shaft, m/s. Set once at init.
+static float mps_per_out_rpm = 0.0f;
+// The applying clutch only starts to transmit once its pressure beats the return
+// spring, so slip before that dissipates nothing. The calibration puts the
+// springs at 1139-1289 mBar on this box.
+#define QUALITY_SPRING_MBAR 1300
+// Input shaft inertia, kg m^2, for the clutch torque estimate. Fitted from 302
+// logged inertia phase samples across four drives.
+#define QUALITY_INPUT_INERTIA 0.16f
 
 void ShiftTrace::init(void) {
     // PSRAM: 13 KB is nothing there, and keeping it out of internal RAM leaves
@@ -28,6 +67,11 @@ void ShiftTrace::init(void) {
     trace_header.seq = 0;
     trace_header.dropped = 0;
     trace_header.n_events = 0;
+    if (VEHICLE_CONFIG.diff_ratio != 0) {
+        // circumference is mm, diff_ratio is x1000
+        mps_per_out_rpm = ((float)VEHICLE_CONFIG.wheel_circumference / 1000.0f) /
+                          60.0f / ((float)VEHICLE_CONFIG.diff_ratio / 1000.0f);
+    }
     ESP_LOG_LEVEL(ESP_LOG_INFO, "TRACE", "Shift trace ready: %u samples x %u bytes at 0x%08X (%u ms of history)",
         (unsigned)SHIFT_TRACE_CAPACITY, (unsigned)sizeof(ShiftTraceSample),
         (unsigned)trace_header.buffer_addr, (unsigned)(SHIFT_TRACE_CAPACITY * 20u));
@@ -92,17 +136,95 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
     s->trq_req_amount = trq_req_amount;
     s->engine_torque = engine_torque;
 
+    // Objective shift quality, accumulated as the shift runs.
+    float accel = 0.0f;
+    uint32_t dt_ms = (q.t_prev == 0) ? 0 : (s->t_ms - q.t_prev);
+    if (dt_ms > 0 && dt_ms < 200) {
+        float dt = dt_ms / 1000.0f;
+        accel = ((float)s->output_rpm - (float)q.out_prev) / dt;   // rpm/s of output
+        if (shifting || q.settling) {
+            float jerk = fabsf(accel - q.accel_prev) / dt * mps_per_out_rpm;  // m/s^3
+            if (jerk > q.peak_jerk) { q.peak_jerk = jerk; }
+        }
+        if (shifting) {
+            if (accel < q.min_accel) { q.min_accel = accel; }
+            int32_t slip = (s->p_on > QUALITY_SPRING_MBAR) ? abs(algo->s_on) : -1;
+            if (slip >= 0 && q.slip_prev >= 0) {
+                float dw = ((float)s->input_rpm - (float)q.in_prev) / dt;
+                float t_clutch = fabsf(QUALITY_INPUT_INERTIA * dw * 0.10472f) +
+                                 fabsf((float)sd->input_torque);
+                q.energy += t_clutch * ((float)slip * 0.10472f) * dt;
+                if (q.slip_prev > slip) {
+                    uint16_t rate = (uint16_t)((q.slip_prev - slip) / dt);
+                    if (rate > q.lockup_rate) { q.lockup_rate = rate; }
+                }
+            }
+            q.slip_prev = slip;
+            // Response: how long before the ratio actually starts to move.
+            if (0 == q.response_ms && s->output_rpm > 150 && q.ratio_target > 0.0f) {
+                float r = (float)s->input_rpm / (float)s->output_rpm;
+                float span = q.ratio_target - q.ratio_start;
+                if (span != 0.0f && fabsf((r - q.ratio_start) / span) > 0.10f) {
+                    q.response_ms = (uint16_t)(s->t_ms - q.t_start);
+                }
+            }
+        } else if (q.settling) {
+            // Driveline ringing after engagement: reversals about the pre-shift level
+            if (((q.accel_prev - q.accel_base) * (accel - q.accel_base)) < 0.0f && q.osc < 255) {
+                q.osc += 1;
+            }
+            if (s->t_ms - q.t_start > 600u + (uint32_t)trace_header.events[0].quality.duration_ms) {
+                q.settling = false;
+            }
+        }
+        q.accel_prev = accel;
+    }
+
     // Shift boundaries are detected here rather than hooked into elapse_shift,
     // so the shift control path is untouched.
     if (shifting && !was_shifting) {
         push_event(trace_header.seq, gear_actual, gear_target);
+        // Reset the accumulators and latch the starting conditions.
+        q.t_start = s->t_ms;
+        q.ratio_start = (s->output_rpm > 150) ? ((float)s->input_rpm / (float)s->output_rpm) : 0.0f;
+        q.ratio_target = 0.0f;
+        if (gear_target >= 1 && gear_target <= 7 && MECH_PTR != nullptr) {
+            q.ratio_target = (float)MECH_PTR->ratio_table[gear_target] / 1000.0f;
+        }
+        q.accel_base = q.accel_prev;
+        q.energy = 0.0f;
+        q.peak_jerk = 0.0f;
+        q.min_accel = q.accel_prev;
+        q.response_ms = 0;
+        q.lockup_rate = 0;
+        q.osc = 0;
+        q.slip_prev = -1;
+        q.settling = false;
     } else if (!shifting && was_shifting && trace_header.n_events > 0) {
         ShiftTraceEvent* e = &trace_header.events[trace_header.n_events - 1];
         if (0 == e->done) {
             e->seq_end = trace_header.seq;
             e->done = 1;
+            e->quality.duration_ms = (uint16_t)MIN(65535u, s->t_ms - q.t_start);
+            e->quality.response_ms = q.response_ms;
+            e->quality.peak_jerk = (uint16_t)MIN(65535.0f, q.peak_jerk * 1000.0f);
+            e->quality.torque_hole = (uint16_t)MIN(65535.0f, MAX(0.0f, q.accel_base - q.min_accel));
+            e->quality.slip_energy_j = (uint32_t)MAX(0.0f, q.energy);
+            e->quality.lockup_rate = q.lockup_rate;
+            e->quality.settle_osc = 0;
+            e->quality.valid = 1;
+            q.settling = true;      // keep watching for driveline ringing
         }
     }
+    if (!shifting && !q.settling && trace_header.n_events > 0) {
+        ShiftTraceEvent* e = &trace_header.events[trace_header.n_events - 1];
+        if (e->quality.valid && e->quality.settle_osc == 0 && q.osc > 0) {
+            e->quality.settle_osc = q.osc;
+        }
+    }
+    q.out_prev = s->output_rpm;
+    q.in_prev = s->input_rpm;
+    q.t_prev = s->t_ms;
     was_shifting = shifting;
     trace_header.seq += 1;
 }
