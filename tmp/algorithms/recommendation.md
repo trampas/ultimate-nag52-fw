@@ -92,9 +92,11 @@ speed, then checked against the shift-time map and a deceleration model so the
 ladder can finish before the car stops (§4 of TRANSMISSION_NOTES.md).
 
 Inputs the owner must supply, exactly as `CLAUDE.md` says: boost threshold,
-economy rpm, redline, ratios (read from the calibration block), and a
-**relative torque-vs-rpm curve**. The curve does not need to be absolute; the
-drive logs already gave its shape (65 % at 2000-2250 rpm, 100 % at 3250-3750).
+economy rpm, redline, and ratios (read from the calibration block). A
+**relative torque-vs-rpm curve** is wanted here, for choosing where the power
+reserve is available; the drive logs gave its shape (65 % of peak power at
+2000-2250 rpm, 100 % at 3250-3750). Note this curve is needed *only* for map
+generation — the next-gear check in Layer 1c was measured not to want one.
 
 ### Layer 1 — driving-situation recognition (on the TCU, 10-50 Hz)
 
@@ -133,11 +135,18 @@ is required"). Two things make this cheap here:
   F_aero) − g·θ₂`. And because `θ₁` was fitted against the same ECM torque
   signal, the torque-scale error cancels in the prediction. This is the one
   place the biased `mass_kg` is actually useful.
-- `T_e(n_next)` comes from the current driver torque scaled by the relative
-  torque curve of Layer 0.
-This check addresses the measured hunting directly (4-5 and 3-4 at part
-throttle, corrected 4.2 s later) and is far denser than waiting for hunting to
-happen and learning from it.
+- `T_e(n_next)` is the **current torque, unscaled**. Scaling it by a relative
+  torque curve for the lower rpm was the plan and it turned out to be wrong:
+  over 91 upshifts a flat assumption predicts better (correlation 0.62) than
+  the measured power curve (0.59) or the ECM's broadcast max torque (0.53).
+  So this check needs no curve and no owner-supplied torque numbers.
+
+**Measured before building it** (`scripts/next_gear.py`, and the reason to
+re-run it on any other car): 30 of 91 upshifts were followed by the car
+decelerating in the new gear, 13 of them past −0.64 m/s². Landing rpm alone is
+*not* a cheaper substitute — to catch 14 of the 30 it holds 38 good upshifts,
+against 7 for the model. **Built and off by default** as `SBS
+en_next_gear_check`; never driven.
 
 **d. Cornering hold from rear wheel speeds.** Rear L/R difference above S1 ⇒
 inhibit upshift, below S2 ⇒ release (US 6571162). Thresholds lower in sport,
@@ -256,16 +265,20 @@ generated from the knobs and re-generated when a knob changes.
 
 ## Order of work, one variable per drive
 
-1. **Pin the torque scale** from vehicle mass and feed it to `PressureManager`.
-   Verify: clutch pressures fall, `ShiftQuality.slip_energy` and jerk change,
-   no flare. One constant, largest execution effect.
+1. ~~**Pin the torque scale** from vehicle mass and feed it to
+   `PressureManager`.~~ **Done, not driven.** 78 % of reported net torque,
+   measured at 1790 kg over four drives in the converter-locked gears. Verify on
+   the road: clutch pressures fall, `ShiftQuality.slip_energy` and jerk change,
+   no flare.
 2. **Fill adaptation from turbine timing on all shifts.** Verify: median
    `response_ms` falls from 500 towards the Agility target.
 3. **Layer 0 map generation** with a power-reserve knob, checked by
    `shift_envelope.py`, flashed with an NVS key bump. Verify: landing-rpm
    distribution, hunting count.
-4. **Next-gear acceleration check** consuming the RLS state. Verify: the 4-5
-   and 3-4 hunting cases disappear; no lost upshifts on the flat.
+4. ~~**Next-gear acceleration check** consuming the RLS state.~~ **Built, off
+   by default, not driven.** Enable `SBS en_next_gear_check` for one drive.
+   Verify: the 4-5 and 3-4 bogging cases disappear; no lost upshifts on the
+   flat; check the veto log lines against where it actually felt wrong.
 5. **Grade consumption**: terrain interpolation, downhill hold, grade braking.
    Verify against a known hill (still open in findings-from-our-data.md).
 6. **Cornering hold, fast-off, pedal stabilisation**, one at a time.
