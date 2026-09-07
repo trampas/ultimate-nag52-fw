@@ -41,6 +41,7 @@ from . import __version__
 from .protocol import (KWP_TP_TIMEOUT_S, KwpClient, KwpError, KwpNegativeResponse,
                        KwpTimeout, LogLine, SESSION_EXTENDED, SerialReader, open_serial)
 from .accel import USEFUL_HZ, AccelSource, select as select_accel
+from .dashboard import Dashboard
 from .shift_trace import TraceUnavailable, read_header as read_trace_header, read_shift
 from .calibration import read_calibration
 from .records import (DEFAULT_FAST, DEFAULT_ONCE, DEFAULT_SLOW, ENUMS, Record,
@@ -100,7 +101,8 @@ class Nag52Logger:
                  request_timeout: float = 0.5, status_stream: TextIO = sys.stderr,
                  echo_stream: TextIO = sys.stdout, max_cycles: Optional[int] = None,
                  accel: Optional[str] = None, accel_rate: float = 0.0,
-                 trace: bool = True) -> None:
+                 trace: bool = True, dashboard: bool = False,
+                 dash_window: float = 120.0) -> None:
         self.port_arg = port
         self.baud = baud
         self.out_path = out_path
@@ -123,6 +125,9 @@ class Nag52Logger:
         self.accel_rate = accel_rate
         self.accel: Optional[AccelSource] = None
         self.trace_enabled = trace
+        # A live view is only useful while driving, and the car is where the log
+        # lines would otherwise scroll the screen away, so it owns stdout.
+        self.dash = Dashboard(window_s=dash_window, stream=echo_stream) if dashboard else None
         self.trace: Optional[Dict[str, Any]] = None   # header, or None if unsupported
         self._trace_last_seq = -1
         self._was_shifting = False
@@ -222,6 +227,8 @@ class Nag52Logger:
                 if shift is None:
                     continue
                 self._emit({"type": "shift_trace", "t": self._now(), **shift})
+                if self.dash is not None:
+                    self.dash.add_shift(shift)
                 self.stats["shift_traces"] += 1
                 self.stats["trace_samples"] += len(shift["samples"])
             self.trace = hdr
@@ -420,6 +427,9 @@ class Nag52Logger:
                 self._check_reader()
                 self._drain_accel()
                 self._drain_trace()
+                if self.dash is not None:
+                    self.dash.add_cycle(self._last_summary)
+                    self.dash.render()
                 self._print_status()
                 if self.max_cycles is not None and self.stats["cycles"] >= self.max_cycles:
                     break
@@ -440,6 +450,8 @@ class Nag52Logger:
         return self.stats
 
     def _finish(self) -> None:
+        if self.dash is not None:
+            self.dash.finish()
         if self.accel is not None:
             self.accel.stop()
             self._drain_accel()

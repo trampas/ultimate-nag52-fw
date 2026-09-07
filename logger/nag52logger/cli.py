@@ -29,12 +29,19 @@ def cmd_record(args: argparse.Namespace) -> int:
     once = _split(args.once)
     if fast is not None and "tcu_time" not in fast:
         fast = ["tcu_time"] + fast
+    if args.dash:
+        # The score comes from the driving_dynamics record, which is not in the
+        # default set - one extra round trip, only paid when the view is on.
+        fast = list(fast if fast is not None else DEFAULT_FAST)
+        if "driving_dynamics" not in fast:
+            fast.append("driving_dynamics")
     logger = Nag52Logger(
         args.port, out, baud=args.baud, fast=fast, slow=slow, once=once,
         slow_interval=args.slow_interval, rate_hz=args.rate, poll=not args.no_poll,
-        session=session, echo_log=not args.no_echo, status=not args.quiet,
+        session=session, echo_log=(not args.no_echo) and not args.dash, status=not args.quiet,
         reset=args.reset, request_timeout=args.timeout, max_cycles=args.cycles,
         accel=args.accel, accel_rate=args.accel_rate, trace=not args.no_shift_trace,
+        dashboard=args.dash, dash_window=args.dash_window,
     )
 
     def _sigterm(_signum, _frame):  # allow `timeout`/systemd to stop us cleanly
@@ -213,6 +220,11 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--no-accel", dest="accel", action="store_const", const=None,
                    default=argparse.SUPPRESS,
                    help="do not record an accelerometer")
+    r.add_argument("--dash", action="store_true",
+                   help="live terminal view of the agility score and shift quality "
+                        "(implies --no-echo, and polls driving_dynamics)")
+    r.add_argument("--dash-window", type=float, default=120.0, metavar="S",
+                   help="seconds of history in the live view (default 120)")
     r.add_argument("--no-shift-trace", action="store_true",
                    help="do not read back the TCU's high rate shift recorder")
     r.add_argument("--accel-rate", type=float, default=0.0, metavar="HZ",
