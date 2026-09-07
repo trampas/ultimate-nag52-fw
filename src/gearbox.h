@@ -71,8 +71,23 @@ private:
     bool elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool manually_requested);
     bool calcGearFromRatio(bool is_reverse);
 
-    AbstractProfile* current_profile = nullptr;
+    AbstractProfile* current_profile = nullptr;   // profile the shift logic is using
+    AbstractProfile* selected_profile = nullptr;  // profile the driver asked for
     portMUX_TYPE profile_mutex;
+    /**
+     * @brief Adaptive profile: give Agility on demand while Comfort is selected.
+     *
+     * Only active when the driver has selected Comfort, so every other profile
+     * behaves exactly as before and this cannot surprise anyone who did not opt in.
+     * Comfort keeps shifts soft and the converter locked for economy; a deliberate
+     * throttle demand switches to Agility at once and holds it, so the box does not
+     * fall back to a tall gear halfway through an overtake.
+     */
+    uint32_t agility_until_ms = 0;      // Agility is in force until this time
+    uint8_t pedal_history[5] = {0};     // 100 ms apart -> a 500 ms window
+    uint8_t pedal_history_idx = 0;
+    bool driver_demands_agility(void);
+    void update_adaptive_profile(void);
     GearboxGear target_gear = GearboxGear::Park;
     GearboxGear actual_gear = GearboxGear::Park;
     GearboxGear last_fwd_gear = GearboxGear::Second;

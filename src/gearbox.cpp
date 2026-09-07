@@ -180,13 +180,77 @@ bool Gearbox::is_stationary() {
     return this->sensor_data.output_rpm < 60 && this->sensor_data.input_rpm < 1000;
 }
 
+// -- Adaptive profile -------------------------------------------------------
+// Thresholds for "the driver wants to go now". Pedal is 0-250.
+#define DEMAND_PEDAL_FULL      225u   // 90 % - treat as full throttle
+#define DEMAND_PEDAL_RISE       62u   // a quarter of pedal travel ...
+                                      // ... within the 500 ms pedal_history window
+#define DEMAND_HOLD_MS       30000u   // hold Agility this long after the last demand
+
 void Gearbox::set_profile(AbstractProfile* prof)
 {
-    if ((nullptr != prof) && ((nullptr == current_profile) || (prof != current_profile)))
+    // This is called every main loop iteration with whatever the shifter says, so
+    // only react to an actual change. It records what the DRIVER asked for;
+    // update_adaptive_profile decides what the shift logic actually runs.
+    if (nullptr != prof && prof != this->selected_profile)
     {
-        // Only change if not nullptr!
+        this->selected_profile = prof;
+        this->agility_until_ms = 0;   // a deliberate profile change cancels any hold
         portENTER_CRITICAL(&this->profile_mutex);
         this->current_profile = prof;
+        portEXIT_CRITICAL(&this->profile_mutex);
+    }
+}
+
+/**
+ * @brief Has the driver just asked for performance?
+ *
+ * Any of: kickdown, near-full throttle, or a quick stab - a quarter of pedal
+ * travel inside the 500 ms history window. The existing pedal_delta tracker is
+ * not usable for this: it is a first order filter over 25 samples at 100 ms, so
+ * its time constant is 2.5 s and a stab is smoothed away long before it shows.
+ */
+bool Gearbox::driver_demands_agility(void)
+{
+    if (this->sensor_data.kickdown_pressed) {
+        return true;
+    }
+    if (this->sensor_data.pedal_pos >= DEMAND_PEDAL_FULL) {
+        return true;
+    }
+    uint8_t lowest = UINT8_MAX;
+    for (uint8_t i = 0; i < sizeof(this->pedal_history); i++) {
+        if (this->pedal_history[i] < lowest) {
+            lowest = this->pedal_history[i];
+        }
+    }
+    return (this->sensor_data.pedal_pos > lowest) &&
+           ((uint16_t)(this->sensor_data.pedal_pos - lowest) >= DEMAND_PEDAL_RISE);
+}
+
+void Gearbox::update_adaptive_profile(void)
+{
+    // Only Comfort opts in. Anything else the driver selected is left alone.
+    if (nullptr == this->selected_profile || this->selected_profile != (AbstractProfile*)comfort ||
+        nullptr == agility) {
+        return;
+    }
+    uint32_t now = GET_CLOCK_TIME();
+    if (this->driver_demands_agility()) {
+        this->agility_until_ms = now + DEMAND_HOLD_MS;
+    }
+    bool want_agility = (this->agility_until_ms != 0) && (now < this->agility_until_ms);
+    if (!want_agility) {
+        this->agility_until_ms = 0;
+    }
+    AbstractProfile* target = want_agility ? (AbstractProfile*)agility : this->selected_profile;
+    // Never swap the maps out from under a shift in progress - the shift thread
+    // reads chars/target time from the profile it started with.
+    if (!this->shifting && target != this->current_profile) {
+        ESP_LOG_LEVEL(ESP_LOG_INFO, "GEARBOX", "Adaptive profile -> %s",
+            want_agility ? "AGILITY (driver demand)" : "COMFORT (demand timed out)");
+        portENTER_CRITICAL(&this->profile_mutex);
+        this->current_profile = target;
         portEXIT_CRITICAL(&this->profile_mutex);
     }
 }
@@ -1025,6 +1089,8 @@ void Gearbox::controller_loop()
             if (this->input_rpm_delta) {
                 this->input_rpm_delta->update(this->sensor_data.input_rpm * 10);
             }
+            this->pedal_history[this->pedal_history_idx] = this->sensor_data.pedal_pos;
+            this->pedal_history_idx = (this->pedal_history_idx + 1) % sizeof(this->pedal_history);
             this->last_delta_time = start;
         }
 
@@ -1463,6 +1529,7 @@ void Gearbox::controller_loop()
         if (!this->shifting && this->sensor_data.engine_rpm > 100) {
             pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
         }
+        this->update_adaptive_profile();
         // High rate shift recorder. This loop is the algorithm's own 20 ms period,
         // so the capture is lossless; the sampler is O(1) and allocation free.
         ShiftTrace::sample(&this->sensor_data, &this->algo_feedback, this->shifting,

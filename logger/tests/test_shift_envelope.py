@@ -67,7 +67,8 @@ class CheckTests(unittest.TestCase):
         change that introduces a NEW kind of defect fails here. The remaining
         findings need the upshift map moved too - see TRANSMISSION_NOTES.md.
         """
-        self.assertEqual(self.kinds(SHIPPED_UP, SHIPPED_DN), {"hunt", "conflict", "dead_band"})
+        self.assertEqual(self.kinds(SHIPPED_UP, SHIPPED_DN),
+                         {"hunt", "conflict", "dead_band", "lugging"})
 
     def test_a_clean_calibration_is_reachable(self):
         """Guard against the checks being unsatisfiable by construction."""
@@ -106,6 +107,12 @@ class CheckTests(unittest.TestCase):
         dn = [r[:] for r in SHIPPED_DN]
         dn[2][10] = dn[2][9] - 100
         self.assertIn("monotonic", self.kinds(SHIPPED_UP, dn))
+
+    def test_upshift_that_lugs_the_engine(self):
+        """Comfort at 20 % pedal upshifts 2->3 into 864 rpm - barely above idle."""
+        up = [r[:] for r in SHIPPED_UP]
+        up[1][2] = 1400
+        self.assertIn("lugging", self.kinds(up, SHIPPED_DN))
 
     def test_downshift_past_the_redline(self):
         dn = [r[:] for r in SHIPPED_DN]

@@ -57,6 +57,12 @@ ENVELOPE = {
     "redline": 4500,
     "boost_rpm": 2400,       # below this the turbo is not making useful power
     "economy_rpm": 2000,     # best specific fuel consumption sits just under
+    # Lowest rpm the engine pulls cleanly. Upshifting below this lugs it, hurts
+    # economy rather than helping, and forces a downshift the moment any load is
+    # asked for - the opposite of smooth. The owner cruises 1400-2000 and rarely
+    # sees over 3000-3500, so the comfort columns must land inside that.
+    "min_cruise_rpm": 1400,
+    "comfort_max_rpm": 3200,  # a gentle driver should not be taken past this
     "peak_power": (3250, 3750),
     "idle_rpm": 650,
     # A shift takes roughly this long and blocks the next one, which is what
@@ -164,6 +170,19 @@ def check(profile: str, up: list, dn: list, env: dict) -> list:
                 probs.append(Problem("dead_band", "WARN", profile, key, pct,
                                      "at %d%% pedal lands at %.0f rpm, under the %d boost point"
                                      % (pct, lands, boost)))
+            # Lugging: an upshift that drops the engine below its clean pulling
+            # speed costs economy rather than saving it, and the next request for
+            # any load has to downshift again.
+            if pct <= 40 and lands < env["min_cruise_rpm"]:
+                probs.append(Problem("lugging", "WARN", profile, key, pct,
+                                     "at %d%% pedal lands at %.0f rpm, under the %d rpm the engine "
+                                     "pulls cleanly at - will lug and then need a downshift"
+                                     % (pct, lands, env["min_cruise_rpm"])))
+            # A gentle driver should not be taken to high rpm at moderate pedal.
+            if pct <= 50 and pt > env["comfort_max_rpm"] and profile == "C":
+                probs.append(Problem("comfort_rpm", "WARN", profile, key, pct,
+                                     "at %d%% pedal holds to %d rpm, past the %d a gentle driver expects"
+                                     % (pct, pt, env["comfort_max_rpm"])))
         for c in range(len(PEDAL_COLS) - 1):
             if up[r][c] > up[r][c + 1]:
                 probs.append(Problem("monotonic", "WARN", profile, key, PEDAL_COLS[c + 1],
