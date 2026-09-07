@@ -46,6 +46,13 @@ typedef struct {
     // discard every decelerating sample, which throws away most of a drive.
     uint8_t brake_pressed;
     uint8_t kickdown_pressed;
+    // Road load. terrain_coeff is sin(grade + rolling) x 10000 and is the usable
+    // one; road_mass_kg is mass combined with the ECM torque scale error, so it
+    // is relative rather than a weight. See road_load.h.
+    int16_t terrain_coeff;
+    uint16_t road_mass_kg;
+    uint8_t road_confidence;
+    uint8_t road_updating;
 } __attribute__ ((packed)) DATA_DRIVING_DYNAMICS;
 
 struct ShiftAlgoFeedback {

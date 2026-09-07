@@ -6,6 +6,7 @@
 #include "speaker.h"
 #include "clock.hpp"
 #include "shift_trace.h"
+#include "road_load.h"
 #include "nvs/device_mode.h"
 #include "egs_calibration/calibration_structs.h"
 #include "shifting_algo/s_algo.h"
@@ -296,6 +297,7 @@ DATA_DRIVING_DYNAMICS Gearbox::get_driving_dynamics(void)
     for (uint8_t i = 0; i < sizeof(this->pedal_history); i++) {
         if (this->pedal_history[i] < lowest) { lowest = this->pedal_history[i]; }
     }
+    RoadLoad rl = RoadLoadEstimator::get();
     return DATA_DRIVING_DYNAMICS {
         .agility_score = this->agility_score,
         .agility_demand = this->agility_demand(),
@@ -307,6 +309,10 @@ DATA_DRIVING_DYNAMICS Gearbox::get_driving_dynamics(void)
         .selected_id = (uint8_t)((nullptr != this->selected_profile) ? this->selected_profile->get_profile_id() : 0xFF),
         .brake_pressed = (uint8_t)(this->sensor_data.brake_pressed ? 1 : 0),
         .kickdown_pressed = (uint8_t)(this->sensor_data.kickdown_pressed ? 1 : 0),
+        .terrain_coeff = rl.terrain_coeff,
+        .road_mass_kg = rl.mass_kg,
+        .road_confidence = rl.confidence,
+        .road_updating = rl.updating,
     };
 }
 
@@ -982,6 +988,7 @@ void Gearbox::controller_loop()
     ShifterPosition last_position = ShifterPosition::SignalNotAvailable;
     ESP_LOG_LEVEL(ESP_LOG_INFO, "GEARBOX", "GEARBOX START!");
     ShiftTrace::init();
+    RoadLoadEstimator::init();
     uint32_t expire_check = GET_CLOCK_TIME() + 100; // 100ms
     egs_can_hal->set_safe_start(true);
     while (GET_CLOCK_TIME() < expire_check)
@@ -1609,6 +1616,13 @@ void Gearbox::controller_loop()
             pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
         }
         this->update_agility_score();
+        // Road load: how hard the grade and the load are working the car. Not
+        // consumed yet - see road_load.h for why it is worth having.
+        if (is_fwd_gear(this->actual_gear) && this->actual_gear == this->target_gear) {
+            RoadLoadEstimator::update(&this->sensor_data,
+                ratio_absolute(this->actual_gear, &this->gearboxConfig),
+                this->shifting, this->sensor_data.brake_pressed);
+        }
         this->update_adaptive_profile();
         // High rate shift recorder. This loop is the algorithm's own 20 ms period,
         // so the capture is lossless; the sampler is O(1) and allocation free.

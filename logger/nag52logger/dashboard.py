@@ -11,6 +11,7 @@ window, plus the last few shifts with what the TCU scored them.
 """
 from __future__ import annotations
 
+import math
 import shutil
 import sys
 import time
@@ -69,6 +70,9 @@ class Dashboard:
             "target": live.get("target_gear"),
             "profile": live.get("profile"),
             "atf": sens.get("atf_temp"),
+            "terrain": dyn.get("terrain_coeff"),
+            "road_conf": dyn.get("road_confidence"),
+            "brake": dyn.get("brake_pressed"),
         })
         while self.samples and t - self.samples[0]["t"] > self.window_s:
             self.samples.popleft()
@@ -136,6 +140,13 @@ class Dashboard:
             cur.get("pedal") if cur.get("pedal") is not None else "-",
             self._spark("pedal", w, 0, 250)))
         lines.append("input rpm      %s" % self._spark("input_rpm", w, 0, 4500))
+        tc = cur.get("terrain")
+        if tc is not None:
+            # sin(grade + rolling) x10000 -> degrees
+            deg = math.degrees(math.asin(max(-0.3, min(0.3, tc / 10000.0))))
+            lines.append("grade %+5.1f    %s conf %s%%" % (
+                deg, self._spark("terrain", w - 9, -1500, 3500),
+                cur.get("road_conf", "-")))
         lines.append("")
 
         lines.append("recent shifts  resp_ms  dur_ms    jerk    hole   slip_J  agility")

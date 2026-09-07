@@ -285,6 +285,10 @@ _add(Record("driving_dynamics", 0x32, "Driver agility demand (DATA_DRIVING_DYNAM
     Field("selected_id", "B", "", desc="profile the driver asked for"),
     Field("brake_pressed", "B", "", desc="1 while the brake pedal is down"),
     Field("kickdown_pressed", "B", "", desc="1 on a kickdown switch press"),
+    Field("terrain_coeff", "h", "/10000", desc="sin(road grade + rolling resistance)"),
+    Field("road_mass_kg", "H", "kg", desc="mass combined with the ECM torque scale error - relative"),
+    Field("road_confidence", "B", "%", desc="how much excitation the estimator has seen"),
+    Field("road_updating", "B", "", desc="1 while conditions allow an RLS update"),
 ]))
 
 _add(Record("shift_algo", RLI_SHIFTING_ALGO, "Shifting algorithm feedback (ShiftAlgoFeedback)", [
