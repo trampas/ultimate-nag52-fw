@@ -112,7 +112,7 @@ protected:
     StoredMap* downshift_table = nullptr;
     StoredMap* upshift_time_map = nullptr;
     StoredMap* downshift_time_map = nullptr;
-private:
+protected:
     bool is_diesel; 
     const char* tag_id;
 };

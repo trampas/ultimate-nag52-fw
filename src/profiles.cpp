@@ -38,7 +38,8 @@ AbstractProfile::AbstractProfile(bool is_diesel,
     }
     this->upshift_table = new StoredMap(key_name, SHIFT_MAP_SIZE, shift_table_x_header, upshift_y_headers, SHIFT_MAP_X_SIZE, SHIFT_MAP_Y_SIZE, default_map);
     if (this->upshift_table->init_status() != ESP_OK) {
-        delete[] this->upshift_table;
+        delete this->upshift_table;
+        this->upshift_table = nullptr;
     }
 
     /** Downshift map **/
@@ -51,7 +52,8 @@ AbstractProfile::AbstractProfile(bool is_diesel,
     }
     this->downshift_table = new StoredMap(key_name, SHIFT_MAP_SIZE, shift_table_x_header, downshift_y_headers, SHIFT_MAP_X_SIZE, SHIFT_MAP_Y_SIZE, default_map);
     if (this->downshift_table->init_status() != ESP_OK) {
-        delete[] this->downshift_table;
+        delete this->downshift_table;
+        this->downshift_table = nullptr;
     }
 
     // Up/downshift time tables
@@ -60,11 +62,13 @@ AbstractProfile::AbstractProfile(bool is_diesel,
     int16_t shift_rpm_points[5] = {(int16_t)1000,  (int16_t)(1000+(step_size)), (int16_t)(1000+(step_size*2)), (int16_t)(1000+(step_size*3)), redline};
     this->upshift_time_map = new StoredMap(upshift_time_map_name, SHIFT_TIME_MAP_SIZE, shift_time_table_x_header, const_cast<int16_t*>(shift_rpm_points), 6, 5, def_upshift_time_data);
     if (this->upshift_time_map->init_status() != ESP_OK) {
-        delete[] this->upshift_time_map;
+        delete this->upshift_time_map;
+        this->upshift_time_map = nullptr;
     }
     this->downshift_time_map = new StoredMap(downshift_time_map_name, SHIFT_TIME_MAP_SIZE, shift_time_table_x_header, const_cast<int16_t*>(shift_rpm_points), 6, 5, def_downshift_time_data);
     if (this->downshift_time_map->init_status() != ESP_OK) {
-        delete[] this->downshift_time_map;
+        delete this->downshift_time_map;
+        this->downshift_time_map = nullptr;
     }
 }
 
@@ -338,20 +342,34 @@ bool StandardProfile::should_upshift(GearboxGear current_gear, SensorData* senso
         // Add some extra RPM for catalyst warm up (+1000RPM at -10C, negated at 40C and higher)
         upshift_map_val += interpolate_float(sensors->atf_temp, 1000, 0, -10, 40, InterpType::Linear);
         int time_since_last_shift = GET_CLOCK_TIME() - sensors->last_shift_time; // ms
-        // Increase the threshold higher RPMs closer to shift
-        // (Inverted since raw values are time SINCE shift)
-        upshift_map_val += interpolate_float(time_since_last_shift, 0, 1000, 5000, 0, InterpType::Linear);
+        // Anti-hunt hysteresis: hold the upshift point up briefly after any shift.
+        // (Inverted since raw values are time SINCE shift). This is only meant to stop
+        // up/down hunting - the post-upshift downshift inhibit in Gearbox::controller_loop
+        // does the heavy lifting - so it must stay small. At the old +1000 rpm over 5 s
+        // every gear in an accelerating pull-away was held ~700 rpm past its map value.
+        upshift_map_val += interpolate_float(time_since_last_shift, 0, 300, 2000, 0, InterpType::Linear);
         int mmax = sensors->max_torque;
         if (0 != mmax) {
-            // Score of 0-1
+            // Score of 0-1. The map X axis is already pedal position, so this only tops up the
+            // near-full-load end; on a diesel converted_driver_torque/max_torque is already ~0.6
+            // at a third pedal, and the old 0.2..0.8 -> +1000 rpm ramp added most of its range
+            // during ordinary part throttle driving.
             float engine_load_percent = (float)sensors->converted_driver_torque / (float)sensors->max_torque;
-            upshift_map_val += interpolate_float(engine_load_percent, 1000, 0, 0.8, 0.2, InterpType::Linear);
+            upshift_map_val += interpolate_float(engine_load_percent, 0, 400, 0.5, 1.0, InterpType::Linear);
+        }
+        // Never let the adders push the threshold past the redline (Diesel: 4500 by default).
+        // The 100 % pedal map cell is already the redline, so any adder on top of it overruns:
+        // with the pre-rescale adders a 4500 map value became 6500 and the engine reached
+        // 5150 rpm in 1st after a kickdown.
+        int16_t redline = this->is_diesel ? VEHICLE_CONFIG.red_line_rpm_diesel : VEHICLE_CONFIG.red_line_rpm_petrol;
+        if (redline > 1000 && upshift_map_val > redline - 250) {
+            upshift_map_val = redline - 250;
         }
         bool can_upshift = sensors->input_rpm > upshift_map_val;
-        if (sensors->pedal_pos == 0) {
+        if (sensors->pedal_pos == 0 && sensors->input_rpm < redline - 250) {
             can_upshift = false;
         }
-        if (sensors->brake_pressed) { can_upshift = false; }
+        if (sensors->brake_pressed && sensors->input_rpm < redline - 250) { can_upshift = false; }
         return can_upshift;
     } else {
         return false;
@@ -374,7 +392,7 @@ void StandardProfile::update(SensorData* sensors) {
 
 bool StandardProfile::should_downshift(GearboxGear current_gear, SensorData* sensors) {
     if (current_gear == GearboxGear::First) { return false; }
-    if (this->upshift_table != nullptr) { // TEST TABLE
+    if (this->downshift_table != nullptr) { // TEST TABLE
         return sensors->input_rpm < this->downshift_table->get_value(sensors->pedal_pos/2.5, (float)current_gear);
     } else {
         return false;
