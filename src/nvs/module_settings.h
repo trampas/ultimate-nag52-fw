@@ -189,6 +189,14 @@ typedef struct {
     uint8_t applying_coefficient_cold;
     // DEBUG: Friction coefficient when applying a clutch (Hot)
     uint8_t applying_coefficient_hot;
+    // Percentage of the torque the ECM reports that the engine actually delivers
+    // to the turbine (100 = trust the ECM). The ECM reports torque from factory
+    // maps; a worn engine delivers less, and clutch pressure sized from the
+    // reported figure is then too high by the same ratio. Solve it from a drive
+    // log with a known vehicle mass: scripts/road_load.py <log> --mass <kg>,
+    // using the locked-converter gears only. Applies to clutch pressure sizing
+    // only; shift points, adaptation gates and torque requests are unaffected.
+    uint8_t engine_torque_scale_pct;
 } __attribute__ ((packed)) PRM_MODULE_SETTINGS;
 
 
@@ -197,7 +205,11 @@ const PRM_MODULE_SETTINGS PRM_DEFAULT_SETTINGS = {
     .stationary_coefficient = 100,
     .releasing_coefficient = 120,
     .applying_coefficient_cold = 185,
-    .applying_coefficient_hot = 140
+    .applying_coefficient_hot = 140,
+    // 78 % measured on the W210 E300 TD test car against NET torque (drag removed):
+    // 1790 kg as driven, gears 3-5 only, 0.76-0.82 over four drives on 2026-09-07.
+    // A stock engine should be nearer 90.
+    .engine_torque_scale_pct = 78
 };
 
 // Adaptation settings

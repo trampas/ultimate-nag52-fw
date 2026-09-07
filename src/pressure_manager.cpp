@@ -296,7 +296,7 @@ uint16_t PressureManager::p_clutch_with_coef(GearboxGear gear, Clutch clutch, ui
         coef = 100.F; // Guard against a zeroed user setting (x100 scale)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
-    float calc = ((float)abs_torque_nm * friction_val) / coef;
+    float calc = ((float)abs_torque_nm * this->engine_torque_scale() * friction_val) / coef;
     return MIN(calc, (float)UINT16_MAX);
 }
 
@@ -320,7 +320,7 @@ int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clut
         coef = 100.F; // Guard against a zeroed user setting (x100 scale)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
-    float calc = ((float)torque_nm * friction_val) / coef;
+    float calc = ((float)torque_nm * this->engine_torque_scale() * friction_val) / coef;
     return MAX((float)INT16_MIN, MIN(calc, (float)INT16_MAX));
 }
 
@@ -363,6 +363,15 @@ float PressureManager::sliding_coefficient() const {
 
 float PressureManager::release_coefficient() const {
     return (float)PRM_CURRENT_SETTINGS.releasing_coefficient;
+}
+
+float PressureManager::engine_torque_scale() const {
+    // Stored as a percentage; clamp so a corrupt or zeroed setting cannot
+    // collapse clutch pressure or blow it up.
+    float pct = (float)PRM_CURRENT_SETTINGS.engine_torque_scale_pct;
+    if (pct < 40.F) { pct = 40.F; }
+    if (pct > 150.F) { pct = 150.F; }
+    return pct / 100.F;
 }
 
 float PressureManager::stationary_coefficient() const {
@@ -465,7 +474,8 @@ uint16_t PressureManager::calc_max_torque_for_clutch(GearboxGear gear, Clutch cl
     if (friction_val <= 0.F) {
         return 0; // Clutch is not loaded in this gear (Avoids divide by zero)
     }
-    float calc =  ((float)pressure * coef) / (float)friction_val;
+    // Capacity in the ECM's torque units, so callers can compare it with reported torque
+    float calc =  ((float)pressure * coef) / ((float)friction_val * this->engine_torque_scale());
     return calc;
 }
 
@@ -489,7 +499,8 @@ int PressureManager::calc_max_torque_for_clutch_signed(GearboxGear gear, Clutch 
     if (friction_val <= 0.F) {
         return 0; // Clutch is not loaded in this gear (Avoids divide by zero)
     }
-    float calc =  ((float)pressure * coef) / (float)friction_val;
+    // Capacity in the ECM's torque units, so callers can compare it with reported torque
+    float calc =  ((float)pressure * coef) / ((float)friction_val * this->engine_torque_scale());
     return calc;
 }
 
