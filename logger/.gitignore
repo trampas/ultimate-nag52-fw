@@ -1,0 +1,5 @@
+logs/
+*.jsonl
+*.jsonl.gz
+*.csv
+__pycache__/

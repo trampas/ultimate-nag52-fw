@@ -1,0 +1,157 @@
+# nag52log – serial data logger for the Ultimate‑NAG52
+
+Records everything the TCU puts on its USB serial port (the CP210x bridge on
+UART0, 921600 baud) into one time‑stamped file:
+
+* **ESP_LOG output** (`ESP_LOGI/W/E`, the "LOG()" text you see in a serial
+  monitor), parsed into level / TCU timestamp / tag / message.
+* **Live data records** polled over the TCU's built‑in KWP2000 diagnostic
+  endpoint (the same channel the config app uses): sensor inputs, CAN inputs,
+  pressure‑manager and solenoid outputs, shift‑algorithm feedback, clutch
+  speeds, TCC program state, CPU load, plus a one‑off snapshot of the firmware
+  header and vehicle configuration.
+
+The result is a `.jsonl` file that a simulation can replay cycle by cycle:
+every cycle carries the inputs the algorithms saw *and* the outputs they
+produced at that instant.
+
+No firmware changes are required; it works with the firmware as‑is.
+
+## Install
+
+```sh
+cd logger
+pip install -r requirements.txt      # only pyserial
+```
+
+Python 3.8+. The reader/export side needs no third‑party packages at all.
+
+## Record
+
+```sh
+./nag52log.py                        # /dev/ttyUSB0, writes logs/nag52_<date>_<time>.jsonl
+./nag52log.py -p /dev/ttyUSB1 -o drive1.jsonl.gz
+./nag52log.py --rate 20              # cap polling at 20 cycles/s (default: as fast as possible)
+./nag52log.py --records sensors,pressures,shift_algo   # poll a subset (tcu_time is always added)
+./nag52log.py --no-poll              # pure serial monitor to file, sends nothing to the TCU
+./nag52log.py --reset                # pulse EN on open so boot logs are captured
+./nag52log.py ports                  # find the CP210x
+./nag52log.py records                # list every record and field with units
+```
+
+Ctrl‑C stops the recording cleanly. While recording, TCU log lines are echoed
+to stdout and a one‑line status (gear, RPMs, pressures, cycle time, error
+counters) is printed to stderr once a second (`--no-echo`, `-q` to silence).
+
+Opening the port does **not** reset the TCU: DTR/RTS are held low. If the TCU
+is powered off the logger waits and connects when it appears; if it reboots
+mid‑session a `tcu_reboot` event is written and polling resumes.
+
+Polling speed: the firmware's diagnostic server loop runs every 2 ms once an
+extended session is open (20 ms otherwise, which is why the logger opens one),
+and each record costs one request/response, so the default set of nine
+records gives roughly 20–30 cycles per second.  Drop records you do not need
+to go faster.
+
+## Analyse / export
+
+```sh
+./nag52log.py info logs/nag52_x.jsonl --shifts      # summary + detected gear changes
+./nag52log.py export logs/nag52_x.jsonl              # -> logs/nag52_x.csv, one row per cycle
+./nag52log.py export logs/nag52_x.jsonl --columns t,tcu_ms,sensors.input_rpm,pressures.corrected_spc_pressure
+./nag52log.py export logs/nag52_x.jsonl --logs tcu.log   # also dump ESP_LOG lines as text
+./nag52log.py calibration logs/nag52_x.jsonl              # summary of the calibration the TCU was running
+./nag52log.py calibration logs/nag52_x.jsonl --full -o cal.json   # every field, also saved as JSON
+./nag52log.py calibration --live                          # read the block from a connected TCU now
+```
+
+The calibration block (`src/egs_calibration/calibration_structs.h`) is downloaded at connect and stored in the
+`snapshot` line, so a log always carries the ratios, friction map, spring pressures, SPC gains and pressure/current
+map the shift algorithms were using. `info` prints a short summary of it; if its length does not match this
+logger's layout the raw bytes are kept and a warning is recorded.
+
+From Python (e.g. a simulation harness):
+
+```python
+import sys; sys.path.insert(0, "logger")
+from nag52logger.reader import LogFile
+
+log = LogFile.load("logs/nag52_x.jsonl")
+print(log.summary())
+for cyc in log.cycles:
+    s, p, a = cyc["sensors"], cyc["pressures"], cyc["shift_algo"]
+    # s["input_rpm"], s["output_rpm"], cyc["can"]["pedal_pos"] ... are the inputs
+    # p["corrected_spc_pressure"], a["p_on"], ...           are the outputs
+t, rpm = log.series("sensors", "input_rpm")
+```
+
+## File format
+
+One JSON object per line; the `type` key says what it is.
+
+| type       | content |
+|------------|---------|
+| `header`   | logger version, start time, port, record/field metadata (units, scaling, enums) – the schema for the rest of the file |
+| `snapshot` | ECU serial, firmware header (`fw_header`), vehicle config (`tcm_config`) and the EGS calibration block (`calibration`, decoded from the TCU's flash partition via ReadMemoryByAddress), read once after connecting |
+| `cycle`    | `seq`, `t` (host seconds since start), `tcu_ms` (TCU clock at cycle start), `dt` (cycle duration) and one object per record, keyed by record name |
+| `log`      | one ESP_LOG line: `t`, `tcu_ms`, `level`, `tag`, `msg` (or `raw` if it was not in ESP‑IDF format, e.g. boot ROM text) |
+| `event`    | `port_open`, `waiting_for_tcu`, `connected`, `tcu_lost`, `tcu_reboot`, `kwp_error` |
+| `end`      | counters |
+
+Values are already in engineering units (mBar, RPM, Nm, °C, mV); enum fields
+hold their names (`"D"`, `"Slipping"`, `"FastAsPossible"`); values the TCU
+flags as unavailable are `null`. If the firmware changes a struct so its size
+no longer matches, that record is stored as `{"_raw": "<hex>", ...}` rather
+than dropped.
+
+Time bases: `t` is the host's monotonic clock. `tcu_ms` inside cycles is the
+TCU's `esp_timer` millisecond clock (read from RLI 0x26 each cycle); `tcu_ms`
+inside log lines is the ESP log macro's RTOS‑tick clock. Both count from boot
+and agree to within a few ms.
+
+## Records
+
+| name            | RLI  | what |
+|-----------------|------|------|
+| `tcu_time`      | 0x26 | TCU ms clock (always polled first) |
+| `sensors`       | 0x20 | N2/N3/input/output RPM, measured and target ratio, battery mV, ATF °C, parking lock |
+| `can`           | 0x22 | pedal, engine torques (min/max/static/driver), wheel RPMs, shifter/paddle/profile input, engine RPM, TCU torque request + type/bounds, engine temps |
+| `pressures`     | 0x25 | requested SPC/MPC, line & inlet pressure, corrected SPC/MPC, TCC pressure, on/off‑clutch pressures, active shift circuits |
+| `solenoids`     | 0x21 | PWM (0–4096) and current (mA) of SPC/MPC/TCC/Y3/Y4/Y5, current targets and trims |
+| `shift_live`    | 0x27 | compact overview: pressures, RPMs, torques, ATF, actual/target gear, profile |
+| `shift_algo`    | 0x31 | shift algorithm feedback: phase/subphases, sync RPM, PID/adder torque, p_on/p_off, clutch speeds |
+| `clutch_speeds` | 0x30 | modelled K1/K2/K3/B1/B2/B3 slip speeds |
+| `tcc`           | 0x24 | lockup clutch program: pressures, slip, states, energy, load |
+| `sys_usage`     | 0x23 | CPU load per core, heap/PSRAM free (slow group, every `--slow-interval` s) |
+| `fw_header`     | 0x28 | firmware version/date/IDF/SHA (once) |
+| `tcm_config`    | 0xFE | vehicle configuration struct (once) |
+
+Layouts mirror `src/diag/diag_data.h`, `src/common_structs.h`,
+`src/models/clutch_speed.hpp` and `src/nvs/eeprom_config.h`. If you change a
+struct in the firmware, update `nag52logger/records.py` and the size table in
+`tests/test_records.py`.
+
+## Protocol notes (for maintainers)
+
+See `src/diag/endpoints/usb_endpoint.cpp` and `src/diag/kwp2000.cpp`.
+
+* PC → TCU: raw bytes `[len_hi, len_lo, 0x07, 0xE1, SID, args…]`, `len = 2 + payload`.
+  The TCU detects end‑of‑message as "bytes arrived, then a poll with none", so
+  each request is written in a single `write()`.
+* TCU → PC: `#07E9` + hex payload + `\n`. Anything else on the line is log text.
+* Log output and diagnostic frames come from different code paths on the TCU
+  and can (rarely) interleave; corrupt frames are counted and the request is
+  retried.
+* `0x7F <sid> 0x78` (response pending) extends the wait. StartDiagnosticSession
+  `0x92` gives the 2 ms server loop; TesterPresent is sent if polling is
+  slower than the 4.5 s session timeout.
+
+## Tests
+
+```sh
+cd logger && python3 -m unittest discover -s tests
+```
+
+The tests run against a fake TCU that emulates the firmware's UART framing,
+including interleaved log lines, corrupt frames, dropped requests and
+response‑pending, so protocol changes can be checked without hardware.
