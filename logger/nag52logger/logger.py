@@ -14,6 +14,10 @@ Output format (one JSON object per line, ``type`` discriminates):
                matches the ESP-IDF format, otherwise just ``raw``
 * ``accel``    one host accelerometer sample: ``t`` and ``x``/``y``/``z`` in
                m/s^2, on the same clock as ``cycle`` (only when ``--accel``)
+* ``shift_trace`` one completed gear change captured by the TCU at its own 20 ms
+               control period and read back afterwards, with 0.5 s of context
+               either side.  The polled ``cycle`` records only manage ~17 Hz,
+               which is about two samples across a shift's inertia phase.
 * ``event``    connection state changes, TCU reboots, errors
 * ``end``      last line, with counters
 
@@ -37,6 +41,7 @@ from . import __version__
 from .protocol import (KWP_TP_TIMEOUT_S, KwpClient, KwpError, KwpNegativeResponse,
                        KwpTimeout, LogLine, SESSION_EXTENDED, SerialReader, open_serial)
 from .accel import USEFUL_HZ, AccelSource, select as select_accel
+from .shift_trace import TraceUnavailable, read_header as read_trace_header, read_shift
 from .calibration import read_calibration
 from .records import (DEFAULT_FAST, DEFAULT_ONCE, DEFAULT_SLOW, ENUMS, Record,
                       describe_all, resolve)
@@ -94,7 +99,8 @@ class Nag52Logger:
                  echo_log: bool = True, status: bool = True, reset: bool = False,
                  request_timeout: float = 0.5, status_stream: TextIO = sys.stderr,
                  echo_stream: TextIO = sys.stdout, max_cycles: Optional[int] = None,
-                 accel: Optional[str] = None, accel_rate: float = 0.0) -> None:
+                 accel: Optional[str] = None, accel_rate: float = 0.0,
+                 trace: bool = True) -> None:
         self.port_arg = port
         self.baud = baud
         self.out_path = out_path
@@ -116,6 +122,10 @@ class Nag52Logger:
         self.accel_spec = accel
         self.accel_rate = accel_rate
         self.accel: Optional[AccelSource] = None
+        self.trace_enabled = trace
+        self.trace: Optional[Dict[str, Any]] = None   # header, or None if unsupported
+        self._trace_last_seq = -1
+        self._was_shifting = False
 
         self.t0 = 0.0
         self.writer: Optional[JsonlWriter] = None
@@ -124,7 +134,8 @@ class Nag52Logger:
         self.ser = None
         self.connected = False
         self.stats = {"cycles": 0, "log_lines": 0, "bad_frames": 0, "errors": 0,
-                      "reconnects": 0, "tcu_reboots": 0, "accel_samples": 0}
+                      "reconnects": 0, "tcu_reboots": 0, "accel_samples": 0,
+                      "shift_traces": 0, "trace_samples": 0}
         self._last_tcu_ms: Optional[int] = None
         self._last_status = 0.0
         self._last_slow = -1e9
@@ -167,6 +178,56 @@ class Nag52Logger:
         self.accel = AccelSource(device, self.t0, rate_hz=self.accel_rate)
         self.accel.start()
         self._event("accel_start", device=self.accel.describe())
+
+    def _probe_trace(self) -> None:
+        """Ask once whether this firmware has the shift recorder."""
+        self.trace = None
+        if not self.trace_enabled or self.client is None:
+            return
+        try:
+            self.trace = read_trace_header(self.client)
+        except TraceUnavailable as exc:
+            self._event("shift_trace_unavailable", reason=str(exc))
+            return
+        except KwpError:
+            return
+        self._trace_last_seq = self.trace["seq"]   # ignore anything already buffered
+        self._event("shift_trace_ready", capacity=self.trace["capacity"],
+                    sample_size=self.trace["sample_size"],
+                    seconds=round(self.trace["capacity"] * 0.02, 1))
+
+    def _drain_trace(self) -> None:
+        """
+        Read out a shift the TCU captured, once it has finished.
+
+        Only runs on the falling edge of `shift_algo.active`, so in steady state
+        this costs nothing; the readout itself lands in the gap between shifts
+        (measured 1.9-3.6 s on the road against ~85 ms of transfer).
+        """
+        if self.trace is None or self.client is None:
+            return
+        algo = self._last_summary.get("shift_algo") if isinstance(self._last_summary, dict) else None
+        shifting = bool(algo.get("active")) if isinstance(algo, dict) else False
+        just_finished = self._was_shifting and not shifting
+        self._was_shifting = shifting
+        if not just_finished:
+            return
+        try:
+            hdr = read_trace_header(self.client)
+            for ev in hdr["events"]:
+                if not ev["done"] or ev["seq_start"] <= self._trace_last_seq:
+                    continue
+                shift = read_shift(self.client, hdr, ev)
+                self._trace_last_seq = ev["seq_start"]
+                if shift is None:
+                    continue
+                self._emit({"type": "shift_trace", "t": self._now(), **shift})
+                self.stats["shift_traces"] += 1
+                self.stats["trace_samples"] += len(shift["samples"])
+            self.trace = hdr
+        except (KwpError, TraceUnavailable) as exc:
+            self.stats["errors"] += 1
+            self._event("shift_trace_error", error=str(exc))
 
     def _on_log(self, text: str) -> None:
         line = LogLine.parse(text)
@@ -235,6 +296,7 @@ class Nag52Logger:
             if self._handshake():
                 self.connected = True
                 self._event("connected", session="0x%02X" % self.session)
+                self._probe_trace()
                 return
             if not announced:
                 self._event("waiting_for_tcu")
@@ -321,6 +383,7 @@ class Nag52Logger:
             "slow_interval": self.slow_interval, "rate_hz": (1.0 / self.period) if self.period else None,
             "records": describe_all(), "enums": {k: {str(i): n for i, n in v.items()} for k, v in ENUMS.items()},
             "accel": self.accel_spec or None,
+            "shift_trace": self.trace_enabled,
         }
         self.writer.write(header)
         if self.status:
@@ -356,6 +419,7 @@ class Nag52Logger:
                     self._event("kwp_error", error=str(exc))
                 self._check_reader()
                 self._drain_accel()
+                self._drain_trace()
                 self._print_status()
                 if self.max_cycles is not None and self.stats["cycles"] >= self.max_cycles:
                     break
@@ -394,6 +458,10 @@ class Nag52Logger:
                 end["kwp"] = dict(self.client.stats)
             if self.accel is not None:
                 end["accel"] = self.accel.summary()
+            if self.trace is not None:
+                end["shift_trace"] = {"captured": self.stats["shift_traces"],
+                                      "samples": self.stats["trace_samples"],
+                                      "dropped_by_tcu": self.trace.get("dropped", 0)}
             self.writer.write(end)
             self.writer.close()
             self._print_status(force=True)

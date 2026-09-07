@@ -39,6 +39,7 @@
 #define RLI_CLUTCH_SPEEDS   0x30
 #define RLI_SHIFTING_ALGO   0x31
 #define RLI_DRIVING_DYNAMIC 0x32
+#define RLI_SHIFT_TRACE     0x33 // High rate shift recorder header (see shift_trace.h)
 
 #define RLI_EGS_CAL_LEN     0xFB // EGS Calibration structure length
 #define RLI_SETTINGS_EDIT   0xFC // TCM Configuration (Program settings app)

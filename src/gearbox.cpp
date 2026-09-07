@@ -5,6 +5,7 @@
 #include <tcu_maths.h>
 #include "speaker.h"
 #include "clock.hpp"
+#include "shift_trace.h"
 #include "nvs/device_mode.h"
 #include "egs_calibration/calibration_structs.h"
 #include "shifting_algo/s_algo.h"
@@ -837,6 +838,7 @@ void Gearbox::controller_loop()
 {
     ShifterPosition last_position = ShifterPosition::SignalNotAvailable;
     ESP_LOG_LEVEL(ESP_LOG_INFO, "GEARBOX", "GEARBOX START!");
+    ShiftTrace::init();
     uint32_t expire_check = GET_CLOCK_TIME() + 100; // 100ms
     egs_can_hal->set_safe_start(true);
     while (GET_CLOCK_TIME() < expire_check)
@@ -1461,6 +1463,13 @@ void Gearbox::controller_loop()
         if (!this->shifting && this->sensor_data.engine_rpm > 100) {
             pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
         }
+        // High rate shift recorder. This loop is the algorithm's own 20 ms period,
+        // so the capture is lossless; the sampler is O(1) and allocation free.
+        ShiftTrace::sample(&this->sensor_data, &this->algo_feedback, this->shifting,
+            (uint8_t)gear_to_idx_lookup(this->actual_gear), (uint8_t)gear_to_idx_lookup(this->target_gear),
+            this->pressure_mgr->get_corrected_spc_pressure(),
+            this->pressure_mgr->get_corrected_modulating_pressure(),
+            this->pressure_mgr->get_active_shift_circuits());
         uint32_t time = GET_CLOCK_TIME() - start;
         if (time < 20) {
             vTaskDelay((20 - time) / portTICK_PERIOD_MS); // 50 updates/sec!

@@ -40,6 +40,7 @@ SID_START_DIAGNOSTIC_SESSION = 0x10
 SID_READ_ECU_IDENT = 0x1A
 SID_READ_DATA_LOCAL_IDENT = 0x21
 SID_READ_MEM_BY_ADDRESS = 0x23
+SID_READ_MEM_BY_ADDRESS_EXT = 0x24
 SID_TESTER_PRESENT = 0x3E
 
 SESSION_DEFAULT = 0x81
@@ -322,6 +323,25 @@ class KwpClient:
 
     def read_ecu_serial(self) -> str:
         return self.read_local_ident(0xE1).decode("ascii", errors="replace")
+
+    def read_memory_raw(self, address: int, length: int) -> bytes:
+        """
+        ReadMemoryByAddressExt (SID 0x23 sub 4-byte address).  Unlike
+        ``read_memory`` this takes a real ESP32 pointer, which is what the shift
+        trace header publishes.  The firmware validates it against the readable
+        RAM regions.
+        """
+        if not 0 < length <= 255:
+            raise ValueError("length must be 1..255")
+        req = bytes([SID_READ_MEM_BY_ADDRESS_EXT,
+                     (address >> 24) & 0xFF, (address >> 16) & 0xFF,
+                     (address >> 8) & 0xFF, address & 0xFF, length])
+        resp = self.request(req)
+        data = resp[1:]
+        if len(data) != length:
+            raise KwpBadResponse("ReadMemoryExt 0x%08X: expected %d bytes, got %d"
+                                 % (address, length, len(data)))
+        return data
 
     def read_memory(self, address: int, length: int) -> bytes:
         """

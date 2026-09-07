@@ -68,6 +68,7 @@ class LogFile:
         self.logs: List[Dict[str, Any]] = []
         self.events: List[Dict[str, Any]] = []
         self.accel: List[Dict[str, Any]] = []
+        self.shift_traces: List[Dict[str, Any]] = []
         self.end: Dict[str, Any] = {}
 
     @classmethod
@@ -86,6 +87,8 @@ class LogFile:
                 lf.snapshot = e
             elif t == "accel":
                 lf.accel.append(e)
+            elif t == "shift_trace":
+                lf.shift_traces.append(e)
             elif t == "event":
                 lf.events.append(e)
             elif t == "end":

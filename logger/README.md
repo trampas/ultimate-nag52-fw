@@ -56,6 +56,32 @@ and each record costs one request/response, so the default set of nine
 records gives roughly 20–30 cycles per second.  Drop records you do not need
 to go faster.
 
+### Shift trace
+
+The polled records above only manage ~17 Hz, because each record costs one
+request/response round trip (~6.5 ms).  A shift's inertia phase is 100-200 ms,
+so that rate resolves it with about two samples.
+
+The TCU therefore records shifts itself, into a PSRAM ring filled at the 20 ms
+period its control loop already runs at — the same period the shift algorithm
+steps at, so the capture is lossless.  The logger reads the window around each
+completed shift back afterwards and writes it as a `shift_trace` line holding
+~50 Hz samples with 0.5 s of context either side.  This is on by default and
+costs nothing until a shift ends; `--no-shift-trace` disables it.  Firmware
+without the recorder logs `shift_trace_unavailable` once and carries on.
+
+Transfer is host paced — one request per chunk, never a push.  The wire format
+is ASCII hex, so an N byte payload is 2N+6 bytes on the UART; chunks are kept to
+5 samples (a 268 byte frame) to stay under half of the CP2102N's 576 byte
+receive buffer.  A full 255 byte read would be a 518 byte frame, 90 % of it.
+
+```python
+for sh in LogFile.load("logs/drive.jsonl").shift_traces:
+    print(sh["gear_from"], "->", sh["gear_to"], len(sh["samples"]), "samples")
+    for s in sh["samples"]:
+        s["t_ms"], s["input_rpm"], s["p_on"], s["p_off"], s["phase"]
+```
+
 ### Accelerometer
 
 A host accelerometer is recorded **by default** into the same file, on the same

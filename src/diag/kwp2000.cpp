@@ -1,4 +1,5 @@
 #include "kwp2000.h"
+#include "shift_trace.h"
 #include <esp_ota_ops.h>
 #include <string>
 #include <time.h>
@@ -599,6 +600,16 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
     } else if (args[0] == RLI_CLUTCH_SPEEDS) {
         ClutchSpeeds r = gearbox->diag_get_clutch_speeds();
         make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CLUTCH_SPEEDS, (uint8_t*)&r, sizeof(ClutchSpeeds));
+    } else if (args[0] == RLI_SHIFT_TRACE) {
+        // Header only. The samples are pulled with ReadMemoryByAddress from
+        // `buffer_addr`, at most 255 bytes per response and paced by the host, so
+        // the USB serial bridge's FIFO is never burst through.
+        const ShiftTraceHeader* h = ShiftTrace::get_header();
+        if (nullptr == h) {
+            make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_CONDITIONS_NOT_CORRECT_REQ_SEQ_ERROR);
+        } else {
+            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFT_TRACE, (uint8_t*)h, sizeof(ShiftTraceHeader));
+        }
     } else if (args[0] == RLI_SHIFTING_ALGO) {
         ShiftAlgoFeedback r = gearbox->algo_feedback;
         make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFTING_ALGO, (uint8_t*)&r, sizeof(ShiftAlgoFeedback));
@@ -708,21 +719,24 @@ void Kwp2000_server::process_read_mem_address(uint8_t* args, uint16_t arg_len) {
         }
     } else {
         uint32_t start_ptr = 0;
+        uint32_t region_base = 0;
         // Address is somewhere in memory
         if(end <= 0x2FFFF) { // and start >= 0x000000
-            start_ptr = 0x40070000; // SRAM0
+            start_ptr = 0x40070000; region_base = 0x000000; // SRAM0
         } else if(start >= 0x030000 && end <= 0x04FFFF) {
-            start_ptr = 0x400A0000; // SRAM1
+            start_ptr = 0x400A0000; region_base = 0x030000; // SRAM1
         } else if(start >= 0x050000 && end <= 0x071FFF) {
-            start_ptr = 0x3FFAE000; // SRAM2
+            start_ptr = 0x3FFAE000; region_base = 0x050000; // SRAM2
         } else if(start >= 0x100000 && end <= 0x4FFFFF) {
-            start_ptr = 0x3F800000; // PSRAM
+            start_ptr = 0x3F800000; region_base = 0x100000; // PSRAM
         }
         if (0 == start_ptr) { // Invalid address range
             make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
         } else {
-            // Interp as pointer
-            make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS, (uint8_t*)start_ptr, len);
+            // start_ptr is the base of the region the virtual address falls in, so
+            // the offset within that region has to be added. Without it every read
+            // returned the first `len` bytes of the region, whatever was asked for.
+            make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS, (uint8_t*)(start_ptr + (start - region_base)), len);
         }
     }
 }
@@ -742,7 +756,22 @@ void Kwp2000_server::process_read_mem_address_ext(uint8_t* args, uint16_t arg_le
     //vTaskDelay(40);
     uint8_t len = args[4];
     uint32_t end = start + len;
+    // The address comes straight off the wire, so check it against the readable
+    // regions before dereferencing - this used to memcpy from any value the tester
+    // sent, and from a null buffer if the allocation failed.
+    bool addr_ok =
+        (start >= 0x3F800000u && end <= 0x3FC00000u) || // PSRAM
+        (start >= 0x3FFAE000u && end <= 0x40000000u) || // SRAM1/2 data
+        (start >= 0x40070000u && end <= 0x400A0000u);   // SRAM0
+    if (!addr_ok) {
+        make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS_EXT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
+        return;
+    }
     uint8_t* buffer = (uint8_t*)TCU_HEAP_ALLOC(len);
+    if (nullptr == buffer) {
+        make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS_EXT, NRC_GENERAL_REJECT);
+        return;
+    }
     memcpy(buffer, (const uint8_t*)start, len);
     make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS_EXT, buffer, len);
     TCU_FREE(buffer);
@@ -1156,21 +1185,24 @@ void Kwp2000_server::process_write_mem_by_address(uint8_t* args, uint16_t arg_le
         delete[] buffer;
     } else {
         uint32_t start_ptr = 0;
+        uint32_t region_base = 0;
         // Address is somewhere in memory
         if(end <= 0x2FFFF) { // and start >= 0x000000
-            start_ptr = 0x40070000; // SRAM0
+            start_ptr = 0x40070000; region_base = 0x000000; // SRAM0
         } else if(start >= 0x030000 && end <= 0x04FFFF) {
-            start_ptr = 0x400A0000; // SRAM1
+            start_ptr = 0x400A0000; region_base = 0x030000; // SRAM1
         } else if(start >= 0x050000 && end <= 0x071FFF) {
-            start_ptr = 0x3FFAE000; // SRAM2
+            start_ptr = 0x3FFAE000; region_base = 0x050000; // SRAM2
         } else if(start >= 0x100000 && end <= 0x4FFFFF) {
-            start_ptr = 0x3F800000; // PSRAM
+            start_ptr = 0x3F800000; region_base = 0x100000; // PSRAM
         }
         if (0 == start_ptr) { // Invalid address range
             make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
         } else {
-            // Interp as pointer
-            memcpy((void*)start_ptr, (void*)src, len);
+            // Same offset fix as the read path. This one matters more: without it a
+            // write to any RAM address landed on the base of the region instead
+            // (0x40070000 for SRAM0), silently corrupting whatever lived there.
+            memcpy((void*)(start_ptr + (start - region_base)), (void*)src, len);
             make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS, nullptr, 0);
         }
     }

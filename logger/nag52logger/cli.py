@@ -34,7 +34,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         slow_interval=args.slow_interval, rate_hz=args.rate, poll=not args.no_poll,
         session=session, echo_log=not args.no_echo, status=not args.quiet,
         reset=args.reset, request_timeout=args.timeout, max_cycles=args.cycles,
-        accel=args.accel, accel_rate=args.accel_rate,
+        accel=args.accel, accel_rate=args.accel_rate, trace=not args.no_shift_trace,
     )
 
     def _sigterm(_signum, _frame):  # allow `timeout`/systemd to stop us cleanly
@@ -213,6 +213,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--no-accel", dest="accel", action="store_const", const=None,
                    default=argparse.SUPPRESS,
                    help="do not record an accelerometer")
+    r.add_argument("--no-shift-trace", action="store_true",
+                   help="do not read back the TCU's high rate shift recorder")
     r.add_argument("--accel-rate", type=float, default=0.0, metavar="HZ",
                    help="requested accelerometer sample rate (0 = leave the driver's setting)")
     r.add_argument("--no-echo", action="store_true", help="do not print TCU log lines to stdout")

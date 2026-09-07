@@ -68,6 +68,10 @@ class FakeTcu:
         self.drop_next = 0                  # swallow N requests (no answer)
         self.response_pending_first = False  # send 0x78 then the answer
         self.values: Dict[str, Dict[str, int]] = {}
+        # Shift trace: None = firmware without the recorder. set_trace() builds one.
+        self.TRACE_ADDR = 0x3F800100
+        self.trace: bytes = None            # packed ShiftTraceHeader
+        self.trace_ring: bytes = b""        # packed ShiftTraceSample[]
 
     # -- pyserial-ish API ----------------------------------------------------
     @property
@@ -137,6 +141,8 @@ class FakeTcu:
             self._rli(req[1])
         elif sid == 0x23:
             self._read_memory(req)
+        elif sid == 0x24:
+            self._read_memory_ext(req)
         else:
             self._neg(sid, 0x11)
 
@@ -155,7 +161,26 @@ class FakeTcu:
         else:
             self._neg(0x23, 0x12)
 
+    def _read_memory_ext(self, req: bytes) -> None:
+        """ReadMemoryByAddressExt - used to pull shift trace samples."""
+        if len(req) != 6 or self.trace is None:
+            self._neg(0x24, 0x12)
+            return
+        addr = (req[1] << 24) | (req[2] << 16) | (req[3] << 8) | req[4]
+        n = req[5]
+        off = addr - self.TRACE_ADDR
+        if off < 0 or off + n > len(self.trace_ring):
+            self._neg(0x24, 0x12)
+            return
+        self._respond(bytes([0x64]) + self.trace_ring[off:off + n])
+
     def _rli(self, rli: int) -> None:
+        if rli == 0x33:
+            if self.trace is None:
+                self._neg(0x21, 0x31)
+            else:
+                self._respond(bytes([0x61, 0x33]) + self.trace)
+            return
         if rli == 0xE1:
             self._respond(bytes([0x61, 0xE1]) + b"AABBCCDDEEFF")
             return
@@ -183,3 +208,26 @@ class FakeTcu:
             else:
                 packed.append(int(v or 0))
         return rec._struct.pack(*packed)
+
+
+def build_trace(n_samples: int = 60, capacity: int = 512, seq: int = 0,
+                events=((10, 40, 2, 3, 1),), addr: int = 0x3F800100):
+    """
+    Build a (header, ring) pair matching src/shift_trace.h, for tests.
+
+    `events` entries are (seq_start, seq_end, gear_from, gear_to, done).
+    """
+    import struct as _s
+    SAMPLE = "<IHHHhHHHHBBBBBB"
+    ring = b""
+    for i in range(capacity):
+        shifting = any(a <= i <= b for a, b, _, _, _ in events)
+        ring += _s.pack(SAMPLE, 1000 + i * 20, 2000 - i, 900, 2100, 150,
+                        3000 + i, 4000 - i, 5000, 6000, 2, 1, 0,
+                        (1 if shifting else 0), 100, 0x23)
+    hdr = _s.pack("<IBBHIIIB3x", 0x43415254, 1, _s.calcsize(SAMPLE), capacity,
+                  addr, seq or n_samples, 0, len(events))
+    for a, b, gf, gt, done in events:
+        hdr += _s.pack("<IIBBBB", a, b, gf, gt, done, 0)
+    hdr += b"\x00" * (12 * (4 - len(events)))
+    return hdr, ring
