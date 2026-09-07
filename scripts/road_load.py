@@ -54,7 +54,7 @@ LAMBDA_MASS = 1.0       # mass is constant - do not forget it
 LAMBDA_GRADE = 0.98     # grade changes with the road - forget quickly
 
 
-def estimate(log, diff, circ, verbose=False):
+def estimate(log, diff, circ, verbose=False, torque_scale=1.0):
     r_wheel = circ / (2.0 * math.pi)
     # theta = [1/M, sin(beta+beta_mu)]; seed with a plausible car and flat road
     theta = [1.0 / 1700.0, 0.013]
@@ -90,7 +90,7 @@ def estimate(log, diff, circ, verbose=False):
         dv, dw = (v - prev[1]) / dt, (w - prev[2]) / dt
         prev = (c["t"], v, w, g)
         r_g = r_wheel / (RATIOS[GEAR_IDX[g]] * diff)
-        phi1 = (trq - J_TURBINE * dw) / r_g - 0.5 * RHO * CDA * v * v
+        phi1 = (trq * torque_scale - J_TURBINE * dw) / r_g - 0.5 * RHO * CDA * v * v
         phi2 = -G
         y = dv
         # RLS update with per-parameter forgetting
@@ -118,12 +118,42 @@ def main() -> int:
     ap.add_argument("log")
     ap.add_argument("--diff", type=float, default=None, help="final drive (default: from the log)")
     ap.add_argument("--circ", type=float, default=None, help="wheel circumference m (default: from the log)")
+    ap.add_argument("--mass", type=float, default=None, metavar="KG",
+                    help="known vehicle mass - solves for the engine torque scale "
+                         "factor instead of the mass, i.e. how much of its mapped "
+                         "torque the engine is actually delivering")
     args = ap.parse_args()
     log = LogFile.load(args.log)
     cfg = (log.snapshot.get("records") or {}).get("tcm_config") or {}
     diff = args.diff or (cfg.get("diff_ratio", 3070) / 1000.0)
     circ = args.circ or (cfg.get("wheel_circumference", 1975) / 1000.0)
     print("final drive %.3f, wheel circumference %.3f m" % (diff, circ))
+    if args.mass:
+        # Fix mass, solve for the torque scale. The ECM reports torque from
+        # factory maps, not what a worn engine actually delivers, and that error
+        # goes straight into phi1 - which is why an implausible mass is the
+        # symptom of a torque bias rather than a broken estimator.
+        best, best_err = None, None
+        for k in [x / 100.0 for x in range(50, 151, 2)]:
+            rows, used, _ = estimate(log, diff, circ, torque_scale=k)
+            if used < 50:
+                continue
+            m = statistics.median([r[1] for r in rows[len(rows) // 2:]])
+            err = abs(m - args.mass)
+            if best_err is None or err < best_err:
+                best, best_err = k, err
+        if best is None:
+            print("not enough data")
+            return 1
+        rows, used, _ = estimate(log, diff, circ, torque_scale=best)
+        g = [r[2] for r in rows[len(rows) // 2:]]
+        print("assuming %.0f kg, the engine is delivering %.0f %% of the torque the "
+              "ECM reports" % (args.mass, best * 100))
+        print("  (a %.0f %% shortfall - driveline losses, rotating inertia and engine "
+              "wear all land here)" % ((1 - best) * 100))
+        print("  grade with that correction: median %+.2f deg, range %+.2f to %+.2f" % (
+            statistics.median(g), min(g), max(g)))
+        return 0
     rows, used, skipped = estimate(log, diff, circ)
     if used < 50:
         print("only %d usable samples - not enough excitation to identify anything" % used)
