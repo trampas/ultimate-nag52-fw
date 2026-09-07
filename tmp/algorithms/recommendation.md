@@ -263,6 +263,55 @@ generated from the knobs and re-generated when a knob changes.
 
 ---
 
+## What must be told to the TCU, and what it can work out
+
+The useful split is not "easy vs hard", it is **identifiability**: a quantity can
+be learned if the car's ordinary motion excites it *and* it is not degenerate
+with something else the TCU also does not know. Everything below is judged on
+that, and measured where a measurement was available.
+
+### Must be told - no signal can reveal it
+
+| parameter | why not learnable |
+|---|---|
+| **wheel circumference** | the only absolute length reference in the system. Speed, distance and mass are all expressed through it, and with no GPS there is nothing to calibrate it against. Note the ABS sends wheel *rotation*, not road speed, so it does not help here. |
+| **redline** | a limit, not a measurement. The experiment that identifies it destroys the engine. |
+| **vehicle mass _or_ engine torque scale - pick one** | the central result of [road-load-estimation.md](road-load-estimation.md). The estimator identifies `1/M` against the ECM's reported torque, so it can only ever know the *ratio*. Supplying either one pins the other. Supplying neither leaves both floating together, which is exactly what "mass estimates are torque estimates" means. |
+| **gearbox / EGS variant** | identity. The calibration blocks follow from the part number. |
+| **safety limits** (ATF temp, max pressure) | consequences are one-sided; a limit must not be discovered. |
+| **preference** (comfort vs sport, how firm) | not a fact about the car. |
+
+That is a five-line setup, and everything below follows from it.
+
+### Learnable now, with evidence
+
+| parameter | how | measured |
+|---|---|---|
+| **final drive ratio** | `output_rpm / mean(rear wheel rpm)`; the ABS already sends both rear wheels on EGS51 | **3.068 / 3.069 / 3.069 against a configured 3.070 - 0.1 %**, over three drives, ~10 k samples each. Independent of tyre size, because the ABS reports rotation. Worth learning not to save typing but to *catch a wrong entry*. |
+| **gear ratios** | `input_rpm / output_rpm` per gear with the converter locked | already computed every cycle; the TCU only uses it to detect mismatch |
+| **road grade** | RLS, already running | robust because it is identified from how the *same* torque gives different acceleration, so the torque error cancels |
+| **rolling resistance** | the persistent offset in the grade estimate over a closed loop - real grade averages to zero over a round trip, rolling resistance does not | mu = 0.021 already explains the standing +1.2 deg on the flat |
+| **effective mass / torque scale** (as one number) | RLS, already running | the combination is identified; the split is not |
+| **clutch fill time and volume** | turbine departure timing per shift | the existing adaptation does a gated version; US 6915890 / 7374513 do it properly |
+| **driver type** | `agility_score`, already running | distribution measured over five drives |
+| **cornering thresholds** | left/right rear wheel difference | straight-line median **0.17-0.33 %**, p95 **3.1 %** - S1/S2 fall straight out of that spread |
+| **relative torque curve** | acceleration vs rpm at high pedal | derived in [findings-from-our-data.md](findings-from-our-data.md); note the next-gear check measured that it does *not* need one |
+
+### Learnable in principle, but should not be
+
+- **Friction coefficients.** Degenerate with the engine torque scale - clutch
+  pressure is `torque x scale x friction / coefficient`, so only the product is
+  identifiable. Learn one, set the other, never tune both against one symptom.
+- **CdA.** Would need clean neutral coastdowns, which do not occur in normal
+  driving, and it is degenerate with mass in the estimator anyway. Sensitivity
+  is low - set it and move on.
+- **Shift points.** Learnable from landing-rpm error, but "do not learn what you
+  can calculate": the defaults were wrong once and one edit fixed what learning
+  would have crawled towards over weeks. Adaptation is for per-driver drift.
+- **Boost threshold.** Inferrable as the knee in the learned torque curve, but
+  the owner knows it, and it gates calibration decisions that want a stable
+  number rather than one that moves as the engine ages.
+
 ## Order of work, one variable per drive
 
 1. ~~**Pin the torque scale** from vehicle mass and feed it to
