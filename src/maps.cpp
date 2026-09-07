@@ -19,13 +19,28 @@ const int16_t S_DIESEL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
         5->4  900 rpm / 0.833 = 1080     4->3  700 rpm / 1.000 = 700
         3->2  650 rpm / 1.486 =  437     2->1  600 rpm / 2.423 = 248
 */
+/*
+    High pedal (80-100 %) cells keep the engine on boost. Measured from four drives
+    with a nominal mass (relative power, absolute scale does not matter): power is
+    65 % of peak at 2000-2250 rpm, 76 % by 2400, and peaks at 3250-3750. The old
+    100 % cells of 2000 rpm left a dead band - at full throttle between 2000 and
+    2400 rpm the box would not downshift, so it sat off boost. Measured on the
+    2026-09-07 12:20 drive: 76 % of the time above 70 % pedal was spent under
+    2400 rpm, 70 % of it in 4th.
+
+    Each value is the largest that does not hunt against the upshift map: after a
+    downshift the engine must land below the lower gear's upshift point. At 100 %
+    pedal 2400 lands at 3566-3919 rpm, inside the peak power band, with 580+ rpm
+    of headroom to the 4500 redline. Below 80 % pedal the upshift map is what
+    binds, so those cells are unchanged.
+*/
 const int16_t S_DIESEL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-       600, 650, 850, 1050, 1200, 1400, 1500, 1700, 1800, 1900, 2000,/* 2 -> 1 */
-       650, 750, 900, 1100, 1250, 1400, 1500, 1700, 1800, 2000, 2000,/* 3 -> 2 */
-      700, 850, 1000, 1150, 1300, 1400, 1550, 1700, 1800, 2100, 2000,/* 4 -> 3 */
-     900, 1000, 1100, 1200, 1350, 1450, 1500, 1750, 1900, 2200, 2500 /* 5 -> 4 */
+       600, 650, 850, 1050, 1200, 1400, 1500, 1700, 1890, 2380, 2400,/* 2 -> 1 */
+       650, 750, 900, 1100, 1250, 1400, 1500, 1700, 1800, 2130, 2400,/* 3 -> 2 */
+      700, 850, 1000, 1150, 1300, 1400, 1550, 1700, 1800, 2260, 2400,/* 4 -> 3 */
+     900, 1000, 1100, 1200, 1350, 1450, 1500, 1970, 2130, 2400, 2500 /* 5 -> 4 */
     };
 
 const int16_t S_PETROL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
@@ -107,8 +122,8 @@ const int16_t A_DIESEL_UPSHIFT_MAP[SHIFT_MAP_SIZE] = {
 const int16_t A_DIESEL_DOWNSHIFT_MAP[SHIFT_MAP_SIZE] = {
     /*                        Pedal position                                   */
     /*0%   10%   20%   30%   40%   50%   60%   70%   80%   90%  100%           */
-       650, 700, 900, 1100, 1200, 1400, 1600, 1700, 1800, 2000, 2300,/* 2 -> 1 */
-      700, 750, 1000, 1050, 1200, 1400, 1600, 1700, 1800, 2000, 2300,/* 3 -> 2 */
+       650, 700, 900, 1100, 1200, 1400, 1600, 1700, 1890, 2380, 2400,/* 2 -> 1 */
+      700, 750, 1000, 1050, 1200, 1400, 1600, 1700, 1800, 2130, 2400,/* 3 -> 2 */
       900, 900, 1000, 1100, 1200, 1300, 1500, 1600, 1700, 2000, 2300,/* 4 -> 3 */
       900, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1900, 2200 /* 5 -> 4 */
 };
