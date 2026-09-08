@@ -112,6 +112,8 @@ private:
     void update_agility_score(void);
     // Anti-bog gate on automatic upshifts; see the definition in gearbox.cpp
     bool next_gear_can_pull(GearboxGear next);
+    // Anti-clunk gate on automatic downshifts; see the definition in gearbox.cpp
+    bool downshift_can_finish(AbstractProfile* p);
     void update_adaptive_profile(void);
 
     /**

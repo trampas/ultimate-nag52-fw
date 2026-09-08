@@ -206,6 +206,30 @@ typedef struct {
     // same road, load and mood and can be compared directly. Turn off once the
     // decision is made.
     bool ab_interleave;
+    // Refuse an automatic downshift that cannot finish before the car stops.
+    //
+    // A coast-down ladder is serialised: 4-3, 3-2 and 2-1 are decided one at a
+    // time and each takes about a second, so the last one can still be running
+    // when the car reaches a standstill. Its closing pressure ramp - which is
+    // pressure matching before the shift valve drops out, and is correct - then
+    // applies the gear with the output shaft stopped and the turbine still
+    // turning. That is the coast-down clunk.
+    //
+    // Before requesting the shift the projected output speed at the end of it is
+    // computed from the current deceleration and the shift time map, and the
+    // shift is held if that projection falls below this value in output shaft
+    // rpm. Holding is safe: the car then stops in the higher gear, and the shift
+    // happens at a true standstill, where the algorithm takes its stationary
+    // path. On the 2026-09-08 07:01 drive the one clunking 2-1 (jerk 50.9 m/s^3,
+    // torque hole 239 rpm/s) projects to -47 rpm, while the five clean ones
+    // project to +21 rpm or above, so 0 separates them.
+    //
+    // INT16_MIN disables it, and is the default: this has never been driven, and
+    // adding a setting must not change how anyone's car behaves. 0 is the
+    // measured starting point. Higher holds more downshifts to a standstill.
+    //
+    // Manual, kickdown and lever-restricted downshifts are never held.
+    int16_t downshift_min_end_rpm;
 } __attribute__ ((packed)) SBS_MODULE_SETTINGS;
 
 const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
@@ -226,6 +250,7 @@ const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
     .agility_blend_lo = 20,
     .agility_blend_hi = 80,
     .ab_interleave = false,
+    .downshift_min_end_rpm = INT16_MIN,      // disabled; 0 is the measured value
 };
 
 // Pressure manager settings

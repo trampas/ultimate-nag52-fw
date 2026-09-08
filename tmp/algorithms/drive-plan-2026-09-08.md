@@ -72,7 +72,28 @@ or a cell reaching its clamp. Neither is dangerous (the clamp is 200 mBar,
 the prefill clamp 10 cycles), but it means a step or a target is wrong and
 more driving will not fix it.
 
-### Leg 4: next-gear veto (optional, if there is time)
+### Leg 4: downshift anti-clunk guard
+
+`SBS downshift_min_end_rpm = 0`. This is the fix for the coast-down clunk you
+felt on the 07:01 drive. It projects the output speed to the end of a downshift
+and holds the shift if the car will have stopped by then, so the last rung of
+the ladder happens at a true standstill instead of landing on the stop.
+
+Replayed over that drive with `scripts/downshift_ladder.py` it holds the one
+clunking 2-1 (jerk 50.9 m/s^3, projected end -48 rpm) and holds nothing else:
+the five clean 2-1s project to +53 rpm or above.
+
+What answers it: come to a stop several times, gently and hard. The clunk should
+be gone, and the log should show 2-1 shifts starting at output speed zero with a
+jerk near zero, which is what the standstill shift measures. The TCU logs a line
+whenever it holds one. If a clunk survives, raise the floor to 50 and re-run the
+script on the new log to see whether that case was predictable.
+
+Expected side effect: the car will more often be in 2nd when it stops, and take
+1st at a standstill. If a launch ever feels like it starts in the wrong gear,
+that is this, and the floor is the knob.
+
+### Leg 5: next-gear veto (optional, if there is time)
 
 `SBS next_gear_min_accel_mms2 = 214`. Measured but never driven. Judged on
 whether the 3-4 and 4-5 bog cases disappear and no upshift is lost on the
@@ -108,9 +129,41 @@ learner actually left in NVS, and the trace stamps say how they got there.
 | ADP quality_spc_step_mbar / flare step | 10 / 40 | leave |
 | ADP quality_prefill_step / flare step / max | 1 / 2 / 10 cycles | leave |
 | ADP prefill_max_pressure_delta (SPC clamp) | 200 | leave |
-| SBS next_gear_min_accel_mms2 | off | 4: 214 |
+| SBS downshift_min_end_rpm | off | 4: 0 |
+| SBS next_gear_min_accel_mms2 | off | 5: 214 |
 
-## What was not verified tonight
+## Findings from the 2026-09-08 drives, and what changed after them
 
-The TCU was not connected, so the build was not flashed or boot-checked, and
-the trace stamp has not been read back over KWP. Do the boot check first.
+* **The jerk metric was measuring its own quantisation.** Differentiating an
+  integer output speed twice over one 20 ms step has a floor of 29.7 m/s^3 on
+  this car, and the 04:59 drive measured a median of 30.5 against it. Both
+  derivatives now span 57 ms; the 07:01 drive measures a median of 9.3, which
+  discriminates. Every jerk number from before that fix, including the 39 m/s^3
+  in the notes, is a floor and not a measurement.
+* **The agility score never decayed.** 4 points per second evaluated every
+  100 ms truncated to zero, so it pegged at 100 after the first stab. Fixed.
+* **The coast-down clunk is the ladder finishing after the car stops.** Leg 4.
+* **The launch upshift is harsh for a different reason** and is still open: the
+  1-2 is asked to take 541 ms and takes 1250 ms, the ratio does not move for the
+  first 517 ms while the engine winds up 280 rpm, and the sync then pulls 900 rpm
+  out of the input shaft in 425 ms for 25 kJ. The engine torque request arrives
+  at the start of that sync rather than before it. Median 1-2 jerk is 13.3 m/s^3
+  against 6.6 to 10.1 for every other upshift. The fix is torque reduction shaped
+  into the inertia phase, plus prefill trimmed from the measured response.
+* **Chained downshifts under power are a third, separate fault**, seen at 169 s
+  and 178 s on the 04:59 drive: 5-4 then 4-3 at 2000 rpm output with the car
+  accelerating, followed by an immediate upshift. The anti-clunk guard does not
+  address that and should not - the car is not stopping. That is the next-gear
+  veto and the pedal stabilisation, legs 5 and beyond.
+
+## Flash state
+
+The downshift guard is built and validated offline but NOT flashed: the TCU was
+unplugged after the 07:01 drive. Plug it in and run
+
+```sh
+.venv/bin/pio run -e unified -t upload
+logger/nag52log.py --reset -o logger/logs/boot.jsonl -q
+```
+
+then set `SBS downshift_min_end_rpm = 0` before leg 4.

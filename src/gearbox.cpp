@@ -694,6 +694,60 @@ bool Gearbox::next_gear_can_pull(GearboxGear next) {
     return false;
 }
 
+/**
+ * @brief Can this downshift finish before the car stops?
+ *
+ * Shifts are serialised: the profile is only consulted when one is not already
+ * running, so a coast-down ladder is decided one rung at a time and each rung
+ * takes about a second. The last one can therefore still be running when the
+ * car reaches a standstill, and its closing ramp to SPC_MAX - pressure matching
+ * before the shift valve drops out, which is correct and must not be softened -
+ * then applies the gear against a stopped output shaft. That is the clunk.
+ *
+ * So project the output speed to the end of the shift and refuse it if the car
+ * will have stopped by then. Refusing is safe and is the point: the car stops in
+ * the higher gear and the shift happens at a true standstill instead, where
+ * ShiftingAlgorithm takes its stationary path. Measured on the 2026-09-08 07:01
+ * drive, the standstill 2-1 scores 0.0 m/s^3 while the one that landed on the
+ * stop scored 50.9.
+ *
+ * The shift time map is the source for how long it will take. Actual duration
+ * ran 1.20x the mapped target across 31 downshifts on that drive (p90 1.42), so
+ * the projection uses the median - being a little optimistic here costs a clunk
+ * only in the cases the p90 would also have caught, while being pessimistic
+ * holds shifts that would have been clean.
+ */
+#define DOWNSHIFT_TIME_MARGIN_X100 120   // measured actual/target on downshifts
+
+bool Gearbox::downshift_can_finish(AbstractProfile* p)
+{
+    if (INT16_MIN == SBS_CURRENT_SETTINGS.downshift_min_end_rpm || nullptr == p) {
+        return true;                     // disabled, or nothing to ask
+    }
+    int floor_rpm = SBS_CURRENT_SETTINGS.downshift_min_end_rpm;
+    // Already at or below the floor: this IS the standstill shift, and it is the
+    // smooth one. Never hold it, or the car would be left in the higher gear.
+    if ((int)this->sensor_data.output_rpm <= floor_rpm) {
+        return true;
+    }
+    if (this->decel_rpm_s >= 0) {
+        return true;                     // not slowing down, so it cannot run out of road
+    }
+    uint16_t t_ms = p->get_downshift_time(this->sensor_data.input_rpm,
+                                          ((float)this->sensor_data.pedal_pos * 100.0f) / 250.0f);
+    int32_t t_scaled = ((int32_t)t_ms * DOWNSHIFT_TIME_MARGIN_X100) / 100;
+    int32_t projected = (int32_t)this->sensor_data.output_rpm +
+                        (((int32_t)this->decel_rpm_s * t_scaled) / 1000);
+    if (projected >= floor_rpm) {
+        return true;
+    }
+    ESP_LOG_LEVEL(ESP_LOG_INFO, "GEARBOX",
+        "Downshift from %s held: %d rpm at %d rpm/s reaches %d over %d ms, floor %d",
+        gear_to_text(this->actual_gear), this->sensor_data.output_rpm, this->decel_rpm_s,
+        (int)projected, (int)t_scaled, floor_rpm);
+    return false;
+}
+
 bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool manually_requested)
 {
     bool result = false;
@@ -1625,6 +1679,14 @@ void Gearbox::controller_loop()
                             this->restrict_target >= this->actual_gear &&
                             (GET_CLOCK_TIME() - sensor_data.last_shift_time) < 2000 &&
                             sensor_data.pedal_pos <= (this->pedal_at_last_shift + 25);
+                        // Anti-clunk: hold a downshift that would still be running when the
+                        // car stops - see downshift_can_finish(). Only automatic ones; a
+                        // driver asking for the gear gets it.
+                        if (!inhibit && !this->manual_shift && !sensor_data.kickdown_pressed &&
+                            this->restrict_target >= this->actual_gear &&
+                            !this->downshift_can_finish(p)) {
+                            inhibit = true;
+                        }
                         // Check RPMs
                         GearboxGear prev = prev_gear(this->actual_gear);
                         if (!inhibit && calc_input_rpm_from_req_gear(this->sensor_data.output_rpm, prev, &this->gearboxConfig) < this->redline_rpm - 500)
