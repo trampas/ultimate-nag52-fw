@@ -1284,8 +1284,21 @@ void Gearbox::shift_thread()
                             substage = 8;
                         }
                     } else if (substage == 8) {
-                        // Check for completion
-                        if (rpm_delta < 20) {
+                        // Check for completion.
+                        //
+                        // Use the same sync threshold that substages 3/4/5 used to
+                        // declare sync and hand over to the max-pressure ramp. A fixed
+                        // 20 rpm here rejected the very sync that got us to this
+                        // substage: with any throttle the converter drags the turbine,
+                        // and input_rpm never reaches zero at a standstill in gear
+                        // (CLAUDE.md), so the check could not pass. Measured 2026-09-08
+                        // on N->D with the driver already on the pedal: rpm_delta was 96
+                        // at the first check and 34 at the second, so both engagements
+                        // were thrown away, the clutch was slammed to max pressure three
+                        // times and the gear only took 3.9 s later once the car rolled.
+                        // With zero pedal the turbine does stall to 0, which is why the
+                        // same code engages reverse cleanly first time.
+                        if (rpm_delta < sync_rpm_threshold) {
                             // Sync is OK!
                             //int rpm_delta_engine = abs(sensor_data.engine_rpm - sensor_data.input_rpm);
                             //if (rpm_delta_engine > 150 || rpm_delta < 10) {
