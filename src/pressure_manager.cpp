@@ -19,6 +19,10 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
     /** Pressure PWM map **/
 
     // Friction lookup table
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+    // The PCS map is at an odd offset - see UN52_HYDR_MAPS_ARE_UNALIGNED in
+    // calibration_structs.h for why that is safe here, and only here.
     this->pressure_pwm_map = new LookupRefMap(
         reinterpret_cast<int16_t*>(const_cast<uint16_t*>(HYDR_PTR->pcs_map_x)),
         7,
@@ -27,6 +31,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         reinterpret_cast<int16_t*>(const_cast<uint16_t*>(HYDR_PTR->pcs_map_z)),
         7 * 4
     );
+#pragma GCC diagnostic pop
 
     this->momentum_upshifts[0] = new LookupByteMap(SHIFT_ALGO_CFG_PTR->momentum_1_2_x, 3, SHIFT_ALGO_CFG_PTR->momentum_1_2_y, 2, SHIFT_ALGO_CFG_PTR->momentum_1_2_z, 3*2);
     this->momentum_upshifts[1] = new LookupByteMap(SHIFT_ALGO_CFG_PTR->momentum_2_3_x, 3, SHIFT_ALGO_CFG_PTR->momentum_2_3_y, 2, SHIFT_ALGO_CFG_PTR->momentum_2_3_z, 3*2);

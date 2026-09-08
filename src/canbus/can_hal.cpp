@@ -145,8 +145,8 @@ void EgsBaseCan::task_loop() {
                         char buf[35];
                         int pos = 0;
                         pos += sprintf(buf + pos, "CF->0x%04X", (uint16_t)rx.identifier);
-                        for (uint8_t i = 0; i < rx.data_length_code; i++) {
-                            pos += sprintf(buf + pos, "%02X", rx.data[i]);
+                        for (uint8_t b = 0; b < rx.data_length_code; b++) {
+                            pos += sprintf(buf + pos, "%02X", rx.data[b]);
                         }
                         printf("%.*s\n", pos, buf);
                     } else {

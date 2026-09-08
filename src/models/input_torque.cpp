@@ -35,7 +35,11 @@ int16_t InputTorqueModel::get_pump_torque(uint16_t engine_rpm, uint16_t input_rp
         return INT16_MAX;
     } else {
         uint16_t rpm_multi_x1000 = ((int)input_rpm*1000) / ((int)engine_rpm);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+        // Safe: the TCC maps are asserted even-aligned in calibration_structs.h
         int lambda = ((float)interpolate_linear_array(rpm_multi_x1000, 11, TCC_CFG_PTR->pump_map_x, TCC_CFG_PTR->pump_map_z));
+#pragma GCC diagnostic pop
         int engine_pow_2 = ((int)engine_rpm*(int)engine_rpm)/1000;
         int pump_torque = (lambda * engine_pow_2) / 100000;
         // Clamp output to 10x drag torque

@@ -32,6 +32,13 @@ CanEndpoint::CanEndpoint(EgsBaseCan* can_layer) {
     this->is_receiving = false;
     this->last_rx_time = 0;
     this->last_tx_time = 0;
+    if (nullptr == this->rx_queue || nullptr == this->send_msg_queue || nullptr == this->read_msg_queue) {
+        // Without these the server loop would dereference NULL handles, so fail
+        // init_state() and leave the ISO-TP task unstarted.
+        ESP_LOG_LEVEL(ESP_LOG_ERROR, "CanEndpoint", "Could not allocate ISO-TP queues");
+        this->status = ESP_ERR_NO_MEM;
+        return;
+    }
     can_layer->register_diag_queue(&this->rx_queue, KWP_ECU_RX_ID);
     this->status = ESP_OK;
 }
@@ -46,6 +53,10 @@ bool CanEndpoint::send_to_twai(DiagCanMessage msg) {
 }
 
 void CanEndpoint::send_data(uint32_t id, uint8_t *buf, uint16_t len) {
+    if (len > DIAG_CAN_MAX_SIZE) {
+        ESP_LOG_LEVEL(ESP_LOG_ERROR, "CanEndpoint", "Tx message of %d bytes exceeds the ISO-TP maximum", len);
+        len = DIAG_CAN_MAX_SIZE;
+    }
     this->tmp.curr_pos = 0;
     this->tmp.max_pos = len;
     memcpy(this->tmp.data, buf, len);
@@ -127,10 +138,11 @@ void CanEndpoint::iso_tp_server_loop() {
     
         // if (is_sending && clear_to_send && (now-this->last_tx_time >= KWP_CAN_ST_MIN)) {
         if (is_sending && clear_to_send ) {
-            uint8_t max_cpy = tx_msg.max_pos-tx_msg.curr_pos;
-            if (max_cpy > 7) {
-                max_cpy = 7;
-            }
+            // NOTE: the remaining byte count can exceed 255, so it must not be
+            // computed in a uint8_t - truncation used to emit a short (padded)
+            // frame in the middle of every transfer longer than 268 bytes.
+            uint16_t remaining = tx_msg.max_pos - tx_msg.curr_pos;
+            uint8_t max_cpy = (remaining > 7u) ? 7u : static_cast<uint8_t>(remaining);
             if (max_cpy < 7) {
                 memset(tx_can.data, 0xCC, 8); // So we pad the frame with zeros
             }
@@ -180,9 +192,14 @@ void CanEndpoint::iso_tp_server_loop() {
 }
 
 void CanEndpoint::process_single_frame(DiagCanMessage msg) {
+    const uint8_t len = msg[0] & 0x0F;
+    if (0u == len || len > 7u) { // Only 1-7 payload bytes fit in a single frame
+        ESP_LOG_LEVEL(ESP_LOG_ERROR, "CanEndpoint_psf", "Invalid single frame length %d", len);
+        return;
+    }
     CanEndpointMsg m;
-    m.max_pos = msg[0];
-    memcpy(m.data, &msg[1], msg[0]);
+    m.max_pos = len;
+    memcpy(m.data, &msg[1], len);
     if (xQueueSend(this->read_msg_queue, &m, 0) != pdTRUE) {
         ESP_LOG_LEVEL(ESP_LOG_ERROR, "CanEndpoint_psf", "Tx queue is full!?");
     }
@@ -198,6 +215,13 @@ void CanEndpoint::process_start_frame(DiagCanMessage msg) {
         send_to_twai(const_cast<uint8_t*>(FLOW_CONTROL_OVERFLOW));
         return;
     }
+    if (size < 8u) {
+        // A first frame always carries more than 7 bytes. Anything less would
+        // leave curr_pos past max_pos, and the consecutive frame handler would
+        // then memcpy a negative length.
+        ESP_LOG_LEVEL(ESP_LOG_ERROR, "CanEndpoint", "Invalid first frame length %d", size);
+        return;
+    }
     // Not busy receiving and message size fits
     this->is_receiving = true;
     this->rx_msg.curr_pos = 6;
@@ -211,9 +235,12 @@ void CanEndpoint::process_start_frame(DiagCanMessage msg) {
 
 void CanEndpoint::process_multi_frame(DiagCanMessage msg) {
     if (this->is_receiving) {
-        int max_copy = this->rx_msg.max_pos - this->rx_msg.curr_pos;
+        int max_copy = static_cast<int>(this->rx_msg.max_pos) - static_cast<int>(this->rx_msg.curr_pos);
         if (7 < max_copy) {
             max_copy = 7;
+        } else if (0 >= max_copy) {
+            this->is_receiving = false;
+            return;
         }
         memcpy(&this->rx_msg.data[rx_msg.curr_pos], &msg[1], max_copy);
         rx_msg.curr_pos += max_copy;

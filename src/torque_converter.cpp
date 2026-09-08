@@ -128,6 +128,16 @@ void TorqueConverter::calculate_torque_correction(SensorData* sensors) {
             this->torque_correction_adapt = first_order_filter(FILTER_SIZE, (this->filtered_engine_trq-this->filtered_pump_trq), this->torque_correction_adapt);
         }
     }
+    // WARNING - torque_correction_adapt is learned above every cycle and is then
+    // applied NOWHERE. corr_torque is its only consumer and is itself unused, and
+    // the two lines below that would have used it are commented out. This value has
+    // therefore never influenced TCC control and has never been validated against a
+    // drive - do not wire it in on the assumption that it has.
+    //
+    // Before finishing it, check the guard on the adaptation above: it requires
+    // input_rpm == 0, and input_rpm is turbine speed, which the converter drags to
+    // 100-300 rpm at a standstill in gear. Confirm against a log that the branch
+    // ever executes at all, otherwise the learner is not merely unused but inert.
     int corr_torque = 0;
     if (false) {
         // TODO (M_CORRECTION enabled or not??)
@@ -139,7 +149,11 @@ void TorqueConverter::calculate_torque_correction(SensorData* sensors) {
     //int engine_trq = sensors->converted_torque - corr_torque;
 
     int lambda_targ = (((int)sensors->input_rpm)*1000) / (int)(sensors->input_rpm + this->slip_target);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+    // Safe: the TCC maps are asserted even-aligned in calibration_structs.h
     int pump_trq_targ = (int)interpolate_linear_array((uint16_t)lambda_targ, 11, TCC_CFG_PTR->pump_map_x, TCC_CFG_PTR->pump_map_z);
+#pragma GCC diagnostic pop
     int x = sensors->input_rpm + this->slip_target;
     pump_trq_targ *= ((x*x) / 10000);
     pump_trq_targ /= 10000;

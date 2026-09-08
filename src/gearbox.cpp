@@ -1086,6 +1086,11 @@ void Gearbox::shift_thread()
             uint8_t substage = 0;
             uint8_t timer_s = 0;
             uint8_t timer_m = 0;
+            // NOTE: timer_3 is set (to 80) at three points below but is never
+            // decremented or read, unlike timer_s/timer_m above. It is an
+            // unfinished stage timer carried over from the EGS algorithm. Do not
+            // delete it (it marks missing logic, and the file tracks upstream) and
+            // do not wire it up without a drive to judge the resulting shift feel.
             uint8_t timer_3 = 0;
 
             bool completed_ok = false;
@@ -1327,6 +1332,18 @@ void Gearbox::shift_thread()
                         p_apply_clutch = 0;
                         p_shift = 0;
                         if (0 == timer_s) {
+                            if (tried_again) {
+                                // We have already retried once and still did not sync.
+                                // Without this the loop cycles stage 1 <-> stage 3
+                                // indefinitely, because its only other exits are a
+                                // successful sync or the driver selecting N/P - so a
+                                // shift that can never complete (failed clutch, bad
+                                // N2/N3 signal, low line pressure) would hang the
+                                // shift thread with the car in gear. Fall through to
+                                // the existing abort path instead.
+                                completed_ok = false;
+                                break;
+                            }
                             tried_again = true;
                             this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
                             this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
@@ -1596,8 +1613,6 @@ void Gearbox::controller_loop()
             continue;
         }
 
-        // Set sensors Motor temperature (Always ran)
-        int16_t coolant_temp = egs_can_hal->get_engine_coolant_temp(50);
 
         bool speeds_valid = this->process_speed_sensors();
         if (speeds_valid)
