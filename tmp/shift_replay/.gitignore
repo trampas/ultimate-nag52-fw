@@ -2,6 +2,7 @@
 sim_old
 sim_new
 shifts/
+shifts_*/
 results/
 results_whatif/
 # Source copy of an older build, recreate with:

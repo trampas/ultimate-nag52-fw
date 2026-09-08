@@ -48,6 +48,16 @@ them "is this shift point right?" has no answer, and the whole thing degenerates
 into reacting to the last complaint. On this car they are 2400 / 2000 / 4500, and
 the power band was measured from drive logs (see TRANSMISSION_NOTES.md).
 
+Run **`scripts/preflight.py <log>`** on every drive log before touching anything
+else, and after any change to the shift algorithms or the garage shift. It is the
+assertion layer over the tools above: it fails the run (exit 1) on a torque
+reduction that ratchets into a fuel cut, an engagement out of N/P that had to be
+retried, a completion gate that cannot be satisfied at a standstill, a shift past
+the control-defect ceiling, and instruments that have drifted from each other. A
+check with nothing to examine reports `NO DATA`, never `ok` - the two bugs of
+2026-09-08 both hid behind tools that printed a diagnosis nobody was required to
+read.
+
 ## Process that this project learned the hard way
 
 Each of these cost a road test:
