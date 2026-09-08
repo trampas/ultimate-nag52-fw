@@ -1,4 +1,9 @@
 // Pre-included into every translation unit: shadows firmware headers that are included by relative path
+// Dev moved several tables into DRAM/IRAM with these attributes; on the host they
+// are no-ops, but they must be defined or the declarations they decorate are
+// silently dropped and the symbols look undeclared at their point of use.
+#define DRAM_ATTR
+#define IRAM_ATTR
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>

@@ -226,7 +226,7 @@ int main(int argc, char** argv) {
     uint8_t egs_map_idx_lookup = fwd_gearchange_egs_map_lookup_idx(req);
     ShiftCharacteristics chars = standard->get_shift_characteristics(req, &sd);
     chars.target_shift_time = MAX(100, chars.target_shift_time);
-    CircuitInfo cinf = pm->get_basic_shift_data(&cfg, req, chars);
+    CircuitInfo cinf = pm->get_basic_shift_data(req);
     cinf.map_idx = egs_map_idx_lookup;
 
     ShiftPressures p_now = {};
@@ -247,7 +247,8 @@ int main(int argc, char** argv) {
         .prefill_info = prefill_data, .chars = chars, .ptr_r_clutch_speeds = &now_cs, .ptr_w_pressures = &p_now, .ptr_w_trq_req = &trd,
         .tcc = tcc, .adaptation_mgr = adapter, .manual_shift = false, .trq_req_en = true
     };
-    ShiftHelpers::calc_shift_flags(&sid, &sd);
+    sid.shift_flags = 0;
+    ShiftHelpers::calc_shift_flags(&sid, &sd, true);
     float threshold_torque = VEHICLE_CONFIG.engine_drag_torque / 10.0;
     ShiftingAlgorithm* algo;
     const char* algo_name;
