@@ -23,7 +23,7 @@ class LayoutTests(unittest.TestCase):
     def test_struct_sizes_match_the_firmware_header(self):
         # src/shift_trace.h pins these with static_asserts.
         self.assertEqual(ST.SAMPLE_SIZE, 30)
-        self.assertEqual(ST.EVENT_SIZE, 28)
+        self.assertEqual(ST.EVENT_SIZE, 44)   # grew by ShiftStamp at trace version 2
         self.assertEqual(ST.HEADER_SIZE, 24)
 
     def test_chunk_size_leaves_headroom_in_the_bridge_fifo(self):

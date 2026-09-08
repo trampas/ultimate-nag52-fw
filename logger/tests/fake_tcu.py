@@ -225,12 +225,19 @@ def build_trace(n_samples: int = 60, capacity: int = 512, seq: int = 0,
         ring += _s.pack(SAMPLE, 1000 + i * 20, 2000 - i, 900, 2100, 150,
                         3000 + i, 4000 - i, 5000, 6000, 2, 1, 0,
                         (1 if shifting else 0), 100, 0x23, 120, 200)
-    hdr = _s.pack("<IBBHIIIB3x", 0x43415254, 1, _s.calcsize(SAMPLE), capacity,
+    # Version must track shift_trace.TRACE_VERSION / SHIFT_TRACE_VERSION; the
+    # decoder rejects a mismatch outright, because a field's meaning can change
+    # without the layout changing.
+    hdr = _s.pack("<IBBHIIIB3x", 0x43415254, 3, _s.calcsize(SAMPLE), capacity,
                   addr, seq or n_samples, 0, len(events))
     for a, b, gf, gt, done in events:
-        # event + ShiftQuality (response, duration, jerk mm/s^3, hole, energy,
-        # lockup, osc, valid)
+        # ShiftTraceEvent = header + ShiftQuality (16 B) + ShiftStamp (16 B) = 44 B.
+        # quality: response, duration, jerk mm/s^3, hole, energy, lockup, osc, valid
         hdr += _s.pack("<IIBBBB" + "HHHHIHBB", a, b, gf, gt, done, 72,
                        420, 1100, 38500, 66, 8100, 9400, 1, 1 if done else 0)
-    hdr += b"\x00" * (28 * (4 - len(events)))
+        # stamp: features, arm, blend_pct, flags, adapt_reason, _pad,
+        #        target_time_ms, spc_offset, prefill_offset, spc_delta, prefill_delta
+        hdr += _s.pack("<BBBBBBHhhhh", 0x05, 1, 40, 0x80, 16, 0,
+                       600, -30, 1, -10, 0)
+    hdr += b"\x00" * (44 * (4 - len(events)))
     return hdr, ring
