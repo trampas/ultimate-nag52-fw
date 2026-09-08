@@ -121,17 +121,15 @@ uint8_t CrossoverShift::step_internal(
 
     // Output to CAN
     if (0 != torque_req_out && sid->trq_req_en) {
-        // The caps above bound the ramp TARGET (intervension_out). torque_req_val is a
-        // ramp toward it, and indicated_torque falls as the engine obeys, so the lagging
-        // ramp value can overtake indicated_torque - the clamp below then makes `amount`
-        // exactly 0, a full fuel cut. That drives torque negative, which keeps amount at
-        // 0, until the up ramp finally releases and the torque snaps back as a jerk.
-        // Measured 2026-09-07: four downshifts commanded 0-4 Nm with the pedal held
-        // steady, engine torque reaching -48 Nm. Bound what is actually sent, not just
-        // the ramp target, so a reduction can never become a cut.
-        int trq_floor = MAX(0, (int)sd->indicated_torque) / 5;   // always leave >= 20 %
-        torque_req_out = MIN((int)torque_req_out, MAX(0, (int)sd->indicated_torque - trq_floor));
-        sid->ptr_w_trq_req->amount = MAX(0, sd->indicated_torque - torque_req_out);
+        // Send the reduction relative to a reference that this request cannot itself
+        // move (see trq_req_reference_torque), never relative to the live indicated
+        // torque - that closes a positive feedback loop which walks the limit down to
+        // zero and turns a reduction into a fuel cut. The 20 % floor then actually
+        // holds, because the reference it is a fraction of no longer collapses.
+        int ref_trq = this->trq_req_reference_torque(sd);
+        int trq_floor = ref_trq / 5;   // always leave >= 20 %
+        torque_req_out = MIN((int)torque_req_out, MAX(0, ref_trq - trq_floor));
+        sid->ptr_w_trq_req->amount = MAX(0, ref_trq - (int)torque_req_out);
         sid->ptr_w_trq_req->bounds = TorqueRequestBounds::LessThan;
         sid->ptr_w_trq_req->ty =  this->trq_req_up_ramp ? TorqueRequestControlType::BackToDemandTorque : TorqueRequestControlType::NormalSpeed;
     } else {

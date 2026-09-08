@@ -33,6 +33,32 @@ ShiftingAlgorithm::ShiftingAlgorithm(ShiftInterfaceData* data)  {
     this->sid = data;
 }
 
+int16_t ShiftingAlgorithm::trq_req_reference_torque(SensorData* sd) {
+    // The torque a reduction request has to be measured against.
+    //
+    // It must NOT be the live indicated torque: indicated torque is the *result*
+    // of the request we sent last cycle, so re-deriving `amount` from it every
+    // cycle ratchets the limit down to nothing. Measured 2026-09-08 on a 3-2
+    // kickdown: the amount ran 284 -> 2 Nm in 240 ms with the pedal held at
+    // 197/250, engine torque reached -81 Nm and engine speed fell 3920 -> 3413
+    // rpm before the request dropped out and the torque snapped back. The 20 %
+    // floor added in d4bb5fd cannot stop that, because 20 % of a collapsing
+    // reference collapses with it.
+    //
+    // So latch the engine torque at the moment the request starts, then cap it by the
+    // driver's demand - which our own request cannot move - so lifting off mid-shift
+    // still relaxes the request, and floor it at the torque the engine is actually
+    // making. The floor means the reference can only ever hold the request *higher*
+    // than the old behaviour, never deeper, so a lift-off cannot turn into a request
+    // for zero.
+    if (0 == this->trq_req_reference) {
+        this->trq_req_reference = MAX((int)sd->indicated_torque, (int)sd->converted_driver_torque);
+    }
+    int ref = MIN((int)this->trq_req_reference, MAX(0, (int)sd->converted_driver_torque));
+    ref = MAX(ref, (int)sd->indicated_torque);
+    return MAX(0, ref);
+}
+
 uint8_t ShiftingAlgorithm::step(
     uint8_t phase_id,
     uint16_t abs_input_torque,

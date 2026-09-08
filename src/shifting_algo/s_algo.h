@@ -158,6 +158,11 @@ protected:
     bool trq_req_down_ramp = false;
     uint8_t trq_req_timer = 0;
 
+    // Engine torque the reduction is measured against, latched when the request
+    // starts. See trq_req_reference_torque().
+    int16_t trq_req_reference = 0;
+    int16_t trq_req_reference_torque(SensorData* sd);
+
     bool adaptation_conditions_ok = true;
     
     bool do_fill_time_adaptation = false;
