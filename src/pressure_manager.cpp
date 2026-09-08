@@ -71,7 +71,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
 
     /** Pressure PWM map (TCC) **/
     const int16_t pwm_tcc_x_headers[7] = {0, 2000, 4000, 5000, 7500, 10000, 15000};
-    const int16_t pwm_tcc_y_headers[5] = {0, 30, 60, 90, 120}; 
+    const int16_t pwm_tcc_y_headers[5] = {0, 30, 60, 90, 120};
     key_name = NVS_KEY_MAP_NAME_TCC_PWM;
     default_data = TCC_PWM_MAP;
     tcc_pwm_map = new StoredMap(key_name, TCC_PWM_MAP_SIZE, pwm_tcc_x_headers, pwm_tcc_y_headers, 7, 5, default_data);
@@ -88,7 +88,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         (int16_t)Clutch::K3,
         (int16_t)Clutch::B1,
         (int16_t)Clutch::B2
-    }; 
+    };
     key_name = NVS_KEY_MAP_NAME_FILL_TIME;
     default_data = LARGE_NAG_FILL_TIME_MAP;
     fill_time_map = new StoredMap(key_name, FILL_TIME_MAP_SIZE, fill_t_x_headers, fill_t_y_headers, 4, 5, default_data);
@@ -106,7 +106,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         (int16_t)Clutch::B1,
         (int16_t)Clutch::B2,
         (int16_t)Clutch::B3
-    }; 
+    };
     key_name = NVS_KEY_MAP_NAME_FILL_PRESSURE;
     default_data = NAG_FILL_PRESSURE_MAP;
     fill_pressure_map = new StoredMap(key_name, FILL_PRESSURE_MAP_SIZE, fill_p_x_headers, fill_p_y_headers, 1, 6, default_data);
@@ -123,7 +123,7 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
         (int16_t)Clutch::K3,
         (int16_t)Clutch::B1,
         (int16_t)Clutch::B2
-    }; 
+    };
     key_name = NVS_KEY_MAP_NAME_FILL_LOW_PRESSURE;
     default_data = NAG_FILL_LOW_PRESSURE_MAP;
     fill_low_pressure_map = new StoredMap(key_name, LOW_FILL_PRESSURE_MAP_SIZE, fill_lp_x_headers, fill_lp_y_headers, 1, 5, default_data);
@@ -228,8 +228,6 @@ void PressureManager::update_pressures(GearboxGear current_gear, GearChange chan
     if (CHECK_MODE_BIT_ENABLED(DEVICE_MODE_SLAVE)) {
 
     } else {
-        // This is my best guess at interpreting the assembly (Decompiler view messes a lot up with this function due to indirections)
-
         // -- Set solenoid currents --
         if (this->shift_sol_en) {
             this->corrected_spc_pressure = this->calc_current_linear_sol(this->target_shift_pressure, current_gear, change_state);
@@ -268,9 +266,8 @@ float PressureManager::calculate_centrifugal_force_for_clutch(Clutch clutch, uin
         if (clutch_factor != 0) {
             float drop = (MECH_PTR->atf_density_drop_per_c * (sensor_data->atf_temp + 50))/100.0;
             float density_now = MECH_PTR->atf_density_minus_50c - drop;
-
-            ret = (density_now * (speed * speed)) / clutch_factor;
-            ret /= 10000.0; // To convert to mbar
+            ret = (((speed*speed)/1000.0)*density_now) / clutch_factor;
+            ret /= 10.0; // To convert to mbar
         }
     }
     return ret;
@@ -296,6 +293,12 @@ uint16_t PressureManager::p_clutch_with_coef(GearboxGear gear, Clutch clutch, ui
         coef = 100.F; // Guard against a zeroed user setting (x100 scale)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
+    if (gear == GearboxGear::Reverse_Second && clutch == Clutch::B3) {
+        // Special logic
+        friction_val *= MECH_PTR->friction_map[(2*6)+4];
+        friction_val /= MECH_PTR->friction_map[(1*6)+4];
+    }
+
     float calc = ((float)abs_torque_nm * friction_val) / coef;
     return MIN(calc, (float)UINT16_MAX);
 }
@@ -352,7 +355,7 @@ uint16_t PressureManager::find_pressure_holding_other_clutches_in_change(GearCha
 
 float PressureManager::sliding_coefficient() const {
     return interpolate_float(
-        sensor_data->atf_temp, 
+        sensor_data->atf_temp,
         PRM_CURRENT_SETTINGS.applying_coefficient_cold,
         PRM_CURRENT_SETTINGS.applying_coefficient_hot,
         29,
@@ -402,7 +405,7 @@ uint16_t PressureManager::find_decent_adder_torque(GearChange change, uint16_t a
     if (nullptr == map) {
         return 0;
     } else {
-        uint16_t ret = map->get_value((float)output_rpm/30.0, (float)abs_motor_torque/5.0); 
+        uint16_t ret = map->get_value((float)output_rpm/30.0, (float)abs_motor_torque/5.0);
         return ret*5;
     }
 }
@@ -440,7 +443,7 @@ uint16_t PressureManager::find_freeing_torque(GearChange change, uint16_t motor_
     if (nullptr == map) {
         return 0;
     } else {
-        uint16_t ret = map->get_value((float)output_rpm/30.0, (float)motor_torque/5.0); 
+        uint16_t ret = map->get_value((float)output_rpm/30.0, (float)motor_torque/5.0);
         return ret*5;
     }
 }
@@ -511,7 +514,7 @@ uint16_t PressureManager::find_working_mpc_pressure(GearboxGear curr_g, bool flu
     if (gear_idx == 0 || clutch_idx >= 6) {
         // N,P,SNV
         output = 0;
-    } else {   
+    } else {
         float ret = p_clutch_with_coef(curr_g, (Clutch)clutch_idx, abs(sensor_data->input_torque), CoefficientTy::Static);
         ret += (MECH_PTR->release_spring_pressure[clutch_idx] + HYDR_PTR->extra_p_not_shifting);
         if (curr_g == GearboxGear::First || curr_g == GearboxGear::Reverse_First) {
@@ -578,10 +581,10 @@ void PressureManager::notify_shift_end() {
 }
 
 // TODO pull this from calibration tables
-const int C_C_FACTOR[8] = {15, 40, 100, 100, 100, 100, 100, 80};
+const DRAM_ATTR int C_C_FACTOR[8] = {15, 40, 100, 100, 100, 100, 100, 80};
 
-CircuitInfo PressureManager::get_basic_shift_data(GearboxConfiguration* cfg, GearChange shift_request, ShiftCharacteristics chars) {
-    CircuitInfo sd; 
+CircuitInfo PressureManager::get_basic_shift_data(GearChange shift_request) {
+    CircuitInfo sd;
     uint8_t lookup_valve_info = fwd_gearchange_egs_map_lookup_idx(shift_request);
     switch (shift_request) {
         case GearChange::_1_2:

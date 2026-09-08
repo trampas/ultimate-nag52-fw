@@ -123,6 +123,7 @@ BoardV13GpioMatrix::BoardV13GpioMatrix() {
     };
 }
 
+
 void BoardV13GpioMatrix::init_gpio_expander() {
     ioexpander = new IOExpander(this->i2c_sda, this->i2c_scl);
 

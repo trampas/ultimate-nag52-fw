@@ -17,7 +17,7 @@
 
 #define SBS SBS_CURRENT_SETTINGS
 
-const uint8_t AVG_SAMPLES_500MS = 500 / 20;
+const DRAM_ATTR uint8_t AVG_SAMPLES_500MS = 500 / 20;
 
 // ONLY FOR FORWARD GEARS!
 int calc_input_rpm_from_req_gear(const int output_rpm, const GearboxGear req_gear, const GearboxConfiguration* gb_config)
@@ -57,6 +57,12 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
     this->current_profile = nullptr;
     egs_can_hal->set_drive_profile(GearboxProfile::Underscore); // Uninitialized
     this->profile_mutex = portMUX_INITIALIZER_UNLOCKED;
+    this->speed_sensors = SpeedSensors {
+        .n2 = 0,
+        .n3 = 0,
+        .turbine = 0,
+        .output = 0,
+    };
     this->sensor_data = SensorData{
         .input_rpm = 0,
         .engine_rpm = 0,
@@ -70,10 +76,15 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
         .indicated_torque = 0,
         .max_torque = 0,
         .min_torque = 0,
+        .pump_torque = 0,
         .last_shift_time = 0,
         .gear_ratio = 0.0F,
+        .targ_gear_ratio = 0.0F,
+        .tcc_trq_multiplier = 1.0,
         .kickdown_pressed = false,
         .brake_pressed = false,
+        .wheel_speed_mps = 0,
+        .acceleration_ms2 = 0
     };
     this->output_data = OutputData{
         .torque_req_amount = 0,
@@ -797,7 +808,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
         this->shift_ctx.flared = false;
         this->shift_ctx.output_rpm = this->sensor_data.output_rpm;
         ShiftTrace::annotate(&stamp);
-        CircuitInfo sd = pressure_mgr->get_basic_shift_data(&this->gearboxConfig, req_lookup, chars);
+        CircuitInfo sd = pressure_mgr->get_basic_shift_data(req_lookup);
         sd.map_idx = egs_map_idx_lookup;
         if (this->last_shift_circuit == sd.shift_circuit) { // Same shift solenoid
             while (GET_CLOCK_TIME() - sensor_data.last_shift_time < 500) {
@@ -869,15 +880,16 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
             .tcc = this->tcc,
             .adaptation_mgr = this->shift_adapter,
             .manual_shift = manually_requested,
-            .trq_req_en = en_trq_req
+            .trq_req_en = en_trq_req,
+            .diff_ratio = this->diff_ratio_f
         };
         // To set the flag values initially
-        ShiftHelpers::calc_shift_flags(&sid, &this->sensor_data);
+        ShiftHelpers::calc_shift_flags(&sid, &this->sensor_data, true);
 
         float threshold_torque = VEHICLE_CONFIG.engine_drag_torque/10.0;
         ShiftingAlgorithm* algo;
         if (is_upshift) {
-            if (sensor_data.converted_torque <= -threshold_torque/2) {
+            if (sensor_data.converted_driver_torque <= -threshold_torque/2) {
                 algo = new ReleasingShift(&sid);
             }
             else {
@@ -885,12 +897,14 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
             }
         }
         else {
-            bool is_release = true;
+            bool is_release = false;
             if (
-                (sensor_data.converted_torque < threshold_torque && (sid.shift_flags & SHIFT_FLAG_COAST) != 0) ||
-                ((sid.shift_flags & SHIFT_FLAG_COAST_54_43) != 0)
+                // Load downshift, OR coasting 32/21 (NOT Coasting 54/43)
+                (sensor_data.converted_driver_torque > threshold_torque || (sid.shift_flags & SHIFT_FLAG_COAST) == 1) &&
+                // (Note - 54/43 is overriden if we did a force-shift)
+                ((sid.shift_flags & SHIFT_FLAG_COAST_54_43) == 0 && !manual_shift)
             ) {
-                is_release = false;
+                is_release = true;
             }
             if (is_release) {
                 algo = new ReleasingShift(&sid);
@@ -951,7 +965,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
             pressure_mgr->set_target_modulating_pressure(p_now.mod_sol_req);
             pressure_mgr->set_target_shift_pressure(p_now.shift_sol_req);
             pressure_mgr->update_pressures(
-                sid.targ_g,
+                sid.curr_g,
                 sid.change
             );
 
@@ -990,6 +1004,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
             }
             this->actual_gear = gear_from_idx(sd.targ_g);
             this->gear_disagree_count = 0; // Gear is now known
+            this->last_motion_gear = this->actual_gear;
         }
         else {
             if (!is_shifter_in_valid_drive_pos(this->shifter_pos)) {
@@ -1044,11 +1059,9 @@ void Gearbox::shift_thread()
         goto cleanup;
     }
     if (!is_controllable_gear(curr_actual) && !is_controllable_gear(curr_target))
-    { // N->P or P->N
-        this->pressure_mgr->set_target_shift_pressure(4000);
-        //sol_y4->write_pwm_12_bit(800); // 3-4 is pulsed at 20%
+    {
         ESP_LOG_LEVEL(ESP_LOG_INFO, "SHIFTER", "No need to shift");
-        this->actual_gear = curr_target; // Set on startup
+        this->actual_gear = curr_target;
         goto cleanup;
     }
     else if (is_controllable_gear(curr_actual) != is_controllable_gear(curr_target))
@@ -1057,115 +1070,326 @@ void Gearbox::shift_thread()
         if (is_controllable_gear(curr_target))
         {
             bool into_reverse = GearboxGear::Reverse_First == curr_target || GearboxGear::Reverse_Second == curr_target;
-            pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
-            float prefill;
-            float spring;
+            Clutch applying = Clutch::B2;
             if (into_reverse) {
-                prefill = pressure_manager->get_b3_prefill_pressure();
-                spring = pressure_manager->get_spring_pressure(Clutch::B3);
+                applying = Clutch::B3;
+            } else if (GearboxGear::Fourth == curr_target || GearboxGear::Fifth == curr_target) {
+                applying = Clutch::K2;
             }
-            else {
-                prefill = pressure_manager->make_fill_data(Clutch::B2).fill_pressure_on_clutch;
-                spring = pressure_manager->get_spring_pressure(Clutch::B2);
-            }
-            // Clutch pressure -> SPC solenoid pressure via the 1-2 circuit gain (x1000)
-            pressure_mgr->set_target_shift_pressure(((spring + (prefill)) / ((float)HYDR_PTR->shift_spc_gain[0] / 1000.0)) + HYDR_PTR->shift_reg_spring_pressure);
-            pressure_mgr->set_target_modulating_pressure(3000);
-            this->pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
-            // N/P -> R/D
-            // Defaults (Start in 2nd)
-            egs_can_hal->set_garage_shift_state(true, !into_reverse);
-            uint16_t cycle_count = 0;
+            GearChange circuit = GearChange::_4_5;
+            uint16_t centrifugal = 0;
+            uint16_t spring_p = pressure_manager->get_spring_pressure(applying);
+            uint16_t p_mod = 0;
+            uint16_t p_shift = 0;
+            uint16_t p_apply_clutch = 0;
+            uint16_t p_max_apply_clutch = 0;
+            uint8_t stage = 0;
+            uint8_t substage = 0;
+            uint8_t timer_s = 0;
+            uint8_t timer_m = 0;
+            uint8_t timer_3 = 0;
+
             bool completed_ok = false;
-
-            uint16_t ramp = 0;
-            uint16_t spc_step;
-            uint16_t prefill_cycles;
-            if (into_reverse) {
-                prefill_cycles = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.prefill_time_b3, InterpType::Linear);
-                spc_step = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.p_ramp_b3, InterpType::Linear);
-            }
-            else {
-                prefill_cycles = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.prefill_time_b2, InterpType::Linear);
-                spc_step = interpolate_float(sensor_data.atf_temp, &GAR_CURRENT_SETTINGS.p_ramp_b2, InterpType::Linear);
-            }
-
-            int p_apply_clutch = 0;
-            while (true) {
-                if (this->shifter_pos == ShifterPosition::P || this->shifter_pos == ShifterPosition::N) {
-                    completed_ok = false;
-                    break;
+            bool jump_to_pid = false;
+            bool tried_again = false;
+            this->algo_feedback.active = true;
+            
+            while(true) {
+                egs_can_hal->set_garage_shift_state(sensor_data.output_rpm < 10, !into_reverse);
+                int rpm_delta = abs(sensor_data.input_rpm - calc_input_rpm_from_req_gear(sensor_data.output_rpm, curr_target, &this->gearboxConfig));
+                int sync_rpm_threshold = 90;
+                if (sensor_data.pedal_pos > 10) {
+                    sync_rpm_threshold = 350;
                 }
-                if (into_reverse) {
-                    if (cycle_count > prefill_cycles) {
-                        prefill = pressure_manager->p_clutch_with_coef(GearboxGear::Reverse_Second, Clutch::B3, abs(sensor_data.input_torque), CoefficientTy::Sliding);
-                        ramp += spc_step;
+                int p_1 = MIN(25, (1100 * sensor_data.pedal_pos) / 25);
+                int rpm_offset = MAX(0, sensor_data.engine_rpm - 800);
+                int dyn_adder = ((rpm_offset * 150) / 100) + p_1; 
+
+                // K3 is never used here, so specifying 0 rear sun gear is OK
+                centrifugal = pressure_manager->calculate_centrifugal_force_for_clutch(applying, sensor_data.input_rpm, 0);
+                if (timer_s > 0) {
+                    timer_s -= 1;
+                }
+                if (timer_m > 0) {
+                    timer_m -= 1;
+                }
+                // Safety, going into reverse, AND car is moving forward! - Enter neutral until stopped
+                if (0 == stage) {
+                    if ((into_reverse && sensor_data.output_rpm > 50) || sensor_data.output_rpm > 1000) {
+                        this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                        this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, true);
+                        p_mod = 0;
+                        p_shift = 0;
+                    } else {
+                        if (!is_fwd_gear(target_gear) || target_gear == GearboxGear::Second || target_gear == GearboxGear::First) {
+                            circuit = GearChange::_1_2;
+                        }
+                        if (this->tcu_restarted && (sensor_data.output_rpm < 10 && this->shifter_pos == ShifterPosition::N)) {
+                            circuit = GearChange::_1_2;
+                        }
+                        p_max_apply_clutch = pressure_manager->get_max_shift_pressure(((uint8_t)circuit)-1);
                     }
-                }
-                else {
-                    if (cycle_count > prefill_cycles) {
-                        prefill = pressure_manager->p_clutch_with_coef(GearboxGear::Second, Clutch::B2, abs(sensor_data.input_torque), CoefficientTy::Sliding);
-                        ramp += spc_step;
+                    stage += 1;
+                    substage = 0;
+                } else if (stage == 1) {
+                    float div = 1.0;
+                    if (sensor_data.engine_rpm > 0) {
+                        div = (float)sensor_data.input_rpm / (float)sensor_data.engine_rpm;
+                        if (div > 1.5) {
+                            jump_to_pid = false;
+                        } else {
+                            jump_to_pid = true;
+                        }
                     }
-                }
-                p_apply_clutch = prefill + spring + ramp + HYDR_PTR->shift_reg_spring_pressure;
-                pressure_mgr->set_target_modulating_pressure(3000);
-                pressure_mgr->set_target_shift_pressure(p_apply_clutch);
-                // Because EGS uses 1-2 when garage shifting...
-                this->pressure_mgr->update_pressures(this->actual_gear, GearChange::_1_2);
 
-                int turbine = this->speed_sensors.turbine;
-                if (cycle_count > 50 && turbine <= 100 + calc_input_rpm_from_req_gear(sensor_data.output_rpm, curr_target, &this->gearboxConfig)) {
+                    if (substage == 0) {
+                        if (!is_fwd_gear(target_gear) || target_gear == GearboxGear::Second || target_gear == GearboxGear::First) {
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
+                        } else {
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, true);
+                        }
+                        timer_s = interpolate_float(sensor_data.atf_temp, 25, 11, -5, 20, InterpType::Linear);
+                        substage = 1;
+                    }
+                    if (substage == 1) {
+                        p_mod = 3000;
+                        int p = 0;
+                        if (applying == Clutch::K2) {
+                            p = 1200; // K2RAMP
+                        } else {
+                            p = interpolate_float(sensor_data.atf_temp, 4000, 1200, -35, 25, InterpType::Linear);
+                        }
+                        p = MAX(0, (int16_t)p + (int16_t)spring_p - (int16_t)centrifugal);
+                        p_apply_clutch = p + dyn_adder;
+                        p_shift = ShiftHelpers::correct_shift_shift_pressure(pressure_manager, p_apply_clutch, ((uint8_t)circuit)-1); 
+                        if (0 == timer_s) {
+                            substage = 2;
+                            timer_s = interpolate_float(sensor_data.atf_temp, 50, 10, -20, 90, InterpType::Linear);
+                        }
+                    } else if (substage == 2) {
+                        p_mod = 3000;
+                        if (0 == timer_s || (div <= 7.5 && sensor_data.atf_temp > -20)) {
+                            if (sensor_data.pedal_pos > 10) {
+                                timer_s = 11;
+                            } else {
+                                timer_s = 80;
+                            }
+                            substage = 3;
+                        }
+                    } else if (substage == 3) {
+                        if (0 == timer_s || jump_to_pid) {
+                            if (Clutch::B2 == applying) {
+                                timer_s = 25;
+                            } else if (Clutch::K2 == applying) {
+                                timer_s = 10;
+                            } else {
+                                timer_s = 25;
+                            }
+                            substage = 4;
+                        } else {
+                            p_mod = 3000;
+                            int p = 0;
+                            if (applying == Clutch::K2) {
+                                p = 7500; // K2RAMP2
+                            } else {
+                                if (applying == Clutch::B2) {
+                                    p = 6600;
+                                } else {
+                                    p = 4500;
+                                }
+                                p = interpolate_float(sensor_data.atf_temp, 8000, p, -35, 25, InterpType::Linear);
+                            }
+                            p = MAX(0, (int16_t)p + (int16_t)spring_p - (int16_t)centrifugal);
+                            p_apply_clutch = linear_ramp_with_timer(p_apply_clutch, p + dyn_adder, timer_s);
+                            p_shift = ShiftHelpers::correct_shift_shift_pressure(pressure_manager, p_apply_clutch, ((uint8_t)circuit)-1); 
+                            if (rpm_delta < sync_rpm_threshold) {
+                                timer_s = 9;
+                                if (sensor_data.output_rpm < 60) {
+                                    timer_m = timer_s + interpolate_float(sensor_data.atf_temp, 40, 7, -30, 20, InterpType::Linear);
+                                } else {
+                                    timer_m = timer_s + 80;
+                                }
+                                timer_3 = 80;
+                                substage = 7;
+                            }
+                        }
+                    } else if (substage == 4) {
+                        if (0 == timer_s || jump_to_pid) {
+                            timer_s = 80; // TODO
+                            timer_m = 0;
+                            substage = 5;
+                        } else {
+                            p_mod = 3000;
+                            int p = 0;
+                            if (applying == Clutch::K2) {
+                                p = 7500; // K2RAMP2
+                            } else {
+                                if (applying == Clutch::B2) {
+                                    p = 6600;
+                                } else {
+                                    p = 4500;
+                                }
+                                p = interpolate_float(sensor_data.atf_temp, 8000, p, -35, 25, InterpType::Linear);
+                            }
+                            p = MAX(0, (int16_t)p + (int16_t)spring_p - (int16_t)centrifugal);
+                            p_apply_clutch = p + dyn_adder;
+                            p_shift = ShiftHelpers::correct_shift_shift_pressure(pressure_manager, p_apply_clutch, ((uint8_t)circuit)-1); 
+                            if (rpm_delta < sync_rpm_threshold) {
+                                timer_s = 9;
+                                if (sensor_data.output_rpm < 60) {
+                                    timer_m = timer_s + interpolate_float(sensor_data.atf_temp, 40, 7, -30, 20, InterpType::Linear);
+                                } else {
+                                    timer_m = timer_s + 80;
+                                }
+                                timer_3 = 80;
+                                substage = 7;
+                            }
+                        }
+                    } else if (substage == 5) {
+                        p_mod = 3000;
+                        p_apply_clutch += 10;
+                        p_shift = ShiftHelpers::correct_shift_shift_pressure(pressure_manager, p_apply_clutch, ((uint8_t)circuit)-1); 
+                        if (0 == timer_s || p_shift > pressure_manager->get_max_solenoid_pressure() - 1500 || rpm_delta < sync_rpm_threshold) {
+                            timer_s = 9;
+                            if (sensor_data.output_rpm < 60) {
+                                timer_m = timer_s + interpolate_float(sensor_data.atf_temp, 40, 7, -30, 20, InterpType::Linear);
+                            } else {
+                                timer_m = timer_s + 80;
+                            }
+                            timer_3 = 80;
+                            substage = 7;
+                        }
+                    }  else if (substage == 6 || substage == 7) {
+                        bool done = false;
+                        if (0 == timer_s) {
+                            p_shift = pressure_manager->get_max_solenoid_pressure();
+                            p_apply_clutch = p_max_apply_clutch;
+                            p_mod = 5000;
+                            if (0 == timer_m) {
+                                done = true;
+                            }
+                        } else {
+                            p_apply_clutch = linear_ramp_with_timer(p_apply_clutch, p_max_apply_clutch, timer_s);
+                            p_shift = ShiftHelpers::correct_shift_shift_pressure(pressure_manager, p_apply_clutch, ((uint8_t)circuit)-1);
+                            p_mod = linear_ramp_with_timer(p_mod, 5000, timer_s);
+                        }
+
+                        if (done) {
+                            substage = 8;
+                        }
+                    } else if (substage == 8) {
+                        // Check for completion
+                        if (rpm_delta < 20) {
+                            // Sync is OK!
+                            //int rpm_delta_engine = abs(sensor_data.engine_rpm - sensor_data.input_rpm);
+                            //if (rpm_delta_engine > 150 || rpm_delta < 10) {
+                            substage = 0;
+                            stage = 2;
+                            //} else {
+                            //    if (sensor_data.output_rpm < 300) {
+                            //        this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
+                            //        timer_s = interpolate_float(sensor_data.atf_temp, 40, 7, -30, 20, InterpType::Linear);
+                            //        substage += 1; // To stage 9
+                            //    } else {
+                            //        substage = 0;
+                            //        stage = 3; // Did not complete OK
+                            //    }
+                            //}
+                        } else {
+                            // Did not complete OK
+                            stage = 3;
+                        }
+                    } else {
+                        // Stage 9 - Reset stage 1
+                        if (0 == timer_s) {
+                            substage = 0;
+                        }
+                    }
+                } else if (stage == 2) {
+                    // Exit!
+                    p_mod = 5100;
+                    p_apply_clutch = p_max_apply_clutch;
+                    p_shift =  ShiftHelpers::correct_shift_shift_pressure(pressure_manager, p_apply_clutch, ((uint8_t)circuit)-1);
                     completed_ok = true;
+                } else if (stage == 3) {
+                    // Failure to shift, try again!
+                    if (0 == substage) {
+                        // Init
+                        this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                        this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, true);
+                        this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_1_2, false);
+                        timer_s = interpolate_float(sensor_data.atf_temp, 150, 40, -20, 30, InterpType::Linear);
+                        substage += 1;
+
+                    } else {
+                        p_mod = 0;
+                        p_apply_clutch = 0;
+                        p_shift = 0;
+                        if (0 == timer_s) {
+                            tried_again = true;
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_1_2, false);
+                            stage = 1;
+                            substage = 0;
+
+                        }
+                    }
+                }
+                pressure_mgr->set_target_modulating_pressure(p_mod);
+                pressure_mgr->set_target_shift_pressure(p_shift);
+                this->pressure_mgr->update_pressures(this->target_gear, circuit);
+                this->algo_feedback.p_off = p_mod;
+                this->algo_feedback.p_on = p_apply_clutch;
+                this->algo_feedback.s_off = 0;
+                this->algo_feedback.s_on = rpm_delta;
+                this->algo_feedback.shift_phase = substage;
+                this->algo_feedback.sync_rpm = sync_rpm_threshold;
+
+                vTaskDelay(20);
+                if (completed_ok) {
                     break;
                 }
-                if (cycle_count > GAR_CURRENT_SETTINGS.timeout_cycles && sensor_data.engine_rpm - sensor_data.input_rpm < 200) {
+                if (this->shifter_pos == ShifterPosition::N || this->shifter_pos == ShifterPosition::P) {
                     completed_ok = false;
                     break;
                 }
-                vTaskDelay(20);
-                cycle_count += 1;
             }
+
             if (!completed_ok) {
                 ESP_LOGW("SHIFT", "Garage shift aborted");
                 curr_target = this->shifter_pos == ShifterPosition::P ? GearboxGear::Park : GearboxGear::Neutral;
                 curr_actual = this->shifter_pos == ShifterPosition::P ? GearboxGear::Park : GearboxGear::Neutral;
                 pressure_mgr->set_target_shift_pressure(4000);
-                this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
             }
             else {
-                ESP_LOGI("SHIFT", "Garage shift completed OK after %d ms", cycle_count * 20);
-                int ramp_cycles = 5;
-                while (ramp_cycles != 0) {
-                    p_apply_clutch = linear_ramp_with_timer(p_apply_clutch, pressure_manager->get_max_solenoid_pressure(), ramp_cycles);
-                    pressure_manager->set_target_modulating_pressure(5100);
-                    this->pressure_mgr->update_pressures(this->actual_gear, GearChange::_1_2);
-                    ramp_cycles--;
-                    vTaskDelay(20);
-                }
-                pressure_mgr->set_spc_p_max();
-                this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
-                this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
-                this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_1_2, false);
+                ESP_LOGI("SHIFT", "Garage shift completed OK");
             }
+            this->tcu_restarted = false;
+            pressure_mgr->set_spc_p_max();
+            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
+            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
+            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_1_2, false);
             egs_can_hal->set_garage_shift_state(false, !into_reverse);
         }
         else
         {
-            // Garage shifting to N or P, we can just set the pressure back to idle
-            pressure_mgr->set_target_shift_pressure(4000);
-        }
-        if (is_fwd_gear(curr_target))
-        {
-            // Last forward known gear
-            // This way we better handle shifting from N->D at speed!
-            this->actual_gear = GearboxGear::Second;
-        }
-        else
-        {
-            this->actual_gear = curr_target; // R1/R2
+            // Shift to N/P from an in-gear gear
+            if (this->actual_gear < GearboxGear::Third) {
+                // So only for D1/D2 to N/P will this shift valve turn on
+                this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+            }
+            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_1_2, false);
+            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
+            pressure_mgr->set_target_modulating_pressure(1500);
+            pressure_mgr->set_target_shift_pressure(3000);
+            this->pressure_mgr->update_pressures(this->target_gear, GearChange::_IDLE);
         }
         this->gear_disagree_count = 0; // Garage shift establishes a known gear
+        this->actual_gear = curr_target;
+        
         goto cleanup;
     }
     else
@@ -1266,6 +1490,7 @@ cleanup:
     this->shifting = false;
     this->fwd_gear_shift = false;
     this->is_upshift = false;
+    memset(&this->algo_feedback, 0x00, sizeof(ShiftAlgoFeedback));
     vTaskDelete(nullptr);
 }
 
@@ -1277,6 +1502,7 @@ void Gearbox::controller_loop()
     RoadLoadEstimator::init();
     uint32_t expire_check = GET_CLOCK_TIME() + 100; // 100ms
     egs_can_hal->set_safe_start(true);
+    sol_tcc->isr_enable(); // Safe to enable ISR now that all init is done
     while (GET_CLOCK_TIME() < expire_check)
     {
         // Step 1. Aquire ALL Sensors
@@ -1377,15 +1603,20 @@ void Gearbox::controller_loop()
         bool speeds_valid = this->process_speed_sensors();
         if (speeds_valid)
         {
-            this->cached_input_rpm = first_order_filter(3, speed_sensors.turbine * 100, this->cached_input_rpm);
-            this->sensor_data.input_rpm = this->cached_input_rpm / 100;
-            this->cached_output_rpm = first_order_filter(3, speed_sensors.output * 100, this->cached_output_rpm);
-            this->sensor_data.output_rpm = this->cached_output_rpm / 100;
+            this->sensor_data.input_rpm = speed_sensors.turbine;
+            this->sensor_data.output_rpm = speed_sensors.output;
             bool stationary = this->is_stationary();
+            this->process_acceleration();   
+            this->sensor_data.acceleration_ms2 = this->acceleration_ms2/10;
+            this->sensor_data.wheel_speed_mps = this->wheel_spd;
             if (!stationary && this->sensor_data.output_rpm > 0)
             {
                 // Store our ratio
-                this->sensor_data.gear_ratio = (float)this->sensor_data.input_rpm / (float)this->sensor_data.output_rpm;
+                if (this->actual_gear == GearboxGear::Neutral || this->actual_gear == GearboxGear::Park || this->actual_gear == GearboxGear::SignalNotAvailable) {
+                    this->sensor_data.gear_ratio = 0.0;
+                } else {
+                    this->sensor_data.gear_ratio = (float)this->sensor_data.input_rpm / (float)this->sensor_data.output_rpm;
+                }
                 this->sensor_data.targ_gear_ratio = ratio_absolute(this->actual_gear, &this->gearboxConfig);
 
             }
@@ -1394,7 +1625,7 @@ void Gearbox::controller_loop()
                 this->sensor_data.gear_ratio = 0.0;
                 this->sensor_data.targ_gear_ratio = 0.0;
             }
-            if (!shifting && !stationary && sensor_data.output_rpm > 250)
+            if (!shifting && sensor_data.output_rpm > 100)
             {
                 if (is_fwd_gear(this->actual_gear))
                 {
@@ -1472,37 +1703,55 @@ void Gearbox::controller_loop()
         tmp_rpm = egs_can_hal->get_engine_rpm(1000);
         if (tmp_rpm == UINT16_MAX)
         {
-            // Substitute the last value for a short while, then treat the engine as stopped
+            // Substitute the last value for a short while, then treat the engine as
+            // stopped. Substituting forever hides a dead signal, and the input_rpm == 0
+            // test below cannot catch it in gear: the converter drags the turbine to
+            // 100-300 rpm at a standstill, so it never reads zero.
             if (this->engine_rpm_missing_cycles < 10) {
                 this->engine_rpm_missing_cycles += 1;
                 tmp_rpm = this->sensor_data.engine_rpm; // Sub last value!
             } else {
                 tmp_rpm = 0;
             }
+            if (sensor_data.input_rpm == 0 && this->engine_running) {
+                // Engine is off, and USB is powering the TCU
+                this->engine_running = false;
+                tmp_rpm = 0;
+                this->last_motion_gear = GearboxGear::Second; // No pressure default
+                this->actual_gear = GearboxGear::Neutral;
+                this->target_gear = GearboxGear::Neutral;
+            }
         }
         else
         {
             this->engine_rpm_missing_cycles = 0;
         }
-        this->cached_engine_rpm = first_order_filter(3, tmp_rpm * 100, this->cached_engine_rpm);
-        this->sensor_data.engine_rpm = this->cached_engine_rpm / 100;
+        this->sensor_data.engine_rpm = tmp_rpm;
         // Update solenoids, only if engine RPM is OK
-        if (tmp_rpm > 400)
+        if (tmp_rpm > 400 && tmp_rpm != UINT16_MAX)
         {
-            if (!shifting)
-            {
-                this->mpc_working = pressure_mgr->find_working_mpc_pressure(this->actual_gear, true);
-                this->pressure_mgr->set_target_modulating_pressure(this->mpc_working);
+            if (!this->engine_running) {
+                this->engine_running = true;
             }
         }
+        if (this->engine_running && !shifting) {
+            this->mpc_working = pressure_mgr->find_working_mpc_pressure(this->actual_gear, true);
+            this->pressure_mgr->set_target_modulating_pressure(this->mpc_working);
+        }
+        this->process_motor_spd_filtered();
         uint8_t pll = TCUIO::parking_lock();
         if (UINT8_MAX != pll)
         {
             bool lock_state = pll != 0;
             if (lock_state) {
-                this->mpc_working = pressure_mgr->find_working_mpc_pressure(this->actual_gear, true);
-                this->pressure_mgr->set_target_modulating_pressure(this->mpc_working);
-                this->pressure_mgr->set_target_shift_pressure(4000);
+                if (engine_running && !shifting) {
+                    this->pressure_mgr->set_target_shift_pressure(500);
+                    if (this->last_motion_gear < GearboxGear::Third) {
+                        this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                    }
+                } else if (!engine_running) {
+                    this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                }
             }
             egs_can_hal->set_safe_start(lock_state);
             this->shifter_pos = egs_can_hal->get_shifter_position(1000);
@@ -1527,11 +1776,14 @@ void Gearbox::controller_loop()
                         {
                             this->target_gear = GearboxGear::Park;
                             last_position = this->shifter_pos;
+                            sol_tcc->isr_disable();
+                            vTaskDelay(5);
                             if (this->shift_adapter != nullptr)
                             {
                                 this->shift_adapter->save();
                             }
                             this->tcc->save();
+                            sol_tcc->isr_enable();
                             // Save profile
                             if (ShifterStyle::EWM == shifter->get_shifter_type()) {
                                 if (ETS_CURRENT_SETTINGS.ewm_save_profile) {
@@ -1564,7 +1816,7 @@ void Gearbox::controller_loop()
                         // Drive or R!
                         if (this->shifter_pos == ShifterPosition::R)
                         {
-                            this->target_gear = this->start_second ? GearboxGear::Reverse_Second : GearboxGear::Reverse_First;
+                            this->target_gear = this->last_motion_gear == GearboxGear::First ? GearboxGear::Reverse_First : GearboxGear::Reverse_Second;
                             last_position = this->shifter_pos;
                         }
                         else if (this->shifter_pos == ShifterPosition::D || this->shifter_pos == ShifterPosition::N_D)
@@ -1575,7 +1827,7 @@ void Gearbox::controller_loop()
                             // If current gear is also fwd, ignore!
                             if (!is_fwd_gear(this->actual_gear) && !is_fwd_gear(this->target_gear))
                             {
-                                this->target_gear = this->start_second ? GearboxGear::Second : GearboxGear::First;
+                                this->target_gear = this->last_motion_gear;
                             }
                             last_position = this->shifter_pos;
                         }
@@ -1583,7 +1835,7 @@ void Gearbox::controller_loop()
                 }
             }
         }
-        if (this->sensor_data.engine_rpm > 100)
+        if (this->engine_running)
         {
             if (speeds_valid && is_fwd_gear(this->actual_gear))
             {
@@ -1643,20 +1895,33 @@ void Gearbox::controller_loop()
                             this->manual_shift = false;
                         }
                     }
-                    // Engine protection: regardless of what the profile decided, force an upshift when the
-                    // input shaft is at the redline (The profile adders can push the map threshold past it)
-                    // Predictive: a shift needs ~0.5 s of bleed+fill before the ratio changes, so look
-                    // ahead by the current input RPM rate of change (rpm/s from the delta tracker).
-                    int rpm_rate = (this->input_rpm_delta != nullptr) ? this->input_rpm_delta->get_delta() : 0;
-                    int predicted_rpm = (int)this->sensor_data.input_rpm + (MAX(0, rpm_rate) / 2);
-                    if (!this->ask_upshift && this->actual_gear < GearboxGear::Fifth && this->actual_gear < this->restrict_target &&
-                        predicted_rpm >= this->redline_rpm) {
-                        ESP_LOGW("GEARBOX", "Redline reached in gear %s (%d rpm, +%d rpm/s), forcing upshift", gear_to_text(this->actual_gear), this->sensor_data.input_rpm, rpm_rate);
-                        this->ask_upshift = true;
-                        this->ask_downshift = false;
-                        this->manual_shift = false;
+                    if ((standard == this->current_profile ||
+                        comfort == this->current_profile ||
+                        agility == this->current_profile ||
+                        winter == this->current_profile) &&
+                        this->actual_gear != GearboxGear::Fifth && // Already checked if in FWD gear
+                        !this->ask_upshift &&
+                        this->engine_spd_flt > this->engine_spd_flt_prev
+                    ) {
+                        GearChange change = GearChange::_1_2;
+                        if (this->actual_gear == GearboxGear::Second) {
+                            change = GearChange::_2_3;
+                        } else if (this->actual_gear == GearboxGear::Third) {
+                            change = GearChange::_3_4;
+                        } else if (this->actual_gear == GearboxGear::Fourth) {
+                            change = GearChange::_4_5;
+                        }
+                        int cycles_to_shift = ShiftHelpers::total_time_crossover_shift(this->pressure_mgr, change, abs(sensor_data.input_torque), sensor_data.input_rpm);
+                        int delta_est = this->engine_spd_flt - this->engine_spd_flt_prev; // Per 20ms cycle (10x value)
+                        int est_rpm_when_shifting = sensor_data.engine_rpm + (delta_est * cycles_to_shift)/10;
+                        if (
+                            est_rpm_when_shifting > this->redline_rpm - SBS_CURRENT_SETTINGS.redline_offset_auto_upshift && 
+                            sensor_data.pedal_pos > 50
+                        ) {
+                            this->ask_upshift = true;
+                        }
                     }
-                    if (this->ask_upshift && this->actual_gear < GearboxGear::Fifth && this->actual_gear < this->restrict_target)
+                    if (this->ask_upshift && this->actual_gear < GearboxGear::Fifth)
                     {
                         // Check RPMs
                         GearboxGear next = next_gear(this->actual_gear);
@@ -1729,7 +1994,7 @@ void Gearbox::controller_loop()
                 xTaskCreatePinnedToCore(Gearbox::start_shift_thread, "Shift handler", 8192, this, 10, &this->shift_task, 1);
             }
         }
-        else if (!shifting)
+        else if (!shifting && sensor_data.input_rpm < 10)
         {
             // Engine not running - solenoids off (update_pressures is skipped below in this state)
             this->pressure_mgr->set_target_tcc_pressure(0);
@@ -1848,6 +2113,9 @@ void Gearbox::controller_loop()
         float tcc_multipler = InputTorqueModel::get_input_torque_factor(sensor_data.engine_rpm, sensor_data.input_rpm);
         this->sensor_data.tcc_trq_multiplier = tcc_multipler;
         float torque_ratio = 0; // Implausible
+        if (!shifting) {
+            pressure_mgr->update_pressures(this->actual_gear, GearChange::_IDLE);
+        }
         if (
             ratio_from_c_gear != 0 && // Valid ratio
             sensor_data.engine_rpm != 0 // Engine is turning
@@ -2018,6 +2286,36 @@ bool Gearbox::calcGearFromRatio(bool is_reverse)
     }
     this->est_gear_idx = 0;
     return false;
+}
+
+void Gearbox::process_acceleration() {
+    if (UINT16_MAX != sensor_data.output_rpm) {
+        int wheel_spd_now = (((float)sensor_data.output_rpm*100) / this->diff_ratio_f);
+        // Rpm -> Rps = RPM/60
+        // Rps -> Rp/cycle = Rps/50
+        int wheel_delta = ((int)this->wheel_spd-(int)this->wheel_spd_prev);
+        int wheel_accel_m = (wheel_delta * (int)VEHICLE_CONFIG.wheel_circumference)/300; // mm/sec delta
+        // Rotate values
+        this->wheel_spd_prev = this->wheel_spd;
+        this->wheel_spd = wheel_spd_now;
+        if (sensor_data.output_rpm < 20) {
+            wheel_accel_m = 0;
+            acceleration_ms2 = 0;
+        } else {
+            acceleration_ms2 = first_order_filter(10, wheel_accel_m*100, this->acceleration_ms2);
+        }
+    } else {
+        wheel_spd = 0;
+        wheel_spd_prev = 0;
+        acceleration_ms2 = 0;
+    }
+}
+
+void Gearbox::process_motor_spd_filtered() {
+    if (UINT16_MAX != sensor_data.engine_rpm) {
+        this->engine_spd_flt_prev = this->engine_spd_flt;
+        this->engine_spd_flt = first_order_filter(8, sensor_data.engine_rpm*10, engine_spd_flt);
+    }
 }
 
 Gearbox* gearbox = nullptr;
