@@ -33,7 +33,7 @@
  */
 
 #define SHIFT_TRACE_MAGIC 0x43415254u  // 'TRAC'
-#define SHIFT_TRACE_VERSION 1u
+#define SHIFT_TRACE_VERSION 2u         // 2: ShiftStamp added to each event
 #define SHIFT_TRACE_CAPACITY 512u      // 512 * 20 ms = 10.2 s of history
 #define SHIFT_TRACE_EVENTS 4u
 
@@ -65,11 +65,11 @@ struct ShiftTraceSample {
  * spontaneity and accepts jerk to get it. So this is a vector, and what counts
  * as good has to be decided per driving mode by whoever consumes it.
  *
- * Nothing in the firmware acts on these yet - they are recorded so that a shift
- * can be judged from the car rather than only from an offline log, and so that
- * any future adaptation has a reward signal to learn against. Today the same
- * numbers are produced offline by scripts/shift_quality.py; keeping the two in
- * step is the point of computing them the same way.
+ * The quality adaptation (src/adaptation/quality_adapt.h) consumes this vector
+ * after every completed shift when ADP quality_adapt is on; otherwise it is only
+ * recorded, so that a shift can be judged from the car rather than only from an
+ * offline log. The same numbers are produced offline by scripts/shift_quality.py;
+ * keeping the two in step is the point of computing them the same way.
  *
  * Metrics follow the published ones: jerk is the measure that correlates with
  * subjective shift feel (SAE 650465), duration is reported with it because a
@@ -96,6 +96,44 @@ struct ShiftQuality {
     uint8_t  valid;
 } __attribute__((packed));  // 16 bytes
 
+/**
+ * @brief What was in force when a shift ran, and what was done about it after.
+ *
+ * This is what makes more than one experiment per drive attributable. Each
+ * shift records which features were enabled, which A/B arm it fell in, the
+ * blend weight and target time it actually ran with, the adaptation offsets it
+ * started from, and the change the quality adaptation made afterwards. A drive
+ * where settings are toggled at the roadside then reads as several labelled
+ * populations instead of one confounded one.
+ */
+#define SHIFT_FEAT_BLEND_TIME     0x01u  // agility_blend >= 1: target shift time blended
+#define SHIFT_FEAT_BLEND_POINTS   0x02u  // agility_blend == 2: shift points blended too
+#define SHIFT_FEAT_QUALITY_ADAPT  0x04u  // quality adaptation enabled
+#define SHIFT_FEAT_NEXT_GEAR      0x08u  // next-gear pull check enabled
+#define SHIFT_FEAT_INTERLEAVE     0x10u  // A/B interleave enabled (see arm)
+#define SHIFT_FEAT_ALGO_ADAPT     0x20u  // the built-in fill/pressure adaptation was allowed to run
+#define SHIFT_FEAT_PROFILE_AGILITY 0x40u // the legacy swap had Agility in force when the shift started
+
+#define SHIFT_STAMP_FLARE         0x01u  // turbine ran away during the shift
+#define SHIFT_STAMP_ADAPTED       0x02u  // quality adaptation changed a cell after this shift
+#define SHIFT_STAMP_MANUAL        0x04u  // driver requested it (paddle / lever)
+#define SHIFT_STAMP_KICKDOWN      0x08u  // kickdown was pressed when it started
+#define SHIFT_STAMP_ANNOTATED     0x80u  // elapse_shift filled this in (garage shifts never are)
+
+struct ShiftStamp {
+    uint8_t  features;      // SHIFT_FEAT_* bits at shift start
+    uint8_t  arm;           // 0 = baseline (B), 1 = feature (A). Always 1 unless interleaving.
+    uint8_t  blend_pct;     // agility blend weight applied to this shift, 0-100
+    uint8_t  flags;         // SHIFT_STAMP_* bits, filled as the shift runs and ends
+    uint8_t  adapt_reason;  // QualityReason: why adaptation acted, or why it did not
+    uint8_t  _pad;
+    uint16_t target_time_ms;// target shift time handed to the algorithm
+    int16_t  spc_offset;    // adaptation SPC offset in force, mBar
+    int16_t  prefill_offset;// adaptation prefill offset in force, 20 ms cycles
+    int16_t  spc_delta;     // change the quality adaptation made after the shift, mBar
+    int16_t  prefill_delta; // ... and in cycles
+} __attribute__((packed));  // 16 bytes
+
 struct ShiftTraceEvent {
     uint32_t seq_start;     // sample index at which the shift began
     uint32_t seq_end;       // sample index at which it ended (valid when done)
@@ -104,7 +142,8 @@ struct ShiftTraceEvent {
     uint8_t  done;
     uint8_t  agility_score; // driver agility demand 0-100 when the shift started
     ShiftQuality quality;
-} __attribute__((packed));  // 28 bytes
+    ShiftStamp stamp;
+} __attribute__((packed));  // 44 bytes
 
 struct ShiftTraceHeader {
     uint32_t magic;
@@ -124,8 +163,9 @@ struct ShiftTraceHeader {
 // mis-decoded. Pin them here so the two cannot drift apart unnoticed.
 static_assert(sizeof(ShiftTraceSample) == 30, "ShiftTraceSample must stay 30 bytes");
 static_assert(sizeof(ShiftQuality) == 16, "ShiftQuality must stay 16 bytes");
-static_assert(sizeof(ShiftTraceEvent) == 28, "ShiftTraceEvent must stay 28 bytes");
-static_assert(sizeof(ShiftTraceHeader) == 24 + (28 * SHIFT_TRACE_EVENTS), "ShiftTraceHeader layout changed");
+static_assert(sizeof(ShiftStamp) == 16, "ShiftStamp must stay 16 bytes");
+static_assert(sizeof(ShiftTraceEvent) == 44, "ShiftTraceEvent must stay 44 bytes");
+static_assert(sizeof(ShiftTraceHeader) == 24 + (44 * SHIFT_TRACE_EVENTS), "ShiftTraceHeader layout changed");
 
 namespace ShiftTrace {
     /// Allocate the ring. Safe to fail - tracing is then simply inactive.
@@ -137,6 +177,20 @@ namespace ShiftTrace {
                 uint8_t agility_score);
     /// Header for the diagnostic readout, or nullptr if tracing is inactive.
     const ShiftTraceHeader* get_header(void);
+
+    /// Called from elapse_shift once the shift's parameters are decided. Fills the
+    /// stamp of the shift in progress, or holds it until the sampler opens the
+    /// event if the shift thread got here first.
+    void annotate(const ShiftStamp* stamp);
+    /// OR SHIFT_STAMP_* bits into the shift in progress (flare, etc).
+    void mark(uint8_t stamp_flags);
+    /// Copy out the event finalised by the most recent sample(), once. Returns
+    /// false when there is nothing new. This is how a consumer runs after every
+    /// completed shift without being wired into the shift control path.
+    bool take_completed(ShiftTraceEvent* out);
+    /// Record what the quality adaptation did (or why it did nothing) on the
+    /// event handed out by take_completed().
+    void record_adaptation(uint8_t reason, int16_t spc_delta, int16_t prefill_delta);
 }
 
 #endif

@@ -2,6 +2,7 @@
 #include "models/vehicle_geometry.h"
 #include "tcu_alloc.h"
 #include "clock.hpp"
+#include "freertos/FreeRTOS.h"
 #include "esp_log.h"
 #include "nvs/eeprom_config.h"
 #include "egs_calibration/calibration_structs.h"
@@ -11,6 +12,17 @@
 static ShiftTraceHeader trace_header = {};
 static ShiftTraceSample* trace_ring = nullptr;
 static bool was_shifting = false;
+
+// The event list is written by the controller loop (sample) and the stamp by the
+// shift thread (annotate / mark), so the few writes that touch both are guarded.
+static portMUX_TYPE trace_mux = portMUX_INITIALIZER_UNLOCKED;
+// A stamp that arrived before the sampler opened its event. The shift thread
+// sets `shifting` and then computes the shift's parameters, so either order is
+// possible; whichever comes second completes the record.
+static ShiftStamp pending_stamp = {};
+static bool pending_valid = false;
+// Index of the event finalised by the last sample(), until a consumer takes it.
+static int8_t completed_idx = -1;
 
 /**
  * @brief Running state for the shift quality metrics.
@@ -84,6 +96,7 @@ const ShiftTraceHeader* ShiftTrace::get_header(void) {
  * shortest gap between shifts seen on the road is ~1.9 s.
  */
 static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility) {
+    portENTER_CRITICAL(&trace_mux);
     if (trace_header.n_events == SHIFT_TRACE_EVENTS) {
         // Oldest event is about to be lost. If the host never read it, its
         // samples are long gone from the ring too - count it so a gap in the
@@ -95,6 +108,7 @@ static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility) 
         memmove(&trace_header.events[0], &trace_header.events[1],
                 sizeof(ShiftTraceEvent) * (SHIFT_TRACE_EVENTS - 1));
         trace_header.n_events -= 1;
+        if (completed_idx > 0) { completed_idx -= 1; } else if (0 == completed_idx) { completed_idx = -1; }
     }
     ShiftTraceEvent* e = &trace_header.events[trace_header.n_events];
     e->seq_start = seq;
@@ -103,7 +117,80 @@ static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility) 
     e->gear_to = to;
     e->done = 0;
     e->agility_score = agility;
+    memset(&e->quality, 0, sizeof(ShiftQuality));
+    if (pending_valid) {
+        e->stamp = pending_stamp;
+        pending_valid = false;
+    } else {
+        memset(&e->stamp, 0, sizeof(ShiftStamp));
+        e->stamp.arm = 1;
+    }
     trace_header.n_events += 1;
+    portEXIT_CRITICAL(&trace_mux);
+}
+
+/// The event of the shift in progress, or nullptr. Caller holds trace_mux.
+static ShiftTraceEvent* open_event(void) {
+    if (trace_header.n_events == 0) { return nullptr; }
+    ShiftTraceEvent* e = &trace_header.events[trace_header.n_events - 1];
+    return (0 == e->done) ? e : nullptr;
+}
+
+void ShiftTrace::annotate(const ShiftStamp* stamp) {
+    if (nullptr == trace_ring || nullptr == stamp) { return; }
+    portENTER_CRITICAL(&trace_mux);
+    ShiftTraceEvent* e = open_event();
+    if (nullptr != e) {
+        uint8_t flags_so_far = e->stamp.flags;     // a flare can already be marked
+        e->stamp = *stamp;
+        e->stamp.flags |= flags_so_far | SHIFT_STAMP_ANNOTATED;
+        pending_valid = false;
+    } else {
+        pending_stamp = *stamp;
+        pending_stamp.flags |= SHIFT_STAMP_ANNOTATED;
+        pending_valid = true;
+    }
+    portEXIT_CRITICAL(&trace_mux);
+}
+
+void ShiftTrace::mark(uint8_t stamp_flags) {
+    if (nullptr == trace_ring) { return; }
+    portENTER_CRITICAL(&trace_mux);
+    ShiftTraceEvent* e = open_event();
+    if (nullptr != e) {
+        e->stamp.flags |= stamp_flags;
+    } else if (pending_valid) {
+        pending_stamp.flags |= stamp_flags;
+    }
+    portEXIT_CRITICAL(&trace_mux);
+}
+
+bool ShiftTrace::take_completed(ShiftTraceEvent* out) {
+    if (nullptr == trace_ring || nullptr == out) { return false; }
+    bool got = false;
+    portENTER_CRITICAL(&trace_mux);
+    if (completed_idx >= 0 && completed_idx < (int8_t)trace_header.n_events) {
+        *out = trace_header.events[completed_idx];
+        got = true;
+    }
+    portEXIT_CRITICAL(&trace_mux);
+    return got;
+}
+
+void ShiftTrace::record_adaptation(uint8_t reason, int16_t spc_delta, int16_t prefill_delta) {
+    if (nullptr == trace_ring) { return; }
+    portENTER_CRITICAL(&trace_mux);
+    if (completed_idx >= 0 && completed_idx < (int8_t)trace_header.n_events) {
+        ShiftStamp* st = &trace_header.events[completed_idx].stamp;
+        st->adapt_reason = reason;
+        st->spc_delta = spc_delta;
+        st->prefill_delta = prefill_delta;
+        if (0 != spc_delta || 0 != prefill_delta) {
+            st->flags |= SHIFT_STAMP_ADAPTED;
+        }
+    }
+    completed_idx = -1;
+    portEXIT_CRITICAL(&trace_mux);
 }
 
 void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
@@ -169,7 +256,7 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
             if (((q.accel_prev - q.accel_base) * (accel - q.accel_base)) < 0.0f && q.osc < 255) {
                 q.osc += 1;
             }
-            if (s->t_ms - q.t_start > 600u + (uint32_t)trace_header.events[0].quality.duration_ms) {
+            if (s->t_ms - q.t_start > 600u + (uint32_t)trace_header.events[trace_header.n_events - 1].quality.duration_ms) {
                 q.settling = false;
             }
         }
@@ -210,6 +297,7 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
             e->quality.settle_osc = 0;
             e->quality.valid = 1;
             q.settling = true;      // keep watching for driveline ringing
+            completed_idx = (int8_t)(trace_header.n_events - 1);
         }
     }
     if (!shifting && !q.settling && trace_header.n_events > 0) {

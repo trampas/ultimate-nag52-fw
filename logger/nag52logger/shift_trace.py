@@ -48,8 +48,25 @@ SAMPLE_FIELDS = ["t_ms", "input_rpm", "output_rpm", "engine_rpm", "input_torque"
 QUALITY_FMT = "<HHHHIHBB"
 QUALITY_FIELDS = ["response_ms", "duration_ms", "peak_jerk_mms3", "torque_hole",
                   "slip_energy_j", "lockup_rate", "settle_osc", "valid"]
-# struct ShiftTraceEvent - 28 bytes
-EVENT_FMT = "<IIBBBB" + QUALITY_FMT[1:]
+# struct ShiftStamp - 16 bytes. What was in force when the shift ran and what the
+# quality adaptation did afterwards. This is what lets a single drive carry
+# several experiments: every shift is labelled with its feature set and A/B arm.
+STAMP_FMT = "<BBBBBBHhhhh"
+STAMP_FIELDS = ["features", "arm", "blend_pct", "flags", "adapt_reason", "_pad",
+                "target_time_ms", "spc_offset", "prefill_offset", "spc_delta", "prefill_delta"]
+FEATURE_BITS = {0x01: "blend_time", 0x02: "blend_points", 0x04: "quality_adapt",
+                0x08: "next_gear", 0x10: "interleave", 0x20: "algo_adapt",
+                0x40: "profile_agility"}
+STAMP_FLAG_BITS = {0x01: "flare", 0x02: "adapted", 0x04: "manual", 0x08: "kickdown",
+                   0x80: "annotated"}
+# QualityReason in src/adaptation/quality_adapt.h
+ADAPT_REASONS = {0: "not evaluated", 1: "disabled", 2: "no quality", 3: "not forward",
+                 4: "manual", 5: "kickdown", 6: "agility", 7: "atf", 8: "too slow",
+                 9: "grade", 10: "flare", 11: "slip budget", 12: "slow response",
+                 13: "early bite", 14: "harsh", 15: "soft long", 16: "in target",
+                 17: "clamped"}
+# struct ShiftTraceEvent - 44 bytes
+EVENT_FMT = "<IIBBBB" + QUALITY_FMT[1:] + STAMP_FMT[1:]
 EVENT_SIZE = struct.calcsize(EVENT_FMT)
 # struct ShiftTraceHeader - fixed part, then 4 events
 HEADER_FMT = "<IBBHIIIB3x"
@@ -65,7 +82,7 @@ class TraceUnavailable(Exception):
 
 # Must track SHIFT_TRACE_VERSION in src/shift_trace.h. Bumped whenever a field's
 # meaning changes, even if the layout does not - a size check cannot catch that.
-TRACE_VERSION = 1
+TRACE_VERSION = 2
 
 
 def read_header(client) -> Dict[str, Any]:
@@ -93,7 +110,13 @@ def read_header(client) -> Dict[str, Any]:
     for i in range(min(n_ev, N_EVENTS)):
         v = struct.unpack_from(EVENT_FMT, raw, off + i * EVENT_SIZE)
         s0, s1, gf, gt, done, agility = v[0], v[1], v[2], v[3], v[4], v[5]
-        q = dict(zip(QUALITY_FIELDS, v[6:]))
+        nq = len(QUALITY_FIELDS)
+        q = dict(zip(QUALITY_FIELDS, v[6:6 + nq]))
+        st = dict(zip(STAMP_FIELDS, v[6 + nq:]))
+        del st["_pad"]
+        st["features"] = [n for b, n in FEATURE_BITS.items() if st["features"] & b]
+        st["flags"] = [n for b, n in STAMP_FLAG_BITS.items() if st["flags"] & b]
+        st["adapt_reason"] = ADAPT_REASONS.get(st["adapt_reason"], st["adapt_reason"])
         ev = {"seq_start": s0, "seq_end": s1, "gear_from": GEAR_NAMES.get(gf, gf),
               "gear_to": GEAR_NAMES.get(gt, gt), "done": bool(done),
               # how hard the driver was pushing when this shift started - the gate
@@ -104,6 +127,7 @@ def read_header(client) -> Dict[str, Any]:
             # SI, scaled x1000 on the wire to stay an integer.
             q["peak_jerk"] = q.pop("peak_jerk_mms3") / 1000.0
             ev["quality"] = q
+        ev["stamp"] = st
         events.append(ev)
     return {"version": ver, "sample_size": ssize, "capacity": cap, "buffer_addr": addr,
             "seq": seq, "dropped": dropped, "events": events}
@@ -181,4 +205,6 @@ def read_shift(client, header: Dict[str, Any], event: Dict[str, Any],
     if "quality" in event:
         out["quality"] = event["quality"]
     out["agility_score"] = event.get("agility_score", 0)
+    if "stamp" in event:
+        out["stamp"] = event["stamp"]
     return out

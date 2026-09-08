@@ -84,6 +84,27 @@ for sh in LogFile.load("logs/drive.jsonl").shift_traces:
         s["t_ms"], s["input_rpm"], s["p_on"], s["p_off"], s["phase"]
 ```
 
+Each `shift_trace` line also carries what the TCU measured and decided about
+that shift, so a drive can carry more than one experiment and still be
+attributable afterwards:
+
+* `quality` — the on-TCU shift quality vector (`response_ms`, `duration_ms`,
+  `peak_jerk` in m/s^3, `torque_hole`, `slip_energy_j`, `lockup_rate`,
+  `settle_osc`), present from firmware 679fed1.
+* `agility_score` — driver agility demand 0-100 when the shift started.
+* `stamp` (trace version 2) — what was in force and what was done afterwards:
+  `features` (which of `blend_time`, `blend_points`, `quality_adapt`,
+  `next_gear`, `interleave`, `algo_adapt`, `profile_agility` were enabled),
+  `arm` (1 = feature arm A, 0 = baseline arm B when `ab_interleave` is on),
+  `blend_pct` (Comfort/Agility weight applied), `target_time_ms`,
+  `spc_offset` / `prefill_offset` (adaptation cells in force), `flags`
+  (`flare`, `adapted`, `manual`, `kickdown`, `annotated`), and
+  `adapt_reason` / `spc_delta` / `prefill_delta` (what the quality adaptation
+  did after the shift, or why it did nothing).
+
+To compare two arms from one drive, split `shift_traces` on
+`sh["stamp"]["arm"]` and compare the medians of `quality` per shift type.
+
 ### Accelerometer
 
 A host accelerometer is recorded **by default** into the same file, on the same

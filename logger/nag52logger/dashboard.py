@@ -149,17 +149,29 @@ class Dashboard:
                 cur.get("road_conf", "-")))
         lines.append("")
 
-        lines.append("recent shifts  resp_ms  dur_ms    jerk    hole   slip_J  agility")
+        lines.append("recent shifts  resp_ms  dur_ms    jerk    hole   slip_J  agility arm blend  t_ms  adapt")
         if not self.shifts:
             lines.append("  (none yet - shift quality comes from the TCU trace)")
         for sh in list(self.shifts)[-6:]:
             q = sh.get("quality") or {}
-            lines.append("  %-11s %7s %7s %7s %7s %8s %7s" % (
+            st = sh.get("stamp") or {}
+            adapt = "-"
+            if st:
+                adapt = st.get("adapt_reason", "-")
+                if st.get("spc_delta") or st.get("prefill_delta"):
+                    adapt += " spc%+d pre%+d" % (st.get("spc_delta", 0), st.get("prefill_delta", 0))
+                if "flare" in (st.get("flags") or []):
+                    adapt = "FLARE " + adapt
+            lines.append("  %-11s %7s %7s %7s %7s %8s %7s %3s %5s %5s  %s" % (
                 "%s>%s" % (sh.get("gear_from"), sh.get("gear_to")),
                 q.get("response_ms", "-"), q.get("duration_ms", "-"),
                 ("%.0f" % q["peak_jerk"]) if "peak_jerk" in q else "-",
                 q.get("torque_hole", "-"), q.get("slip_energy_j", "-"),
-                sh.get("agility_score", "-")))
+                sh.get("agility_score", "-"),
+                {1: "A", 0: "B"}.get(st.get("arm"), "-") if st else "-",
+                ("%d%%" % st["blend_pct"]) if st and "blend_pct" in st else "-",
+                st.get("target_time_ms", "-") if st else "-",
+                adapt))
 
         buf = CSI + "H" + CSI + "2J" if self._lines == 0 else CSI + "%dA" % self._lines
         out = buf + "".join(l[:cols].ljust(cols) + CSI + "K\n" for l in lines)
