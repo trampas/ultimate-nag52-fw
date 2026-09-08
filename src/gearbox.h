@@ -105,6 +105,7 @@ private:
     uint8_t pedal_history[5] = {0};     // 100 ms apart -> a 500 ms window
     uint8_t pedal_history_idx = 0;
     uint32_t last_score_ms = 0;
+    uint16_t agility_decay_ms = 0;      // fractional decay carried between 100 ms steps
     uint16_t last_out_rpm = 0;
     int16_t decel_rpm_s = 0;            // output shaft, for the braking term
     uint8_t agility_demand(void);

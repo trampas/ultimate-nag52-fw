@@ -284,8 +284,16 @@ void Gearbox::update_agility_score(void)
     uint8_t demand = this->agility_demand();
     if (demand > this->agility_score) {
         this->agility_score = demand;                      // rise immediately
+        this->agility_decay_ms = 0;
     } else {
-        uint16_t decay = (uint16_t)((AGILITY_DECAY_PER_S * dt) / 1000u);
+        // One point per 1000/AGILITY_DECAY_PER_S ms. Accumulated, because at the
+        // 100 ms step this runs at, 4 * 100 / 1000 truncated to zero and the
+        // score never came down: on the 2026-09-08 04:59 drive it sat at 100
+        // for eight minutes of coasting with the pedal released.
+        this->agility_decay_ms += (uint16_t)dt;
+        const uint16_t ms_per_point = 1000u / AGILITY_DECAY_PER_S;
+        uint16_t decay = this->agility_decay_ms / ms_per_point;
+        this->agility_decay_ms -= decay * ms_per_point;
         this->agility_score = (this->agility_score > decay) ?
             (uint8_t)(this->agility_score - decay) : 0u;
     }

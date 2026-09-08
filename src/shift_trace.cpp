@@ -31,12 +31,34 @@ static int8_t completed_idx = -1;
  * and needs no allocation. See ShiftQuality in the header for what each number
  * means and why they are a vector rather than a score.
  */
+/**
+ * @brief Samples of output speed kept for the derivative baseline.
+ *
+ * Output speed is an integer rpm, so differentiating it twice over one 20 ms
+ * step has a floor: one rpm of wobble is 1/dt^2 * mps_per_output_rpm, which on
+ * this car is 29.7 m/s^3 - above the whole comfort range. The 2026-09-08 drive
+ * measured a median peak_jerk of 30.5 against that floor of 29.7, i.e. the
+ * metric was reporting its own quantisation and not the shift. Acceleration had
+ * the same problem: its floor is 53 rpm/s and torque_hole was reading 52.
+ *
+ * Widening the baseline to three samples divides the floor by nine (3.3 m/s^3)
+ * and still resolves an inertia phase, which lasts 100-200 ms against this
+ * 57 ms window. Measured over the same 39 shifts the median becomes 6.6 m/s^3,
+ * which is inside the published comfort range and therefore actually
+ * discriminates between a smooth shift and a harsh one.
+ */
+#define QUALITY_DERIV_SPAN 3
+#define QUALITY_HIST (2 * QUALITY_DERIV_SPAN + 1)
+
 static struct {
     uint32_t t_start;
     float ratio_start;
     float ratio_target;
     float accel_base;       // output shaft accel before the shift, rpm/s
     float accel_prev;
+    uint16_t out_hist[QUALITY_HIST];
+    uint32_t t_hist[QUALITY_HIST];
+    uint8_t hist_n;
     uint16_t out_prev;
     uint16_t in_prev;
     uint32_t t_prev;
@@ -220,17 +242,44 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
     s->engine_torque = engine_torque;
 
     // Objective shift quality, accumulated as the shift runs.
-    float accel = 0.0f;
+    //
+    // Both derivatives are taken over QUALITY_DERIV_SPAN samples rather than one,
+    // because output speed is quantised to 1 rpm and a single-step second
+    // difference measures that quantum and nothing else. See the note above.
+    for (uint8_t i = 0; i < QUALITY_HIST - 1; i++) {
+        q.out_hist[i] = q.out_hist[i + 1];
+        q.t_hist[i] = q.t_hist[i + 1];
+    }
+    q.out_hist[QUALITY_HIST - 1] = s->output_rpm;
+    q.t_hist[QUALITY_HIST - 1] = s->t_ms;
+    if (q.hist_n < QUALITY_HIST) { q.hist_n += 1; }
+
+    float accel = q.accel_prev;
+    bool accel_ok = false;
+    if (QUALITY_HIST == q.hist_n) {
+        const uint8_t MID = QUALITY_DERIV_SPAN;
+        const uint8_t END = QUALITY_HIST - 1;
+        float dt_new = (float)(q.t_hist[END] - q.t_hist[MID]) / 1000.0f;
+        float dt_old = (float)(q.t_hist[MID] - q.t_hist[0]) / 1000.0f;
+        // A gap means the ring straddles a stall or a dropped cycle; skip it
+        // rather than report the gap as a huge acceleration.
+        if (dt_new > 0.0f && dt_old > 0.0f && dt_new < 0.25f && dt_old < 0.25f) {
+            accel = ((float)q.out_hist[END] - (float)q.out_hist[MID]) / dt_new;
+            float accel_older = ((float)q.out_hist[MID] - (float)q.out_hist[0]) / dt_old;
+            // The two accelerations are centred half a window apart.
+            float dt_jerk = (dt_new + dt_old) / 2.0f;
+            accel_ok = true;
+            if (shifting || q.settling) {
+                float jerk = fabsf(accel - accel_older) / dt_jerk * mps_per_output_rpm();
+                if (jerk > q.peak_jerk) { q.peak_jerk = jerk; }
+            }
+        }
+    }
     uint32_t dt_ms = (q.t_prev == 0) ? 0 : (s->t_ms - q.t_prev);
     if (dt_ms > 0 && dt_ms < 200) {
         float dt = dt_ms / 1000.0f;
-        accel = ((float)s->output_rpm - (float)q.out_prev) / dt;   // rpm/s of output
-        if (shifting || q.settling) {
-            float jerk = fabsf(accel - q.accel_prev) / dt * mps_per_output_rpm();  // m/s^3
-            if (jerk > q.peak_jerk) { q.peak_jerk = jerk; }
-        }
         if (shifting) {
-            if (accel < q.min_accel) { q.min_accel = accel; }
+            if (accel_ok && accel < q.min_accel) { q.min_accel = accel; }
             int32_t slip = (s->p_on > QUALITY_SPRING_MBAR) ? abs(algo->s_on) : -1;
             if (slip >= 0 && q.slip_prev >= 0) {
                 float dw = ((float)s->input_rpm - (float)q.in_prev) / dt;
@@ -253,14 +302,14 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
             }
         } else if (q.settling) {
             // Driveline ringing after engagement: reversals about the pre-shift level
-            if (((q.accel_prev - q.accel_base) * (accel - q.accel_base)) < 0.0f && q.osc < 255) {
+            if (accel_ok && ((q.accel_prev - q.accel_base) * (accel - q.accel_base)) < 0.0f && q.osc < 255) {
                 q.osc += 1;
             }
             if (s->t_ms - q.t_start > 600u + (uint32_t)trace_header.events[trace_header.n_events - 1].quality.duration_ms) {
                 q.settling = false;
             }
         }
-        q.accel_prev = accel;
+        if (accel_ok) { q.accel_prev = accel; }
     }
 
     // Shift boundaries are detected here rather than hooked into elapse_shift,

@@ -33,7 +33,9 @@
  */
 
 #define SHIFT_TRACE_MAGIC 0x43415254u  // 'TRAC'
-#define SHIFT_TRACE_VERSION 2u         // 2: ShiftStamp added to each event
+#define SHIFT_TRACE_VERSION 3u         // 2: ShiftStamp per event. 3: jerk and
+                                       // torque_hole taken over a 57 ms baseline
+                                       // instead of 19 ms - see shift_trace.cpp
 #define SHIFT_TRACE_CAPACITY 512u      // 512 * 20 ms = 10.2 s of history
 #define SHIFT_TRACE_EVENTS 4u
 
@@ -88,6 +90,10 @@ struct ShiftQuality {
     // sampling. Worth it to keep the number comparable with the published
     // thresholds (comfortable under ~10, objectionable over ~20-30, SAE 650465)
     // and with whatever target a user sets.
+    // Derivatives are taken over a 3 sample (57 ms) baseline, not one step: the
+    // output speed is quantised to 1 rpm, and a single-step second difference
+    // has a floor of 29.7 m/s^3 on this car, which is above the entire comfort
+    // range. Before that was fixed this field reported its own quantisation.
     uint16_t peak_jerk;
     uint16_t torque_hole;   // rpm/s of output shaft accel lost mid-shift
     uint32_t slip_energy_j; // joules dissipated in the applying clutch

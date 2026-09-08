@@ -82,7 +82,7 @@ class TraceUnavailable(Exception):
 
 # Must track SHIFT_TRACE_VERSION in src/shift_trace.h. Bumped whenever a field's
 # meaning changes, even if the layout does not - a size check cannot catch that.
-TRACE_VERSION = 2
+TRACE_VERSION = 3
 
 
 def read_header(client) -> Dict[str, Any]:
