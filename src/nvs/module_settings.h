@@ -181,6 +181,31 @@ typedef struct {
     //
     // Re-measure on another car with scripts/next_gear.py rather than guessing.
     int16_t next_gear_min_accel_mms2;
+    // Blend Comfort and Agility continuously on the driver agility score instead
+    // of swapping whole profiles at a threshold.
+    //
+    // 0: off. Comfort swaps to Agility at score 60 and back at 25, as before.
+    // 1: shift TIME only. The target shift time is interpolated between the
+    //    Comfort and Agility time maps by the score, so a half-hearted stab gets
+    //    a half-way shift instead of a full Comfort one. Shift POINTS still come
+    //    from whichever profile the swap chose.
+    // 2: shift time AND shift points are both interpolated.
+    //
+    // Only acts while the driver has Comfort selected; every other profile is
+    // untouched. Measured over five drives, 42 % of driving sits between score 20
+    // and 79, where a swap gives one endpoint or the other and a blend gives
+    // what was asked for. The swap is a 491 rpm step on the 1-2 at 10 % pedal.
+    uint8_t agility_blend;
+    // Score at or below which the blend is pure Comfort (weight 0).
+    uint8_t agility_blend_lo;
+    // Score at or above which the blend is pure Agility (weight 1).
+    uint8_t agility_blend_hi;
+    // A/B test the blend inside one drive: odd-numbered shifts get the blend
+    // (arm A) and even-numbered ones the unblended behaviour (arm B). Every shift
+    // in the trace is stamped with its arm, so the two populations come from the
+    // same road, load and mood and can be compared directly. Turn off once the
+    // decision is made.
+    bool ab_interleave;
 } __attribute__ ((packed)) SBS_MODULE_SETTINGS;
 
 const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
@@ -197,6 +222,10 @@ const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
     .en_trq_req_5_4 = true,
 
     .next_gear_min_accel_mms2 = INT16_MIN,   // disabled; 214 is the measured value
+    .agility_blend = 0,                      // off: the profile swap, as before
+    .agility_blend_lo = 20,
+    .agility_blend_hi = 80,
+    .ab_interleave = false,
 };
 
 // Pressure manager settings
@@ -276,7 +305,61 @@ typedef struct {
     // It is disabled by default as this can
     // cause shift latency
     bool adaptation_when_manual_shifting;
-    
+    // Trim shift pressure and fill time from the measured shift quality.
+    //
+    // Every completed forward shift is judged from the TCU's own quality vector
+    // (ShiftQuality in the shift trace) and nudges the same adaptation cells the
+    // built-in fill time / fill pressure adaptation writes:
+    //   flare (turbine ran away)          -> prefill + flare step AND SPC + flare step, at once
+    //   slip energy over budget           -> SPC + flare step (protect the plates)
+    //   slow response                     -> prefill + step
+    //   fast response with a torque hole  -> prefill - step (the clutch bit early)
+    //   harsh (jerk over target)          -> SPC - step, small
+    //   soft AND long                     -> SPC + step, small
+    // Asymmetric on purpose: a clutch that slips under load is destroyed while one
+    // that is over-clamped is merely harsh, so raises are large and immediate and
+    // cuts are small. The SPC offset is clamped by prefill_max_pressure_delta and
+    // the prefill offset by quality_prefill_max_cycles.
+    //
+    // The built-in fill time / fill pressure adaptation is suspended while this is
+    // on, so two learners cannot fight over one cell. Pressure is only learned for
+    // shifts that own a cell (1-2, 2-3, 3-4, 4-5, 4-3); 2-1, 3-2 and 5-4 share an
+    // upshift's cell and only learn fill time.
+    bool quality_adapt;
+    // Skip learning from shifts that started above this agility score. A shift the
+    // driver asked to be sporty must not teach the Comfort calibration.
+    uint8_t quality_max_agility;
+    // Jerk above this is harsh. Vehicle jerk in mm/s^3: 12000 is the published
+    // comfort limit (12 m/s^3); objectionable is usually quoted over 20-30 m/s^3.
+    // The 2026-09-07 drive measured a median of 39 m/s^3.
+    uint16_t quality_jerk_target_mms3;
+    // Response (request until the ratio moves) above this is slow. ms
+    uint16_t quality_response_hi_ms;
+    // Response below this, together with a torque hole, means the applying clutch
+    // bit before the releasing one let go. ms
+    uint16_t quality_response_lo_ms;
+    // Torque hole confirming an early bite: output shaft rpm/s lost mid-shift.
+    uint16_t quality_hole_target;
+    // Slip energy budget per shift. Over it, pressure goes up regardless of feel. J
+    uint16_t quality_slip_budget_j;
+    // A shift under half the jerk target that also lasts longer than this is soft
+    // and long, and gets a little more pressure. ms
+    uint16_t quality_duration_hi_ms;
+    // SPC step for a harsh, or a soft-and-long, shift. mBar
+    int16_t quality_spc_step_mbar;
+    // SPC step on a flare or a slip budget breach. mBar
+    int16_t quality_flare_spc_step_mbar;
+    // Prefill step for a slow or an early response. 20 ms cycles
+    int8_t quality_prefill_step_cycles;
+    // Prefill step on a flare. 20 ms cycles
+    int8_t quality_flare_prefill_step_cycles;
+    // Clamp on the prefill offset this learner may reach, either way. cycles
+    uint8_t quality_prefill_max_cycles;
+    // Skip shifts below this output shaft speed (garage and creep shifts). rpm
+    uint16_t quality_min_output_rpm;
+    // Skip shifts on a grade steeper than this once the road load estimator is
+    // confident. sin(grade) x 10000; 500 is about 3 degrees.
+    uint16_t quality_max_terrain;
 } __attribute__ ((packed)) ADP_MODULE_SETTINGS;
 
 const ADP_MODULE_SETTINGS ADP_DEFAULT_SETTINGS = {
@@ -300,6 +383,21 @@ const ADP_MODULE_SETTINGS ADP_DEFAULT_SETTINGS = {
     .adapt_trq_4_3 = false,
     .adapt_trq_5_4 = false,
     .adaptation_when_manual_shifting = false,
+    .quality_adapt = false,                  // never driven: off until enabled for a drive
+    .quality_max_agility = 40,
+    .quality_jerk_target_mms3 = 12000,
+    .quality_response_hi_ms = 500,
+    .quality_response_lo_ms = 150,
+    .quality_hole_target = 60,
+    .quality_slip_budget_j = 12000,
+    .quality_duration_hi_ms = 1400,
+    .quality_spc_step_mbar = 10,
+    .quality_flare_spc_step_mbar = 40,
+    .quality_prefill_step_cycles = 1,
+    .quality_flare_prefill_step_cycles = 2,
+    .quality_prefill_max_cycles = 10,
+    .quality_min_output_rpm = 300,
+    .quality_max_terrain = 500,
 };
 
 enum EwmSelectorType: uint8_t {

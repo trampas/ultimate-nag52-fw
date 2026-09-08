@@ -1,4 +1,5 @@
 #include "s_algo.h"
+#include "adaptation/quality_adapt.h"
 #include <egs_calibration/calibration_structs.h>
 #include "nvs/module_settings.h"
 
@@ -332,24 +333,10 @@ uint16_t ShiftingAlgorithm::calc_high_filling_p() {
 }
 
 uint8_t ShiftingAlgorithm::adapt_p_map_idx() {
-    uint8_t cell_id = 0;
-    if (sid->change == GearChange::_1_2 || sid->change == GearChange::_2_1) {
-        // Adapting result from 1-2
-        cell_id = 0;
-    } else if (sid->change == GearChange::_2_3 || sid->change == GearChange::_3_2) {
-        // Adapting result from 2-3
-        cell_id = 1;
-    } else if (sid->change == GearChange::_3_4) {
-        // Adapting result from 3-4
-        cell_id = 2;
-    } else if (sid->change == GearChange::_4_5 || sid->change == GearChange::_5_4) {
-        // Adapting result from 4-5
-        cell_id = 3;
-    } else if (sid->change == GearChange::_4_3) {
-        // Adapting result from 3-4
-        cell_id = 6;
-    }
-    return cell_id;
+    // One definition of the cell layout, shared with the quality adaptation so
+    // the two learners can never disagree about which shift a cell belongs to.
+    uint8_t cell_id = adapt_spc_cell(sid->change);
+    return (0xFF == cell_id) ? 0 : cell_id;
 }
 
 uint16_t ShiftingAlgorithm::correct_shift_shift_pressure(int pressure) {
@@ -453,6 +440,12 @@ void ShiftingAlgorithm::adaptation_step() {
         }
 
         if (sd->atf_temp > ADP_CURRENT_SETTINGS.max_atf_temp || sd->atf_temp < ADP_CURRENT_SETTINGS.min_atf_temp) {
+            this->do_fill_time_adaptation = false;
+        }
+        // The quality adaptation writes the same cells from the measured shift.
+        // Two learners on one cell would fight, so while it is on this one
+        // stands down (fill pressure adaptation follows this flag below).
+        if (ADP_CURRENT_SETTINGS.quality_adapt) {
             this->do_fill_time_adaptation = false;
         }
 

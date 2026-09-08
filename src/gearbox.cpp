@@ -340,6 +340,132 @@ void Gearbox::update_adaptive_profile(void)
     }
 }
 
+bool Gearbox::blend_active(void)
+{
+    return 0 != SBS_CURRENT_SETTINGS.agility_blend &&
+           nullptr != this->selected_profile && this->selected_profile == (AbstractProfile*)comfort &&
+           nullptr != comfort && nullptr != agility;
+}
+
+bool Gearbox::current_arm_is_a(void)
+{
+    // Odd shifts get the feature, even shifts the baseline. With interleaving
+    // off every shift is arm A, so the stamp reads the same either way.
+    return !SBS_CURRENT_SETTINGS.ab_interleave || (0 != (this->fwd_shift_count & 1u));
+}
+
+float Gearbox::agility_blend_weight(void)
+{
+    int lo = SBS_CURRENT_SETTINGS.agility_blend_lo;
+    int hi = SBS_CURRENT_SETTINGS.agility_blend_hi;
+    if (hi <= lo) { hi = lo + 1; }
+    int sc = this->agility_score;
+    if (sc <= lo) { return 0.0f; }
+    if (sc >= hi) { return 1.0f; }
+    return (float)(sc - lo) / (float)(hi - lo);
+}
+
+/**
+ * @brief Shift point with the Comfort/Agility maps blended on the agility score.
+ *
+ * Only when SBS agility_blend is 2, Comfort is selected, and this shift falls in
+ * arm A; otherwise the profile the swap chose decides, exactly as before. The
+ * Comfort rule of no upshift on the brake is kept, since the blend is Comfort
+ * with some Agility mixed in rather than a new profile.
+ */
+bool Gearbox::profile_should_upshift(AbstractProfile* p, GearboxGear g, SensorData* sd)
+{
+    if (2 == SBS_CURRENT_SETTINGS.agility_blend && this->blend_active() && this->current_arm_is_a() &&
+        nullptr != comfort->get_upshift_map() && nullptr != agility->get_upshift_map()) {
+        if (g == GearboxGear::Fifth) { return false; }
+        float w = this->agility_blend_weight();
+        float pedal = sd->pedal_pos / 2.5f;
+        float t_c = comfort->get_upshift_map()->get_value(pedal, (float)g);
+        float t_a = agility->get_upshift_map()->get_value(pedal, (float)g);
+        float threshold = t_c + w * (t_a - t_c);
+        bool can_upshift = (float)sd->input_rpm > threshold;
+        if (sd->brake_pressed) { can_upshift = false; }
+        return can_upshift;
+    }
+    return p->should_upshift(g, sd);
+}
+
+bool Gearbox::profile_should_downshift(AbstractProfile* p, GearboxGear g, SensorData* sd)
+{
+    if (2 == SBS_CURRENT_SETTINGS.agility_blend && this->blend_active() && this->current_arm_is_a() &&
+        nullptr != comfort->get_downshift_map() && nullptr != agility->get_downshift_map()) {
+        if (g == GearboxGear::First) { return false; }
+        float w = this->agility_blend_weight();
+        float pedal = sd->pedal_pos / 2.5f;
+        float t_c = comfort->get_downshift_map()->get_value(pedal, (float)g);
+        float t_a = agility->get_downshift_map()->get_value(pedal, (float)g);
+        float threshold = t_c + w * (t_a - t_c);
+        return (float)sd->input_rpm < threshold;
+    }
+    return p->should_downshift(g, sd);
+}
+
+/**
+ * @brief Learn from the shift the trace just closed.
+ *
+ * Runs in the controller loop, after ShiftTrace::sample has finalised a
+ * quality vector and while no shift is in progress, so the shift thread is not
+ * reading the cells being written. The decision itself is a pure function in
+ * adaptation/quality_adapt.cpp; this gathers its inputs and applies the result.
+ */
+void Gearbox::quality_adaptation_step(void)
+{
+    ShiftTraceEvent ev;
+    if (!ShiftTrace::take_completed(&ev)) {
+        return;
+    }
+    QualityContext ctx = {
+        .change = this->shift_ctx.change,
+        .agility_score = ev.agility_score,
+        .manual = this->shift_ctx.manual,
+        .kickdown = this->shift_ctx.kickdown,
+        .flared = this->shift_ctx.flared,
+        .atf_temp = this->sensor_data.atf_temp,
+        .output_rpm = this->shift_ctx.output_rpm,
+        .terrain_coeff = 0,
+        .road_confidence = 0,
+        .spc_offset_now = 0,
+        .prefill_offset_now = 0,
+    };
+    RoadLoad rl = RoadLoadEstimator::get();
+    ctx.terrain_coeff = rl.terrain_coeff;
+    ctx.road_confidence = rl.confidence;
+    // A garage shift, or a shift the sampler saw before elapse_shift stamped it,
+    // has no context we can trust - do not learn from it.
+    if (0 == (ev.stamp.flags & SHIFT_STAMP_ANNOTATED)) {
+        ctx.change = GearChange::_IDLE;
+    }
+    uint8_t spc_cell = adapt_spc_cell(ctx.change);
+    uint8_t pre_cell = adapt_prefill_cell(ctx.change);
+    if (nullptr != this->shift_adapter && 0xFF != spc_cell && 0xFF != pre_cell) {
+        ctx.spc_offset_now = this->shift_adapter->get_adapt_spc_offset(spc_cell);
+        ctx.prefill_offset_now = this->shift_adapter->get_prefill_cycles_offset(pre_cell);
+    }
+    QualityDecision d = quality_decide(&ev.quality, &ctx, &ADP_CURRENT_SETTINGS);
+    if (nullptr != this->shift_adapter && 0xFF != spc_cell && 0xFF != pre_cell) {
+        if (0 != d.spc_delta) {
+            this->shift_adapter->offset_spc_pressure(spc_cell, d.spc_delta);
+        }
+        if (0 != d.prefill_delta) {
+            this->shift_adapter->offset_prefill_cycles(pre_cell, (int8_t)d.prefill_delta);
+        }
+    }
+    if (QR_DISABLED != d.reason) {
+        ESP_LOG_LEVEL(ESP_LOG_INFO, "QADAPT",
+            "%d>%d %s: jerk %u response %u hole %u slip %lu -> spc %+d prefill %+d (cells %d/%d now %d/%d)",
+            ev.gear_from, ev.gear_to, quality_reason_text(d.reason),
+            (unsigned)ev.quality.peak_jerk, (unsigned)ev.quality.response_ms, (unsigned)ev.quality.torque_hole,
+            (unsigned long)ev.quality.slip_energy_j, d.spc_delta, d.prefill_delta, spc_cell, pre_cell,
+            ctx.spc_offset_now + d.spc_delta, ctx.prefill_offset_now + d.prefill_delta);
+    }
+    ShiftTrace::record_adaptation(d.reason, d.spc_delta, d.prefill_delta);
+}
+
 esp_err_t Gearbox::start_controller()
 {
     xTaskCreatePinnedToCore(Gearbox::start_controller_internal, "GEARBOX", 32768, static_cast<void*>(this), 10, nullptr, 1);
@@ -569,7 +695,46 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
     if (nullptr != profile && req_lookup != GearChange::_IDLE && 0xFF != egs_map_idx_lookup)
     {
         ShiftCharacteristics chars = profile->get_shift_characteristics(req_lookup, &this->sensor_data);
+        // Continuous Comfort/Agility blend of the target shift time (SBS agility_blend).
+        // The swap's choice of profile is the arm B baseline; arm A interpolates
+        // between the two time maps on the score, so a half-hearted stab gets a
+        // half-way shift.
+        ShiftStamp stamp = {};
+        stamp.arm = this->current_arm_is_a() ? 1 : 0;
+        if (this->blend_active()) {
+            stamp.features |= SHIFT_FEAT_BLEND_TIME;
+            if (2 == SBS_CURRENT_SETTINGS.agility_blend) { stamp.features |= SHIFT_FEAT_BLEND_POINTS; }
+            if (1 == stamp.arm) {
+                float w = this->agility_blend_weight();
+                ShiftCharacteristics c_c = comfort->get_shift_characteristics(req_lookup, &this->sensor_data);
+                ShiftCharacteristics c_a = agility->get_shift_characteristics(req_lookup, &this->sensor_data);
+                chars.target_shift_time = (uint16_t)((float)c_c.target_shift_time +
+                    w * ((float)c_a.target_shift_time - (float)c_c.target_shift_time));
+                stamp.blend_pct = (uint8_t)(w * 100.0f + 0.5f);
+            }
+        }
         chars.target_shift_time = MAX(100, chars.target_shift_time);
+        if (ADP_CURRENT_SETTINGS.quality_adapt) { stamp.features |= SHIFT_FEAT_QUALITY_ADAPT; }
+        else { stamp.features |= SHIFT_FEAT_ALGO_ADAPT; }
+        if (INT16_MIN != SBS_CURRENT_SETTINGS.next_gear_min_accel_mms2) { stamp.features |= SHIFT_FEAT_NEXT_GEAR; }
+        if (SBS_CURRENT_SETTINGS.ab_interleave) { stamp.features |= SHIFT_FEAT_INTERLEAVE; }
+        if (this->current_profile == (AbstractProfile*)agility && this->selected_profile == (AbstractProfile*)comfort) {
+            stamp.features |= SHIFT_FEAT_PROFILE_AGILITY;
+        }
+        if (manually_requested) { stamp.flags |= SHIFT_STAMP_MANUAL; }
+        if (this->sensor_data.kickdown_pressed) { stamp.flags |= SHIFT_STAMP_KICKDOWN; }
+        stamp.target_time_ms = chars.target_shift_time;
+        if (nullptr != this->shift_adapter) {
+            uint8_t cell = adapt_spc_cell(req_lookup);
+            stamp.spc_offset = (0xFF == cell) ? 0 : this->shift_adapter->get_adapt_spc_offset(cell);
+            stamp.prefill_offset = this->shift_adapter->get_prefill_cycles_offset(egs_map_idx_lookup);
+        }
+        this->shift_ctx.change = req_lookup;
+        this->shift_ctx.manual = manually_requested;
+        this->shift_ctx.kickdown = this->sensor_data.kickdown_pressed;
+        this->shift_ctx.flared = false;
+        this->shift_ctx.output_rpm = this->sensor_data.output_rpm;
+        ShiftTrace::annotate(&stamp);
         CircuitInfo sd = pressure_mgr->get_basic_shift_data(&this->gearboxConfig, req_lookup, chars);
         sd.map_idx = egs_map_idx_lookup;
         if (this->last_shift_circuit == sd.shift_circuit) { // Same shift solenoid
@@ -690,6 +855,10 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
             if (!stationary_shift) {
                 if (now_cs.off_clutch_speed < -50 || now_cs.on_clutch_speed < -50) {
                     flaring = true;
+                    if (!this->shift_ctx.flared) {
+                        this->shift_ctx.flared = true;
+                        ShiftTrace::mark(SHIFT_STAMP_FLARE);
+                    }
                 }
                 else {
                     flaring = false;
@@ -785,6 +954,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
             this->tcc->shift_end();
         }
         this->flaring = false;
+        this->fwd_shift_count += 1;     // advances the A/B arm for the next shift
         memset(&this->algo_feedback, 0x00, sizeof(ShiftAlgoFeedback));
         delete algo;
     }
@@ -1394,7 +1564,7 @@ void Gearbox::controller_loop()
                         p->update(&this->sensor_data);
                         // Ask the current drive profile if it thinks, given the current
                         // data, if the car should up/downshift
-                        if (this->restrict_target > this->actual_gear && p->should_upshift(this->actual_gear, &this->sensor_data))
+                        if (this->restrict_target > this->actual_gear && this->profile_should_upshift(p, this->actual_gear, &this->sensor_data))
                         {
                             // The map says shift. Before taking its word for it, ask whether the
                             // next gear can actually pull - see next_gear_can_pull(). If it cannot,
@@ -1406,7 +1576,7 @@ void Gearbox::controller_loop()
                                 this->manual_shift = false;
                             }
                         }
-                        else if (this->restrict_target < this->actual_gear || p->should_downshift(this->actual_gear, &this->sensor_data)) {
+                        else if (this->restrict_target < this->actual_gear || this->profile_should_downshift(p, this->actual_gear, &this->sensor_data)) {
                             this->ask_downshift = true; // Downshift is secondary
                             this->manual_shift = false;
                         }
@@ -1695,6 +1865,8 @@ void Gearbox::controller_loop()
             (this->output_data.ctrl_type == TorqueRequestControlType::None)
                 ? INT16_MAX : (int16_t)this->output_data.torque_req_amount,
             (int16_t)this->sensor_data.converted_torque, this->agility_score);
+        // Closed loop on shift quality: runs once per completed shift, between shifts.
+        this->quality_adaptation_step();
         uint32_t time = GET_CLOCK_TIME() - start;
         if (time < 20) {
             vTaskDelay((20 - time) / portTICK_PERIOD_MS); // 50 updates/sec!

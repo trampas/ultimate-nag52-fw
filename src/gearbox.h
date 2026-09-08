@@ -15,6 +15,8 @@
 #include "pressure_manager.h"
 #include "models/input_torque.hpp"
 #include "adaptation/shift_adaptation.h"
+#include "adaptation/quality_adapt.h"
+#include "shift_trace.h"
 #include "models/clutch_speed.hpp"
 #include "shifter/shifter.h"
 #include "inputcomponents/brakepedal.hpp"
@@ -110,6 +112,36 @@ private:
     // Anti-bog gate on automatic upshifts; see the definition in gearbox.cpp
     bool next_gear_can_pull(GearboxGear next);
     void update_adaptive_profile(void);
+
+    /**
+     * @brief Continuous Comfort/Agility blend and per-shift A/B arms.
+     *
+     * SBS agility_blend interpolates the target shift time (and, at 2, the shift
+     * points) between the Comfort and Agility maps on the agility score, instead
+     * of the profile swap's all-or-nothing choice. SBS ab_interleave alternates
+     * the blend on and off shift by shift so both populations come from one
+     * drive; the arm is stamped on every shift in the trace.
+     */
+    bool blend_active(void);            // Comfort selected and agility_blend != 0
+    bool current_arm_is_a(void);        // false only on even shifts while interleaving
+    float agility_blend_weight(void);   // 0 (Comfort) .. 1 (Agility)
+    bool profile_should_upshift(AbstractProfile* p, GearboxGear g, SensorData* sd);
+    bool profile_should_downshift(AbstractProfile* p, GearboxGear g, SensorData* sd);
+    uint32_t fwd_shift_count = 0;       // completed forward shifts since boot
+
+    /**
+     * @brief Context of the shift in progress / just finished, for the quality
+     * adaptation, which runs in the controller loop after the trace closes the
+     * shift's quality vector. See adaptation/quality_adapt.h.
+     */
+    struct {
+        GearChange change;
+        bool manual;
+        bool kickdown;
+        bool flared;
+        uint16_t output_rpm;
+    } shift_ctx = { GearChange::_IDLE, false, false, false, 0 };
+    void quality_adaptation_step(void);
     GearboxGear target_gear = GearboxGear::Park;
     GearboxGear actual_gear = GearboxGear::Park;
     GearboxGear last_fwd_gear = GearboxGear::Second;
