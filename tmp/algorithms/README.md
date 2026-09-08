@@ -44,12 +44,32 @@ the 1990s. Read the references before inventing.
 
 ## Status in the firmware
 
-Implemented and exposed, not yet consumed by any control decision:
+Measured on the TCU:
 
 - road load / grade estimator (`src/road_load.cpp`)
 - shift quality vector per shift (`src/shift_trace.h`, `ShiftQuality`)
 - driver agility score (`src/gearbox.cpp`, `agility_score`)
 - 50 Hz shift recorder that everything above is measured from
+
+Consumed, each behind a live-editable setting that defaults to the old
+behaviour (added 2026-09-07 evening, not yet driven):
+
+- **agility score -> shift execution and schedule**: `SBS agility_blend`
+  interpolates the target shift time (1) or time and shift points (2) between
+  the Comfort and Agility maps on the score, replacing the profile swap's
+  all-or-nothing choice. `gearbox.cpp`, `elapse_shift` and
+  `profile_should_upshift`.
+- **shift quality -> pressure and fill time**: `ADP quality_adapt` trims the
+  SPC offset and prefill cells from each shift's measured jerk, response,
+  torque hole, slip energy and flare, asymmetrically and clamped.
+  `src/adaptation/quality_adapt.cpp` is a pure function; replay it against a
+  log with `scripts/quality_adapt_sim.py` before changing a step or a target.
+- **road load -> upshift veto**: `SBS next_gear_min_accel_mms2`, off by default.
+- **attribution**: every shift in the trace carries a `ShiftStamp` (features
+  enabled, A/B arm, blend weight, target time, offsets in force, what
+  adaptation did). `SBS ab_interleave` alternates the blend shift by shift so
+  both arms come from one drive. This is what lets a drive carry more than one
+  variable; see [drive-plan-2026-09-08.md](drive-plan-2026-09-08.md).
 
 Offline equivalents live in the repo's `scripts/` so the two can be
 cross-checked: `road_load.py`, `shift_quality.py`, `shift_envelope.py`.

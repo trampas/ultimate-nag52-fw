@@ -4,6 +4,22 @@ This firmware contains initial EGS52 calibration data. You will need to select t
 `TCU Program settings -> CAL`
 You can see [here](https://docs.ultimate-nag52.net/en/gettingstarted/configuration/calibration) for an explination on calibration settings
 
+# 07/09/26
+
+## Added
+* Continuous Comfort/Agility blend on the driver agility score (`SBS agility_blend`:
+  0 off, 1 shift time, 2 shift time and points). Off by default; the profile swap
+  behaves as before.
+* Shift quality adaptation (`ADP quality_adapt`): trims SPC offset and prefill cells
+  from each shift's measured jerk, response, torque hole, slip energy and flare.
+  Off by default. Suspends the built-in fill/pressure adaptation while on.
+* Shift trace version 2: every shift carries a stamp of the features enabled, its
+  A/B arm, blend weight, target time, adaptation offsets in force and what the
+  quality adaptation did afterwards. `SBS ab_interleave` alternates the blend
+  shift by shift for an A/B comparison inside one drive.
+* `scripts/quality_adapt_sim.py` replays the firmware's quality adaptation rule
+  against a logged drive.
+
 # 08/06/26
 
 ## Added

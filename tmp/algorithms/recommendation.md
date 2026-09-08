@@ -371,8 +371,16 @@ understand the number.
    **Replace it with a closed loop** (below), which is what the margin is
    waiting for.
 
-1b. **Trim shift pressure against measured slip and shift quality.** The
-   signals are already there and unused: `ShiftQuality.peak_jerk` and
+1b. **Trim shift pressure against measured slip and shift quality.**
+   **Built 2026-09-07 as `ADP quality_adapt`, off by default, not yet driven.**
+   Replayed against the 12:20 drive with `scripts/quality_adapt_sim.py`: 34 of
+   52 shifts pass the gates with the pedal as the agility stand-in; every 1-2
+   reads as a flare and walks its cell up 40 mBar a shift; 4-5 and 4-3 walk
+   down 10 mBar a shift because nothing on that drive is under the 12 m/s^3
+   comfort target, so with that target the loop's equilibrium is the clamp.
+   Set the jerk target near the drive's better shifts first (about 25 m/s^3)
+   so it discriminates, then lower it as the calibration improves.
+   The signals were already there and unused: `ShiftQuality.peak_jerk` and
    `slip_energy_j` per shift, plus the existing flare flag, plus ratio deviation
    which measures slip directly. Adapt the SPC offset per shift index in the
    maps `ShiftAdaptationSystem` already carries.
@@ -388,8 +396,11 @@ understand the number.
    - Note the ceiling from TRANSMISSION_NOTES section 2: on 2-3, 3-4 and 4-5
      the applying clutch cannot be fed above ~7100 mBar, so "raise on slip" runs
      out on high-torque shifts and torque reduction is the only lever left.
-2. **Fill adaptation from turbine timing on all shifts.** Verify: median
-   `response_ms` falls from 500 towards the Agility target.
+2. **Fill adaptation from turbine timing on all shifts.** Partly covered by
+   1b: `quality_adapt` moves the prefill cell one cycle a shift on measured
+   `response_ms`, on all shifts that pass the gates, and stands the built-in
+   fill adaptation down while it is on. Verify: median `response_ms` falls
+   from 500 towards the Agility target.
 3. **Layer 0 map generation** with a power-reserve knob, checked by
    `shift_envelope.py`, flashed with an NVS key bump. Verify: landing-rpm
    distribution, hunting count.
@@ -400,7 +411,10 @@ understand the number.
 5. **Grade consumption**: terrain interpolation, downhill hold, grade braking.
    Verify against a known hill (still open in findings-from-our-data.md).
 6. **Cornering hold, fast-off, pedal stabilisation**, one at a time.
-7. **Continuous driver-type blend** replacing the profile swap.
+7. **Continuous driver-type blend** replacing the profile swap. **Built
+   2026-09-07 as `SBS agility_blend` (1 = shift time, 2 = time and points),
+   off by default, not yet driven.** `SBS ab_interleave` alternates it shift
+   by shift so the comparison comes from one drive.
 8. **Torque-reduction shaping** in the inertia phase.
 9. **Bounded landing-rpm adaptation**, last.
 

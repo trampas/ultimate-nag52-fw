@@ -29,6 +29,11 @@ The four things most likely to waste your time:
 
 ## Working on the calibration
 
+Run **`scripts/quality_adapt_sim.py <log>`** before changing anything in
+`src/adaptation/quality_adapt.cpp` or its ADP settings: it replays the exact
+firmware rule against a logged drive and shows whether the cells converge,
+oscillate or run to the clamp.
+
 Run **`scripts/shift_envelope.py`** before and after any change to `src/maps.cpp`.
 It checks every shift point against the vehicle's measured envelope (boost point,
 peak power band, redline, ratios) and catches the classes of defect that have
@@ -50,8 +55,14 @@ Each of these cost a road test:
 1. **Check the sample rate against the timescale before analysing.** A 160 ms
    inertia phase at 52.5 ms polling is three samples. Conclusions drawn from that
    were wrong, and it took a failed model fit to notice. Use the shift trace.
-2. **One variable per drive.** Two change sets went out together and the
-   resulting regression could not be attributed to either.
+2. **One variable per drive, unless every shift is stamped.** Two change sets
+   went out together and the resulting regression could not be attributed to
+   either. Since trace version 2 each shift carries a `ShiftStamp` (features
+   enabled, A/B arm, blend weight, offsets in force, what adaptation did), and
+   `SBS ab_interleave` alternates a feature shift by shift. A drive can then
+   carry one schedule change, one interleaved execution change and one
+   learner, provided each is judged on its own signal and toggled over KWP
+   rather than by reflashing. Learners cannot be interleaved: they carry state.
 3. **State the mechanism as a number and check it before flashing.** "Three
    1.2 s shifts inside a 4.1 s stop" would have caught the standstill clunk on
    paper; the simulation output even showed downshifts 50 ms apart.
