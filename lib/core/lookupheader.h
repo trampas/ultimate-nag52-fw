@@ -22,7 +22,7 @@ class LookupAllocHeader: public LookupHeader {
         /// @param _length 
         LookupAllocHeader(const int16_t* _header, const uint16_t _size);
         /// @brief frees the allocated memory
-        ~LookupAllocHeader(void);    
+        ~LookupAllocHeader(void) override;
     private:
         /// @brief is true, if the memory allocation for the headers was successful
         bool allocation_successful;

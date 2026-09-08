@@ -181,7 +181,7 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
     this->pedal_delta = new DeltaTracker(25);
 }
 
-bool Gearbox::is_stationary() {
+bool Gearbox::is_stationary() const {
     // The output shaft is what says the car has stopped. The old test also demanded
     // input_rpm < 100, but standing in gear the converter drags the turbine to
     // 100-300 rpm at idle, so a genuine standstill never satisfied it: a 2-1 coast
@@ -338,16 +338,16 @@ DATA_DRIVING_DYNAMICS Gearbox::get_driving_dynamics(void)
 void Gearbox::update_adaptive_profile(void)
 {
     // Only Comfort opts in. Anything else the driver selected is left alone.
-    if (nullptr == this->selected_profile || this->selected_profile != (AbstractProfile*)comfort ||
+    if (nullptr == this->selected_profile || this->selected_profile != static_cast<AbstractProfile*>(comfort) ||
         nullptr == agility) {
         return;
     }
     // Hysteresis, so a score hovering at the threshold cannot swap profiles back
     // and forth. Once engaged it stays until the driver has genuinely settled.
-    bool want_agility = (this->current_profile == (AbstractProfile*)agility)
+    bool want_agility = (this->current_profile == static_cast<AbstractProfile*>(agility))
         ? (this->agility_score > AGILITY_RELEASE)
         : (this->agility_score >= AGILITY_ENGAGE);
-    AbstractProfile* target = want_agility ? (AbstractProfile*)agility : this->selected_profile;
+    AbstractProfile* target = want_agility ? static_cast<AbstractProfile*>(agility) : this->selected_profile;
     // Never swap the maps out from under a shift in progress - the shift thread
     // reads chars/target time from the profile it started with.
     if (!this->shifting && target != this->current_profile) {
@@ -359,14 +359,14 @@ void Gearbox::update_adaptive_profile(void)
     }
 }
 
-bool Gearbox::blend_active(void)
+bool Gearbox::blend_active(void) const
 {
     return 0 != SBS_CURRENT_SETTINGS.agility_blend &&
-           nullptr != this->selected_profile && this->selected_profile == (AbstractProfile*)comfort &&
+           nullptr != this->selected_profile && this->selected_profile == static_cast<AbstractProfile*>(comfort) &&
            nullptr != comfort && nullptr != agility;
 }
 
-bool Gearbox::current_arm_is_a(void)
+bool Gearbox::current_arm_is_a(void) const
 {
     // Odd shifts get the feature, even shifts the baseline. With interleaving
     // off every shift is arm A, so the stamp reads the same either way.
@@ -619,7 +619,7 @@ GearboxGear prev_gear(GearboxGear g)
 #define SHIFT_DELAY_MS 20     // 20ms steps
 #define NUM_SCD_ENTRIES 100 / SHIFT_DELAY_MS // 100ms moving average window
 
-ClutchSpeeds Gearbox::diag_get_clutch_speeds()
+ClutchSpeeds Gearbox::diag_get_clutch_speeds() const
 {
 
     return ClutchSpeedModel::get_clutch_speeds_debug(
@@ -791,7 +791,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
         else { stamp.features |= SHIFT_FEAT_ALGO_ADAPT; }
         if (INT16_MIN != SBS_CURRENT_SETTINGS.next_gear_min_accel_mms2) { stamp.features |= SHIFT_FEAT_NEXT_GEAR; }
         if (SBS_CURRENT_SETTINGS.ab_interleave) { stamp.features |= SHIFT_FEAT_INTERLEAVE; }
-        if (this->current_profile == (AbstractProfile*)agility && this->selected_profile == (AbstractProfile*)comfort) {
+        if (this->current_profile == static_cast<AbstractProfile*>(agility) && this->selected_profile == static_cast<AbstractProfile*>(comfort)) {
             stamp.features |= SHIFT_FEAT_PROFILE_AGILITY;
         }
         if (manually_requested) { stamp.flags |= SHIFT_STAMP_MANUAL; }
@@ -819,7 +819,6 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
         bool process_shift = true;
 
         ShiftPressures p_now = {};
-        memset(&p_now, 0, sizeof(ShiftPressures));
 
         uint32_t total_elapsed = 0;
         uint32_t phase_elapsed = 0;

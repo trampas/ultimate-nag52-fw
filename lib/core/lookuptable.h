@@ -28,7 +28,7 @@ class LookupAllocTable: public LookupTable {
     public:
         LookupAllocTable(const int16_t* _xHeader, const uint16_t _xHeaderSize);
         LookupAllocTable(const int16_t* _xHeader, const uint16_t _xHeaderSize, const int16_t* _data, const uint16_t _dataSize);
-        ~LookupAllocTable(void);
+        ~LookupAllocTable(void) override;
         bool set_data(const int16_t* _data, uint16_t _dataSize);
         bool is_allocated(void) const;
         bool add_data(const int16_t* map, const uint16_t size);

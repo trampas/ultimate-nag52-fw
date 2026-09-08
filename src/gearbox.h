@@ -33,8 +33,10 @@ struct PostShiftTorqueRamp {
 class Gearbox {
 public:
     explicit Gearbox(Shifter* shifter);
+    Gearbox(const Gearbox&) = delete;
+    Gearbox& operator=(const Gearbox&) = delete;
     // Diag test
-    ClutchSpeeds diag_get_clutch_speeds();
+    ClutchSpeeds diag_get_clutch_speeds() const;
     void set_profile(AbstractProfile* prof);
     esp_err_t start_controller(void);
     void inc_gear_request(void);
@@ -43,18 +45,18 @@ public:
     void diag_regain_control(void) { this->diag_stop_control = false; }
     SensorData sensor_data;
     OutputData output_data;
-    uint16_t get_gear_ratio(void) {
+    uint16_t get_gear_ratio(void) const {
         return this->sensor_data.gear_ratio * 100.0F;
     }
-    uint16_t get_targ_gear_ratio(void) {
+    uint16_t get_targ_gear_ratio(void) const {
         return this->sensor_data.targ_gear_ratio * 100.0F;
     }
     uint16_t redline_rpm;
     bool shifting = false;
     PressureManager* pressure_mgr = nullptr;
 
-    bool isShifting(void) { return this->shifting; }
-    uint8_t get_targ_curr_gear(void) { return (((uint8_t)this->target_gear) & 0x0F) << 4 | ((uint8_t)this->actual_gear & 0x0F); }
+    bool isShifting(void) const { return this->shifting; }
+    uint8_t get_targ_curr_gear(void) const { return (((uint8_t)this->target_gear) & 0x0F) << 4 | ((uint8_t)this->actual_gear & 0x0F); }
     /// Driver agility demand and the inputs behind it, for RLI_DRIVING_DYNAMIC.
     DATA_DRIVING_DYNAMICS get_driving_dynamics(void);
     uint8_t get_profile_id(void) {
@@ -69,7 +71,7 @@ public:
     ShiftAdaptationSystem* shift_adapter = nullptr;
     SpeedSensors speed_sensors;
 private:
-    bool is_stationary();
+    bool is_stationary() const;
     ShiftReportSegment collect_report_segment(uint64_t start_time);
     void set_torque_request(TorqueRequestControlType ctrl_type, TorqueRequestBounds bounds, float amount);
     bool elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool manually_requested);
@@ -125,8 +127,8 @@ private:
      * the blend on and off shift by shift so both populations come from one
      * drive; the arm is stamped on every shift in the trace.
      */
-    bool blend_active(void);            // Comfort selected and agility_blend != 0
-    bool current_arm_is_a(void);        // false only on even shifts while interleaving
+    bool blend_active(void) const;            // Comfort selected and agility_blend != 0
+    bool current_arm_is_a(void) const;        // false only on even shifts while interleaving
     float agility_blend_weight(void);   // 0 (Comfort) .. 1 (Agility)
     bool profile_should_upshift(AbstractProfile* p, GearboxGear g, SensorData* sd);
     bool profile_should_downshift(AbstractProfile* p, GearboxGear g, SensorData* sd);

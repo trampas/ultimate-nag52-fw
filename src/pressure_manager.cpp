@@ -19,7 +19,14 @@ PressureManager::PressureManager(SensorData* sensor_ptr, uint16_t max_torque) {
     /** Pressure PWM map **/
 
     // Friction lookup table
-    this->pressure_pwm_map = new LookupRefMap((int16_t*)HYDR_PTR->pcs_map_x, 7, (int16_t*)HYDR_PTR->pcs_map_y, 4, (int16_t*)HYDR_PTR->pcs_map_z, 7*4);
+    this->pressure_pwm_map = new LookupRefMap(
+        reinterpret_cast<int16_t*>(const_cast<uint16_t*>(HYDR_PTR->pcs_map_x)),
+        7,
+        reinterpret_cast<int16_t*>(const_cast<uint16_t*>(HYDR_PTR->pcs_map_y)),
+        4,
+        reinterpret_cast<int16_t*>(const_cast<uint16_t*>(HYDR_PTR->pcs_map_z)),
+        7 * 4
+    );
 
     this->momentum_upshifts[0] = new LookupByteMap(SHIFT_ALGO_CFG_PTR->momentum_1_2_x, 3, SHIFT_ALGO_CFG_PTR->momentum_1_2_y, 2, SHIFT_ALGO_CFG_PTR->momentum_1_2_z, 3*2);
     this->momentum_upshifts[1] = new LookupByteMap(SHIFT_ALGO_CFG_PTR->momentum_2_3_x, 3, SHIFT_ALGO_CFG_PTR->momentum_2_3_y, 2, SHIFT_ALGO_CFG_PTR->momentum_2_3_z, 3*2);
@@ -303,7 +310,7 @@ uint16_t PressureManager::p_clutch_with_coef(GearboxGear gear, Clutch clutch, ui
     return MIN(calc, (float)UINT16_MAX);
 }
 
-int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clutch, int16_t torque_nm, CoefficientTy coef_ty) {
+int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clutch, int16_t abs_torque_nm, CoefficientTy coef_ty) {
     uint8_t gear_idx = gear_to_idx_lookup(gear);
     float coef;
     switch (coef_ty) {
@@ -323,7 +330,7 @@ int16_t PressureManager::p_clutch_with_coef_signed(GearboxGear gear, Clutch clut
         coef = 100.F; // Guard against a zeroed user setting (x100 scale)
     }
     float friction_val = MECH_PTR->friction_map[(gear_idx*6)+(uint8_t)clutch];
-    float calc = ((float)torque_nm * friction_val) / coef;
+    float calc = ((float)abs_torque_nm * friction_val) / coef;
     return MAX((float)INT16_MIN, MIN(calc, (float)INT16_MAX));
 }
 

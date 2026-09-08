@@ -40,7 +40,7 @@ uint8_t CrossoverShift::step_internal(
     bool stationary,
     bool is_upshift
 ) {
-    uint8_t ret = STEP_RES_CONTINUE;
+    uint8_t ret;
     if (phase_id == PHASE_BLEED) {
         ret = this->phase_bleed(pm);
     } else if (phase_id == PHASE_FILL) {

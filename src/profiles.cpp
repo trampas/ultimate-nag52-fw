@@ -383,14 +383,14 @@ bool StandardProfile::should_upshift(GearboxGear current_gear, SensorData* senso
     }
 }
 
-void StandardProfile::update(SensorData* sensors) {
+void StandardProfile::update(SensorData* sd) {
     // Every 250ms we check sensor inputs
     if (GET_CLOCK_TIME() - this->last_check > 250) {
         this->last_check = GET_CLOCK_TIME();
-        if (sensors->pedal_pos - last_sensors.pedal_pos > 64) { // More than a 25% jump in pedal in 250ms
-            accel_delta_factor += (sensors->pedal_pos - last_sensors.pedal_pos) * 10;
+        if (sd->pedal_pos - last_sensors.pedal_pos > 64) { // More than a 25% jump in pedal in 250ms
+            accel_delta_factor += (sd->pedal_pos - last_sensors.pedal_pos) * 10;
         }
-        last_sensors = *sensors;
+        last_sensors = *sd;
     }
     if (this->accel_delta_factor > 0) {
         this->accel_delta_factor-=5;

@@ -10,6 +10,8 @@ class ShifterTrrs : public Shifter
 {
 public:
     ShifterTrrs(TCM_CORE_CONFIG* vehicle_config, BoardGpioMatrix *board);
+    ShifterTrrs(const ShifterTrrs&) = delete;
+    ShifterTrrs& operator=(const ShifterTrrs&) = delete;
     ShifterPosition get_shifter_position(const uint32_t expire_time_ms) override;    
     AbstractProfile* get_profile(const uint32_t expire_time_ms) override;
     DiagProfileInputState diag_get_profile_input() override;
@@ -38,7 +40,7 @@ private:
 
     ShifterPosition last_valid_position = ShifterPosition::SignalNotAvailable;
     BoardGpioMatrix* board;
-    ProgramSelectorSwitchTRRS* programselector;
+    ProgramSelectorSwitchTRRS* programselector = nullptr;
 };
 
 #endif // SHIFTER_TRRS_H

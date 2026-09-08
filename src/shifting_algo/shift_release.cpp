@@ -538,7 +538,6 @@ uint16_t ReleasingShift::calc_sync_mod_pressure() {
 }
 
 short ReleasingShift::calc_shifting_momentum() {
-    short ret = 0;
     float calc = ((pm->release_coefficient() * (float)this->trq_at_apply_clutch) / pm->sliding_coefficient());
     calc += (this->emergency_trq_val * sd->tcc_trq_multiplier);
     calc += this->freeing_trq;
@@ -549,7 +548,6 @@ short ReleasingShift::calc_shifting_momentum() {
     float reduction = this->torque_req_out * sd->tcc_trq_multiplier;
 
     return MAX(0, (min + this->trq_at_apply_clutch) - reduction);
-    return ret;
 }
 
 int16_t ReleasingShift::calc_release_clutch_p_signed(int trq, CoefficientTy coef) {

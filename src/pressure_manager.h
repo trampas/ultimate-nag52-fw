@@ -107,6 +107,8 @@ public:
     void set_spc_p_max(void);
 
     PressureManager(SensorData* sensor_ptr, uint16_t max_torque);
+    PressureManager(const PressureManager&) = delete;
+    PressureManager& operator=(const PressureManager&) = delete;
 
     /**
      * @brief Get the shift data object for the requested gear change
@@ -181,7 +183,7 @@ private:
     uint16_t calculated_inlet_pressure = 0;
 
     // Shift circuit currently open
-    ShiftCircuit currently_open_circuit;
+    ShiftCircuit currently_open_circuit = ShiftCircuit::None;
     LookupMap* pressure_pwm_map;
     StoredMap* tcc_pwm_map;
     StoredMap* fill_time_map;

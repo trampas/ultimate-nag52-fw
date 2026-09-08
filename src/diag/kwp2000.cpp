@@ -1,21 +1,19 @@
 #include "kwp2000.h"
+#include "diag_data.h"
 #include "shift_trace.h"
 #include <esp_ota_ops.h>
-#include <string>
+#include <esp_flash.h>
+#include <esp_efuse.h>
+#include <esp_mac.h>
 #include <time.h>
-#include "diag_data.h"
 #include "egs_emulation.h"
-#include "kwp_utils.h"
 #include "map_editor.h"
-#include "esp_mac.h"
 #include "models/clutch_speed.hpp"
-#include "tcu_alloc.h"
 #include "solenoids/solenoids.h"
-#include "clock.hpp"
 #include "nvs/device_mode.h"
-#include "esp_flash.h"
 #include "egs_calibration/calibration_structs.h"
 #include "tcu_io/tcu_io.hpp"
+#include "tcu_alloc.h"
 
 typedef struct {
     uint8_t day;
@@ -495,7 +493,7 @@ void Kwp2000_server::process_read_ecu_ident(const uint8_t* args, uint16_t arg_le
         x[1] = 'E';
         x[2] = 'L';
         x[3] = 'P';
-        return make_diag_pos_msg(SID_READ_ECU_IDENT, 0x8A, (uint8_t*)&x, 4);
+        return make_diag_pos_msg(SID_READ_ECU_IDENT, 0x8A, reinterpret_cast<const uint8_t*>(&x), 4);
     } else if (args[0] == 0x90) { // VIN current
         make_diag_pos_msg(SID_READ_ECU_IDENT, 0x90, reinterpret_cast<const uint8_t*>("ULTIMATENAG52ESP0"), 17);
     } else {
@@ -569,7 +567,7 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
             buf[1] = read_bytes_size >> 8;
             memcpy(&buf[2], buffer, read_bytes_size);
             make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, buf, 2+read_bytes_size);
-            delete[] buf;
+            TCU_FREE(buf);
             TCU_FREE(buffer); // DELETE MapEditor allocation
             return;
         } else {
@@ -578,34 +576,34 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
         }
     } else if (args[0] == RLI_GEARBOX_SENSORS) {
         DATA_GEARBOX_SENSORS r = get_gearbox_sensors(this->gearbox_ptr);
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_GEARBOX_SENSORS, (uint8_t*)&r, sizeof(DATA_GEARBOX_SENSORS));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_GEARBOX_SENSORS, reinterpret_cast<const uint8_t*>(&r), sizeof(DATA_GEARBOX_SENSORS));
     } else if (args[0] == RLI_SOLENOID_STATUS) {
         DATA_SOLENOIDS r = get_solenoid_data(this->gearbox_ptr);
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SOLENOID_STATUS, (uint8_t*)&r, sizeof(DATA_SOLENOIDS));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SOLENOID_STATUS, reinterpret_cast<const uint8_t*>(&r), sizeof(DATA_SOLENOIDS));
     } else if (args[0] == RLI_CAN_DATA_DUMP) {
         DATA_CANBUS_RX r = get_rx_can_data(egs_can_hal);
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CAN_DATA_DUMP, (uint8_t*)&r, sizeof(DATA_CANBUS_RX));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CAN_DATA_DUMP, reinterpret_cast<const uint8_t*>(&r), sizeof(DATA_CANBUS_RX));
     } else if (args[0] == RLI_SYS_USAGE) {
         DATA_SYS_USAGE r = get_sys_usage();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SYS_USAGE, (uint8_t*)&r, sizeof(DATA_SYS_USAGE));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SYS_USAGE, reinterpret_cast<const uint8_t*>(&r), sizeof(DATA_SYS_USAGE));
     } else if (args[0] == RLI_TCC_PROGRAM) {
         DATA_TCC_PROGRAM r = get_tcc_program_data(this->gearbox_ptr);
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_TCC_PROGRAM, (uint8_t*)&r, sizeof(DATA_TCC_PROGRAM));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_TCC_PROGRAM, reinterpret_cast<const uint8_t*>(&r), sizeof(DATA_TCC_PROGRAM));
     } else if (args[0] == RLI_PRESSURES) {
         DATA_PRESSURES r = get_pressure_data(this->gearbox_ptr);
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_PRESSURES, (uint8_t*)&r, sizeof(DATA_PRESSURES));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_PRESSURES, reinterpret_cast<const uint8_t*>(&r), sizeof(DATA_PRESSURES));
     } else if (args[0] == RLI_TCU_TIME) {
         uint32_t now = GET_CLOCK_TIME();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_TCU_TIME, (uint8_t*)&now, sizeof(now));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_TCU_TIME, reinterpret_cast<const uint8_t*>(&now), sizeof(now));
     } else if (args[0] == RLI_CLUTCH_SPEEDS) {
         ClutchSpeeds r = gearbox->diag_get_clutch_speeds();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CLUTCH_SPEEDS, (uint8_t*)&r, sizeof(ClutchSpeeds));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CLUTCH_SPEEDS, reinterpret_cast<const uint8_t*>(&r), sizeof(ClutchSpeeds));
     } else if (args[0] == RLI_DRIVING_DYNAMIC) {
         if (nullptr == gearbox) {
             make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_CONDITIONS_NOT_CORRECT_REQ_SEQ_ERROR);
         } else {
             DATA_DRIVING_DYNAMICS r = gearbox->get_driving_dynamics();
-            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_DRIVING_DYNAMIC, (uint8_t*)&r, sizeof(r));
+            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_DRIVING_DYNAMIC, reinterpret_cast<const uint8_t*>(&r), sizeof(r));
         }
     } else if (args[0] == RLI_SHIFT_TRACE) {
         // Header only. The samples are pulled with ReadMemoryByAddress from
@@ -615,39 +613,39 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
         if (nullptr == h) {
             make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_CONDITIONS_NOT_CORRECT_REQ_SEQ_ERROR);
         } else {
-            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFT_TRACE, (uint8_t*)h, sizeof(ShiftTraceHeader));
+            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFT_TRACE, reinterpret_cast<const uint8_t*>(h), sizeof(ShiftTraceHeader));
         }
     } else if (args[0] == RLI_SHIFTING_ALGO) {
         ShiftAlgoFeedback r = gearbox->algo_feedback;
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFTING_ALGO, (uint8_t*)&r, sizeof(ShiftAlgoFeedback));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFTING_ALGO, reinterpret_cast<const uint8_t*>(&r), sizeof(ShiftAlgoFeedback));
     } else if (args[0] == RLI_TCM_CONFIG) {
         TCM_CORE_CONFIG r = get_tcm_config();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_TCM_CONFIG, (uint8_t*)&r, sizeof(TCM_CORE_CONFIG));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_TCM_CONFIG, reinterpret_cast<const uint8_t*>(&r), sizeof(TCM_CORE_CONFIG));
     } else if (args[0] == RLI_EFUSE_CONFIG) {
         TCM_EFUSE_CONFIG ecfg;
         EEPROM::read_efuse_config(&ecfg);
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_EFUSE_CONFIG, (uint8_t*)&ecfg, sizeof(TCM_EFUSE_CONFIG));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_EFUSE_CONFIG, reinterpret_cast<const uint8_t*>(&ecfg), sizeof(TCM_EFUSE_CONFIG));
     } else if (args[0] == RLI_SHIFT_LIVE) {
         SHIFT_LIVE_INFO r = get_shift_live_Data(egs_can_hal, gearbox);
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFT_LIVE, (uint8_t*)&r, sizeof(SHIFT_LIVE_INFO));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_SHIFT_LIVE, reinterpret_cast<const uint8_t*>(&r), sizeof(SHIFT_LIVE_INFO));
     } else if (args[0] == RLI_FW_HEADER) {
         make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_FW_HEADER, reinterpret_cast<const uint8_t*>(get_image_header()), sizeof(esp_app_desc_t));
     } else if (args[0] == RLI_COREDUMP_PART_INFO) {
         PARTITION_INFO r = get_coredump_info();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_COREDUMP_PART_INFO, (uint8_t*)&r, sizeof(PARTITION_INFO));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_COREDUMP_PART_INFO, reinterpret_cast<const uint8_t*>(&r), sizeof(PARTITION_INFO));
     } else if (args[0] == RLI_CURR_SW_PART_INFO) {
         PARTITION_INFO r = get_current_sw_info();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CURR_SW_PART_INFO, (uint8_t*)&r, sizeof(PARTITION_INFO));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_CURR_SW_PART_INFO, reinterpret_cast<const uint8_t*>(&r), sizeof(PARTITION_INFO));
     } else if (args[0] == RLI_NEXT_SW_PART_INFO) {
         PARTITION_INFO r = get_next_sw_info();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_NEXT_SW_PART_INFO, (uint8_t*)&r, sizeof(PARTITION_INFO));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_NEXT_SW_PART_INFO, reinterpret_cast<const uint8_t*>(&r), sizeof(PARTITION_INFO));
     } else if (args[0] == RLI_EGS_CAL_LEN) {
         uint16_t len = get_egs_calibration_size();
         uint8_t x[2] = { (uint8_t)(len & 0xFF), (uint8_t)((len >> 8) & 0xFF) };
         make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_EGS_CAL_LEN, x, sizeof(uint16_t));
     } else if (args[0] == RLI_EMBED_FILE_INFO) { 
         PARTITION_INFO r = get_embeded_file_info();
-        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_EMBED_FILE_INFO, (uint8_t*)&r, sizeof(PARTITION_INFO));
+        make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_EMBED_FILE_INFO, reinterpret_cast<const uint8_t*>(&r), sizeof(PARTITION_INFO));
     } else if (args[0] == RLI_SETTINGS_EDIT) {
         // [RLI, MODULE ID]
         if (arg_len != 2) {
@@ -669,21 +667,21 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
         if (VEHICLE_CONFIG.egs_can_type == 2) {
             if (args[0] == 0x31) {
                 RLI_31_DATA r = get_rli_31(egs_can_hal);
-                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x31, (uint8_t*)&r, sizeof(RLI_31_DATA));
+                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x31, reinterpret_cast<const uint8_t*>(&r), sizeof(RLI_31_DATA));
             } else if (args[0] == 0x33) {
                 RLI_33_DATA r = get_rli_33(egs_can_hal);
-                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x33, (uint8_t*)&r, sizeof(RLI_33_DATA));
+                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x33, reinterpret_cast<const uint8_t*>(&r), sizeof(RLI_33_DATA));
             } else if (args[0] == 0x32) {
                 RLI_32_DATA r = get_rli_32(egs_can_hal);
-                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x32, (uint8_t*)&r, sizeof(RLI_32_DATA));
+                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x32, reinterpret_cast<const uint8_t*>(&r), sizeof(RLI_32_DATA));
             } else if (args[0] == 0x30) {
                 RLI_30_DATA r = get_rli_30(egs_can_hal);
-                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x30, (uint8_t*)&r, sizeof(RLI_30_DATA));
+                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0x30, reinterpret_cast<const uint8_t*>(&r), sizeof(RLI_30_DATA));
             } else if (args[0] == 0xD1) {
                 char x[48];
                 memset(&x, 0, 48);
                 memcpy(&x,&BOARD_CONFIG, sizeof(BOARD_CONFIG));
-                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0xD1, (uint8_t*)&x, 48);
+                return make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, 0xD1, reinterpret_cast<const uint8_t*>(&x), 48);
             }
         }
         make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_REQUEST_OUT_OF_RANGE);
@@ -709,7 +707,7 @@ void Kwp2000_server::process_read_mem_address(uint8_t* args, uint16_t arg_len) {
     uint32_t end = start + len;
     if (start >= 0x800000 && end <= 0x87D000) {
         // Address is stored in flash
-        uint8_t* buffer = (uint8_t*)TCU_HEAP_ALLOC(len);
+        uint8_t* buffer = static_cast<uint8_t*>(TCU_HEAP_ALLOC(len));
         if (nullptr != buffer) {
             // Alloc OK
             if (ESP_OK == esp_flash_read(NULL, buffer, 0x349000 + (start-0x800000), len)) {
@@ -743,7 +741,7 @@ void Kwp2000_server::process_read_mem_address(uint8_t* args, uint16_t arg_len) {
             // start_ptr is the base of the region the virtual address falls in, so
             // the offset within that region has to be added. Without it every read
             // returned the first `len` bytes of the region, whatever was asked for.
-            make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS, (uint8_t*)(start_ptr + (start - region_base)), len);
+            make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS, reinterpret_cast<const uint8_t*>(start_ptr + (start - region_base)), len);
         }
     }
 }
@@ -774,12 +772,12 @@ void Kwp2000_server::process_read_mem_address_ext(uint8_t* args, uint16_t arg_le
         make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS_EXT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
         return;
     }
-    uint8_t* buffer = (uint8_t*)TCU_HEAP_ALLOC(len);
+    uint8_t* buffer = static_cast<uint8_t*>(TCU_HEAP_ALLOC(len));
     if (nullptr == buffer) {
         make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS_EXT, NRC_GENERAL_REJECT);
         return;
     }
-    memcpy(buffer, (const uint8_t*)start, len);
+    memcpy(buffer, reinterpret_cast<const uint8_t*>(start), len);
     make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS_EXT, buffer, len);
     TCU_FREE(buffer);
 }
@@ -1087,11 +1085,24 @@ void Kwp2000_server::process_write_data_by_local_ident(uint8_t* args, uint16_t a
                 make_diag_neg_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
                 return;
             }
+            if ((map_len_bytes % sizeof(int16_t)) != 0U) {
+                make_diag_neg_msg(SID_WRITE_DATA_BY_LOCAL_IDENT, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
+                return;
+            }
             uint8_t ret;
             switch (cmd) {
                 case MAP_CMD_WRITE:
-                    ret = MapEditor::write_map_data(map_id, map_len_bytes/2, (int16_t*)&args[5]); // len_bytes /2 = sizeof(int16)
+                {
+                    int16_t* map_words = static_cast<int16_t*>(TCU_HEAP_ALLOC(map_len_bytes));
+                    if (nullptr == map_words) {
+                        ret = NRC_UN52_NO_MEM;
+                    } else {
+                        memcpy(map_words, &args[5], map_len_bytes);
+                        ret = MapEditor::write_map_data(map_id, map_len_bytes / 2, map_words); // len_bytes /2 = sizeof(int16)
+                        TCU_FREE(map_words);
+                    }
                     break;
+                }
                 case MAP_CMD_UNDO:
                     ret = MapEditor::undo_changes(map_id);
                     break;
@@ -1159,37 +1170,49 @@ void Kwp2000_server::process_write_data_by_local_ident(uint8_t* args, uint16_t a
 }
 void Kwp2000_server::process_write_mem_by_address(uint8_t* args, uint16_t arg_len) {
     if (this->session_mode != SESSION_EXTENDED && this->session_mode != SESSION_CUSTOM_UN52) {
-        make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAG_SESSION);
+        make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAG_SESSION);
         return;
     }
     if (arg_len < 4) {
-        make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
+        make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
         return;
     }
     uint32_t start = (args[0] << 16) | (args[1] << 8) | args[2]; // Raw address to read from
     uint8_t len = args[3];
     if (arg_len-4 != len) { // Length mismatch between message write data, and actual data to write
-        make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
+        make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
         return;
     }
-    uint8_t* src = &args[4];
+    const uint8_t* src = &args[4];
     uint32_t end = start + len;
     if (start >= 0x800000 && end <= 0x87D000) {
         #define SECTOR_SIZE 4096
         int phys_address = 0x349000 + (start-0x800000);
         int sec_start_addr = (phys_address/SECTOR_SIZE)*SECTOR_SIZE;
         int offset_into_start_sector = phys_address - sec_start_addr;
-        uint8_t* buffer = (uint8_t*)TCU_HEAP_ALLOC(SECTOR_SIZE);
-        esp_flash_read(NULL, buffer, sec_start_addr, SECTOR_SIZE);
-        memcpy(&buffer[offset_into_start_sector], src, len);
-        esp_flash_erase_region(NULL, sec_start_addr, SECTOR_SIZE);
-        if (ESP_OK == esp_flash_write(NULL, buffer, sec_start_addr, SECTOR_SIZE)) {
-            make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS, nullptr, 0);
-        } else {
-            // Read failed
-            make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_GENERAL_REJECT);
+        uint8_t* buffer = static_cast<uint8_t*>(TCU_HEAP_ALLOC(SECTOR_SIZE));
+        if (nullptr == buffer) {
+            make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_GENERAL_REJECT);
+            return;
         }
-        delete[] buffer;
+        if (ESP_OK != esp_flash_read(NULL, buffer, sec_start_addr, SECTOR_SIZE)) {
+            TCU_FREE(buffer);
+            make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_GENERAL_REJECT);
+            return;
+        }
+        memcpy(&buffer[offset_into_start_sector], src, len);
+        if (ESP_OK != esp_flash_erase_region(NULL, sec_start_addr, SECTOR_SIZE)) {
+            TCU_FREE(buffer);
+            make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_GENERAL_REJECT);
+            return;
+        }
+        if (ESP_OK == esp_flash_write(NULL, buffer, sec_start_addr, SECTOR_SIZE)) {
+            make_diag_pos_msg(SID_WRITE_MEM_BY_ADDRESS, nullptr, 0);
+        } else {
+            // Write failed
+            make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_GENERAL_REJECT);
+        }
+        TCU_FREE(buffer);
     } else {
         uint32_t start_ptr = 0;
         uint32_t region_base = 0;
@@ -1204,13 +1227,13 @@ void Kwp2000_server::process_write_mem_by_address(uint8_t* args, uint16_t arg_le
             start_ptr = 0x3F800000; region_base = 0x100000; // PSRAM
         }
         if (0 == start_ptr) { // Invalid address range
-            make_diag_neg_msg(SID_READ_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
+            make_diag_neg_msg(SID_WRITE_MEM_BY_ADDRESS, NRC_SUB_FUNC_NOT_SUPPORTED_INVALID_FORMAT);
         } else {
             // Same offset fix as the read path. This one matters more: without it a
             // write to any RAM address landed on the base of the region instead
             // (0x40070000 for SRAM0), silently corrupting whatever lived there.
-            memcpy((void*)(start_ptr + (start - region_base)), (void*)src, len);
-            make_diag_pos_msg(SID_READ_MEM_BY_ADDRESS, nullptr, 0);
+            memcpy(reinterpret_cast<void*>(start_ptr + (start - region_base)), src, len);
+            make_diag_pos_msg(SID_WRITE_MEM_BY_ADDRESS, nullptr, 0);
         }
     }
 }
