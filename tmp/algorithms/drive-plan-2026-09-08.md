@@ -12,10 +12,10 @@ take effect at once and persist.
 
 1. Flash (`.venv/bin/pio run -e unified -t upload`), then a boot check:
    `logger/nag52log.py --reset -o logger/logs/boot.jsonl -q`, grep for
-   `Guru`/`panic`. The logger must report the trace as ready, with version 2;
+   `Guru`/`panic`. The logger must report the trace as ready, with version 3;
    a version mismatch means the logger and firmware are out of step.
 2. Read SBS and ADP back from the config app and confirm the new fields are
-   present: SBS is 16 bytes / 15 params, ADP 51 bytes / 35 params.
+   present: SBS is 18 bytes / 16 params, ADP 51 bytes / 35 params.
 3. Run the logger for the whole drive. The live dashboard now shows per shift:
    arm, blend %, target time and what the adaptation did.
 
@@ -50,20 +50,20 @@ landing rpm and hunting count, not on the quality vector.
 ### Leg 3: quality adaptation, 15 minutes or more
 
 Set `SBS ab_interleave = false` (the learner must not see alternating shifts)
-and `ADP quality_adapt = true`. Before that, set
-`ADP quality_jerk_target_mms3 = 25000`. The published 12 m/s^3 comfort target
-is far below anything this calibration produces (median 39 on the 12:20
-drive), and with it the rule would cut every owning cell by 10 mBar a shift
-until the 200 mBar clamp. At 25 it only trims the harsher half.
+and `ADP quality_adapt = true`. Leave the jerk target at the published 12000:
+with the metric fixed, the 07:01 drive has a median of 9.3 m/s^3, so 12 sits
+just above the middle of the distribution and discriminates. It no longer needs
+the 25000 that was compensating for the broken metric.
 
-What to watch on the dashboard, per shift: the reason column. Expected on
-this car, from the replay of the 12:20 drive:
+What to watch on the dashboard, per shift: the reason column. Expected from the
+07:01 drive, where the harsh shifts are the 1-2 at a median 13.3 m/s^3 and every
+other upshift is 6.6 to 10.1:
 
 | what | expect | if not |
 |---|---|---|
-| 1-2 | `flare`, +40 mBar and +2 prefill cycles each, for the first few, then stops flaring | if it never stops, the flare detector or the cell is not reaching the clutch; stop and read the log |
-| 4-5, 4-3 | `harsh`, -10 mBar a shift, slowly | if a cell walks to -200 in one leg, raise the jerk target |
-| coast 3-2, 5-4, 2-1 | fill time only (shared SPC cell), `slow response` +1 cycle | |
+| 1-2 | `harsh`, -10 mBar, most times it fires; four of eight also flare | if it flares after two raises, the cell is not reaching the clutch; stop and read the log |
+| other upshifts | mostly `in target`, occasional `slow response` +1 cycle | if everything reads harsh, the target is too low for this calibration |
+| coast 3-2, 5-4, 2-1 | fill time only (shared SPC cell) | |
 | stabs | `agility score too high`, no change | that is the gate working |
 | 3-4 at 50 %+ pedal | `slip energy over budget`, +40 mBar | if it fires on gentle 3-4s, raise `quality_slip_budget_j` |
 
@@ -123,7 +123,7 @@ learner actually left in NVS, and the trace stamps say how they got there.
 | SBS agility_blend_lo / hi | 20 / 80 | leave |
 | SBS ab_interleave | false | 2: true, then false |
 | ADP quality_adapt | false | 3: true |
-| ADP quality_jerk_target_mms3 | 12000 | 3: 25000 |
+| ADP quality_jerk_target_mms3 | 12000 | leave (was 25000 before the metric fix) |
 | ADP quality_max_agility | 40 | leave; lower to 25 if stabs are still learned |
 | ADP quality_slip_budget_j | 12000 | raise if gentle shifts breach it |
 | ADP quality_spc_step_mbar / flare step | 10 / 40 | leave |
