@@ -361,7 +361,7 @@ not by this image.
 | U | AMD **AM27C010-90JI** (1997) | 128 KB EPROM = this image | program + calibration, banked |
 | U | **74HC573** | octal latch | A0-A7 from the multiplexed bus |
 | U | ST **L9341** (1880F9922, Singapore) | quad low-side driver | the on/off solenoids Y3/Y4/Y5 (+TCC?) - **unconfirmed which pin drives it** |
-| U x2 | two separate Siemens 7-lead power packages (top-left of photo 1), each printed `RX 930620T QCZ923` / `RY 930620T QCZ923` - `RX`/`RY` is part of the device marking, not a pin name, and these are not L9341 pins | unidentified, marking too blurred to read reliably | **MPC and SPC power stages**: owner traced MPC to the 4th and SPC to the 5th MCU pin counting from the top-left corner of the PLCC (2026-09-09) |
+| U x2 | two separate Siemens 7-lead power packages (top-left of photo 1), both printed `RY 930620T QCZ923` (the first photo read as RX/RY was a misread; the owner confirms both are `RY`) - `RY` is part of the device marking, not a pin name, and these are not L9341 pins | unidentified, marking too blurred to read reliably | **MPC and SPC power stages**: owner traced MPC to the 4th and SPC to the 5th MCU pin counting from the top-left corner of the PLCC (2026-09-09) |
 | U x2 | Analog Devices **AD22057** | current-sense / sensor-interface amplifier | MPC/SPC current feedback (two channels, two amps) |
 | U | Siemens **BTS426L1** (hand-marked "N3") | PROFET smart high-side switch | solenoid supply cut - matches the `P4.0` output-enable line |
 | U | `P4383 / H8 MAX`, small power pkg | unidentified | |
@@ -426,7 +426,7 @@ SFR; `FUN_CODE_5E20`'s timed writes to `0xFC-0xFE` between `0x068E` delays fit t
 pattern. Treat **`XRAM 0xF0-0xFF` as software shadows of the capture/compare SFR block**,
 not as hardware. The solenoid latch is not there either. What would settle the output path
 now is a continuity trace on the board from the L9341's parallel input pins (and the inputs
-of the two 7-lead `RX`/`RY`-marked packages) back to the MCU pins or to whatever sits in between.
+of the two 7-lead `RY`-marked packages) back to the MCU pins or to whatever sits in between.
 
 ---
 
@@ -519,5 +519,5 @@ nibble is 0 in N/P/R/1st/2nd and during the N/P -> D engagement on this
 calibration. `FUN_CODE_5635` / `547F` (writing `0xFD` / `0xFE` from a period
 measured by the capture ISRs) may be the MPC/SPC PWM channel controls rather
 than "capture range selectors" - unresolved. To settle: which MCU pins the
-L9341's IN2 and SPI lines land on, and whether the `RX`/`RY` inputs are the
+L9341's IN2 and SPI lines land on, and whether the two `RY` parts' inputs are the
 pins driven by `0xDD`-controlled compare matches.
