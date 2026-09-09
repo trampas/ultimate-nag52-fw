@@ -1186,53 +1186,6 @@ void Gearbox::shift_thread()
                             p = interpolate_float(sensor_data.atf_temp, 4000, 1200, -35, 25, InterpType::Linear);
                         }
                         p = MAX(0, (int16_t)p + (int16_t)spring_p - (int16_t)centrifugal);
-                        // Restore the circuit gain that the 47c7633 merge dropped.
-                        //
-                        // correct_shift_shift_pressure() below turns a CLUTCH pressure into
-                        // an SPC command by dividing by shift_spc_gain[]. Every garage
-                        // engagement runs on the 1-2 circuit (target R2/D2, so circuit is
-                        // GearChange::_1_2 above), and shift_spc_gain[0] is 1993 on this car -
-                        // so that divide is x1.993 here, not the x1.0 it is on every other
-                        // circuit.
-                        //
-                        // The constants feeding it were calibrated against the pre-merge path,
-                        // which wrote this sum straight to SPC with no gain applied at all
-                        // (89a87af gearbox.cpp:1049, "prefill + spring + ramp +
-                        // shift_reg_spring_pressure"). Handing them to the new divide unchanged
-                        // asks the clutch for half the pressure they were tuned for. Measured
-                        // on the car, commanded SPC at the start of an engagement fell from
-                        // 2589 to 1447 mBar into R2 and from 3390 to 1849 into D2 - a 44 % cut.
-                        // All 14 logged engagements before the merge completed in 1068-1162 ms;
-                        // after it the engagement is marginal, and on 2026-09-09 the car twice
-                        // would not go into gear at all (04:59, six aborts; 06:40, two). In a
-                        // failing attempt the turbine does not move - 610 to 617 rpm - while
-                        // SPC is ramped to the 7700 mBar ceiling; in a working one it collapses
-                        // 587 to 0 rpm at about 1500 mBar.
-                        //
-                        // This factor is NOT double-counting the spring. There are two
-                        // different springs, in two different domains, and both belong:
-                        //
-                        //   release_spring_pressure[clutch] - spring_p here, 488 mBar for B3
-                        //       and 1289 for B2 on this car - is the clutch's own return
-                        //       spring. It is a CLUTCH pressure, so it scales with the gain
-                        //       along with the rest of the clutch-domain target.
-                        //
-                        //   shift_reg_spring_pressure (601 mBar) is the shift pressure
-                        //       regulator valve's spring. It is an offset on the SOLENOID
-                        //       command, and correct_shift_shift_pressure() adds it *after*
-                        //       the division, unscaled and exactly once.
-                        //
-                        // Removing the gain because it looked like a doubled spring conflated
-                        // the two. The gain is measured, not inferred: on the 1-2 circuit a
-                        // commanded SPC of 7099 mBar produces 14148 mBar at the clutch
-                        // (TRANSMISSION_NOTES section 2).
-                        //
-                        // Verify on the car by reading commanded SPC at the start of an
-                        // engagement: expect ~2289 mBar into R2 and ~3090 into D2. Pre-merge
-                        // was 2589 / 3390 held flat; the rest of that difference is the
-                        // pre-merge prefill seed of 1500 against the 1200 used here, which is
-                        // a separate calibration constant and is deliberately left alone.
-                        p = ((int)p * (int)HYDR_PTR->shift_spc_gain[((uint8_t)circuit) - 1]) / 1000;
                         p_apply_clutch = p + dyn_adder;
                         p_shift = ShiftHelpers::correct_shift_shift_pressure(pressure_manager, p_apply_clutch, ((uint8_t)circuit)-1); 
                         if (0 == timer_s) {
