@@ -348,3 +348,74 @@ not by this image.
   (header byte, rows of six with three leading zeros, then two axes such as
   `0B 0D 17 2F 30 48` and `02 04 0A 0C 0E 18 2E`), not solenoid pattern tables;
   bank1 `0x5701` references the second of the four at `0xFC3E`.
+
+---
+
+## 10. The chip, the board, and the peripheral map (2026-09-09, from photos)
+
+### Parts read off the ECU (owner's photos)
+
+| ref | marking | what it is | role (inferred) |
+|---|---|---|---|
+| MCU | **SIEMENS SEC 51C810-N R7.0 C3 GERMANY "SIECO 51"**, date 9919, PLCC | Siemens custom automotive 8051-core ASIC. No public datasheet exists (searched). | everything below |
+| U | AMD **AM27C010-90JI** (1997) | 128 KB EPROM = this image | program + calibration, banked |
+| U | **74HC573** | octal latch | A0-A7 from the multiplexed bus |
+| U | ST **L9341** (1880F9922, Singapore) | quad low-side driver | the on/off solenoids Y3/Y4/Y5 (+TCC?) - **unconfirmed which pin drives it** |
+| U x2 | Siemens 7-pin power pkg, marked `RX` / `RY`, `930620T QCZ923` | unidentified | two identical -> the two current-regulated channels (MPC/SPC) |
+| U x2 | Analog Devices **AD22057** | current-sense / sensor-interface amplifier | MPC/SPC current feedback (two channels, two amps) |
+| U | Siemens **BTS426L1** (hand-marked "N3") | PROFET smart high-side switch | solenoid supply cut - matches the `P4.0` output-enable line |
+| U | `P4383 / H8 MAX`, small power pkg | unidentified | |
+| U | `S+M 082790 5513 N` | Siemens+Matsushita part, unidentified | |
+| C | `IGB 35V` tantalums | | |
+
+No external SRAM is visible in the two photos. If none exists, every `MOVX`
+access in `0x000-0x3FF` is to the ASIC's on-chip XRAM, and that space can
+contain hardware registers - see "still open" below. **Please confirm there is
+no RAM chip on the other side of the board.**
+
+### SFR attributions established by data flow (bank0 real code unless stated)
+
+- **`0xB8-0xBC` = the CAN module.** `0xBA` = register address (auto-increment),
+  `0xB9` = data, `0xB8` bit 7 = update/strobe, `0xBC` = page. `FUN_CODE_46B1`
+  is the init: after `0xBA = 0x57` it streams the message-object table, and the
+  bytes `42 82 40 C1 62 61 43 41` are exactly nag52's `MS_210 KLA_410 BS_200
+  MS_608 MS_310 MS_308 GS_218 BS_208` IDs shifted right by 3 (`lib/egs51_ecus/
+  src/GS51.h`). `0x85` = ID `0x428`, which nag52 does not handle. `FUN_CODE_3FC3`
+  is the **GS218 transmit**: 6 data bytes from `XRAM 0x7E`, `@R0`, `XRAM 0x93,
+  0x92, 0x90, 0x83`, then `0xBA = 8, 0xB9 = 4` (TX request). `FUN_CODE_47A0` is
+  the RX service (`0xFF` = no data), `FUN_CODE_4CDC` the error/re-init path.
+- **`0xC1-0xC4` + `P4.3` = the K-line.** `FUN_CODE_2524` is the ISO/KWP
+  protocol: `0x55` sync byte, states 0-10 in `XRAM 0x34`, bit timing `0xC2 =
+  0x19/0x22`, `0xC4 = 3/0`, `JNB P4.3,$` spins on the K-line input. Its TX
+  buffer is `XRAM 0x40-0x53`, filled by the service handlers `37FF 38A7 3964
+  3A4B 3AFC`; protocol state in `0x32/0x33/0x3A/0x3C/0x6A`.
+- **`0x91` (XPAGE) + `0x92` = the paged analog/input read path** - this closes
+  section 8 thread 3. `FUN_CODE_206E`: `XPAGE = 7,5,9,0xB,0x11,0x13,0xF` then
+  read `0x92` into `XRAM 0x1D, 0x22, 0x21, @0x80, 0x1E, 0x20, 0x62`. `XRAM
+  0x21` is the temperature-shaped variable (compared to `0x69/0x7E/0x91`), so
+  **ATF temperature = page 9**. `P2.1` is dropped during the access (chip
+  select); `P2` is saved/restored through `INTMEM 0x67`.
+- **`0xB3`** = page register for `MOVX @Ri` block copies (Ghidra "IPH1").
+- **`0x98`** = a keyed 4-channel refresh register: `FUN_CODE_403A` writes
+  `01 FD 04 F7 10 DF 40 7F` (set even bit / clear odd bit, four channels); the
+  fault path repeats the middle two pairs.
+- **`P2`** is GPIO on this part (`P2 = 6` at init, `P2.1`/`P2.2` toggled). It is
+  not the address bus.
+- **`P0.6`** <- a status flag (`FUN_CODE_5812`); `P0.7`, `P0.0` strobes.
+- **`P5.0 / P5.2 / P5.6`** are three switch inputs polled by `FUN_CODE_5821`
+  into bit `0x17` - lever/selector shaped.
+- **`0xFD` / `0xFE` SFR** = capture-range words from `FUN_CODE_5635 / 547F`.
+- Section 9's "not censused" for `0xB8-0xBC` is superseded by the CAN finding.
+
+### Still open: the on/off solenoid command
+
+Every SFR write in the real code is now attributed. The discrete outputs found
+(`P0.6`, `P0.7`, `P0.0`, `P4.0`, `P4.4`), one software PWM channel, CAN and
+K-line cannot cover Y3/Y4/Y5 + TCC + two regulators. What remains is
+memory-mapped I/O inside the on-chip `0x000-0x3FF` space. The write-mostly
+cells there with 3-bit values are **`XRAM 0x0FC-0x0FE`**: written `2/4/5/6` by
+the self-test sequencer `FUN_CODE_5E20` (called from 16 places in the
+init/test sequence, switching on `XRAM 0x195`) and mirrored every cycle by the
+PWM engine (`0x12/0x13 -> 0xFD/0xFE`). Confirming that needs either the SIC810
+register map or a board trace from the L9341 input pins back to the MCU - the
+latter is a multimeter job the owner can do.
