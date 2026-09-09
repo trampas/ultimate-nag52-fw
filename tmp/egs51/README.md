@@ -521,3 +521,18 @@ measured by the capture ISRs) may be the MPC/SPC PWM channel controls rather
 than "capture range selectors" - unresolved. To settle: which MCU pins the
 L9341's IN2 and SPI lines land on, and whether the two `RY` parts' inputs are the
 pins driven by `0xDD`-controlled compare matches.
+
+### L9341 is SPI-only (owner, 2026-09-09): the frame word needs its datasheet definition
+
+The L9341 has no parallel input pins, so every channel is switched through the
+SPI word. That makes section 11's open item sharper: in the visible code the
+only writer of the OUT1/OUT3/OUT4 fields is the actuator test, and no
+computed-address writer of `XRAM 0x12/0x13` exists either (checked both banks).
+The word is therefore being read wrongly here. Two clues for whoever has the
+datasheet: the T1 ISR (`0x0521`) exchanges `0x0000` **twice** and then tests
+bit 1 of the returned byte - a status-read transaction, so zero is probably
+read/no-op rather than all-off; and every "on" code the engine puts in the
+first byte's high nibble (`F0 E0 D0 C0 B0`) has bit 7 set while idle (`0x10`)
+and off (`0x00`) do not - the shape of a write/command flag in bit 15 with the
+channel fields below it. Needed: bits per word, which bits are channel on/off
+vs current/duty setting vs command flag, and what the device returns.
