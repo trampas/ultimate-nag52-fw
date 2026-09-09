@@ -1801,13 +1801,23 @@ void Gearbox::controller_loop()
         {
             bool lock_state = pll != 0;
             if (lock_state) {
-                if (engine_running && !shifting) {
-                    this->pressure_mgr->set_target_shift_pressure(500);
-                    if (this->last_motion_gear < GearboxGear::Third) {
+                if (SBS_CURRENT_SETTINGS.hold_3_4_in_pn) {
+                    // EGS52-derived: pre-position the 3-4 valve and park SPC behind it.
+                    if (engine_running && !shifting) {
+                        this->pressure_mgr->set_target_shift_pressure(500);
+                        if (this->last_motion_gear < GearboxGear::Third) {
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                        }
+                    } else if (!engine_running) {
                         this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
                     }
-                } else if (!engine_running) {
-                    this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                } else if (!shifting) {
+                    // EGS51-derived: Y4 stays off in P/N. Releasing it here (rather than
+                    // merely not setting it) is what guarantees the garage shift's
+                    // set_shift_circuit(sc_3_4, true) starts from the off state and
+                    // therefore strokes the valve with a full inrush under line pressure.
+                    // See hold_3_4_in_pn in module_settings.h for the measurements.
+                    this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
                 }
             }
             egs_can_hal->set_safe_start(lock_state);
@@ -2252,6 +2262,20 @@ void Gearbox::controller_loop()
         this->update_adaptive_profile();
         // High rate shift recorder. This loop is the algorithm's own 20 ms period,
         // so the capture is lossless; the sampler is O(1) and allocation free.
+        // What the applying clutch can actually hold right now. The quality metric
+        // charges it no more than this, so a clutch that is still filling - at the
+        // spring plus a 620-750 mBar low fill - dissipates nothing, however fast it
+        // happens to be spinning.
+        uint16_t apply_capacity_nm = 0;
+        if (this->shifting && GearChange::_IDLE != this->shift_ctx.change) {
+            Clutch applying = get_clutch_to_apply(this->shift_ctx.change);
+            uint16_t spring = this->pressure_mgr->get_spring_pressure(applying);
+            uint16_t p_on = this->algo_feedback.p_on;
+            if (p_on > spring) {
+                apply_capacity_nm = this->pressure_mgr->calc_max_torque_for_clutch(
+                    this->target_gear, applying, p_on - spring, CoefficientTy::Sliding);
+            }
+        }
         ShiftTrace::sample(&this->sensor_data, &this->algo_feedback, this->shifting,
             (uint8_t)gear_to_idx_lookup(this->actual_gear), (uint8_t)gear_to_idx_lookup(this->target_gear),
             this->pressure_mgr->get_corrected_spc_pressure(),
@@ -2259,7 +2283,8 @@ void Gearbox::controller_loop()
             this->pressure_mgr->get_active_shift_circuits(),
             (this->output_data.ctrl_type == TorqueRequestControlType::None)
                 ? INT16_MAX : (int16_t)this->output_data.torque_req_amount,
-            (int16_t)this->sensor_data.converted_torque, this->agility_score);
+            (int16_t)this->sensor_data.converted_torque, this->agility_score,
+            apply_capacity_nm);
         // Closed loop on shift quality: runs once per completed shift, between shifts.
         this->quality_adaptation_step();
         uint32_t time = GET_CLOCK_TIME() - start;

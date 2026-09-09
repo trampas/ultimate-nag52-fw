@@ -235,6 +235,28 @@ typedef struct {
     // actually hitting redline. If your engine stays at the limiter and after
     // a while the car finally upshifts, increase this threshold
     uint16_t redline_offset_auto_upshift;
+    // Hold the 3-4 shift circuit (Y4) energised while in P/N.
+    //
+    // true is what 47c7633 (upstream fdcf448) does, taken from EGS52 behaviour:
+    // Y4 is switched on as soon as the engine turns and held at hold current
+    // for as long as the parking lock is engaged, with SPC parked at 500 mBar
+    // behind it. Because OnOffSolenoid::on() only inrushes from the off state,
+    // the garage shift's own set_shift_circuit(sc_3_4, true) is then a no-op:
+    // the valve is never stroked by the engagement, only by whatever happened
+    // when Y4 first came on. On 2026-09-09 that was during cranking, at no line
+    // pressure, on both drives where the car would not go into gear (0 of 6);
+    // every engagement with Y4 first stroked at full pressure worked.
+    //
+    // false is what the owner's EGS51 ROM (A0215451432) does: Y4 is off in N,
+    // P, R, 1st and 2nd, and off during the N/P -> D engagement. It is the
+    // ROM's only PWM-modulated shift solenoid, driven in gears 3-5 during a
+    // shift; the N/P pulse the code contains is calibrated to zero ticks on
+    // this part. See tmp/egs51/README.md section 11. false also restores the
+    // pre-merge property that engagement starts from Y4 off and gets a fresh
+    // inrush stroke under line pressure - 14 of 14 engagements in 1068-1162 ms.
+    //
+    // Live-editable over KWP so the two can be A/B'd without a reflash.
+    bool hold_3_4_in_pn;
 } __attribute__ ((packed)) SBS_MODULE_SETTINGS;
 
 const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
@@ -257,6 +279,7 @@ const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
     .ab_interleave = false,
     .downshift_min_end_rpm = INT16_MIN,      // disabled; 0 is the measured value
     .redline_offset_auto_upshift = 100,
+    .hold_3_4_in_pn = false,                 // EGS51 behaviour; true = the 47c7633 hold
 };
 
 // Pressure manager settings
