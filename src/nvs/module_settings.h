@@ -247,13 +247,21 @@ typedef struct {
     // pressure, on both drives where the car would not go into gear (0 of 6);
     // every engagement with Y4 first stroked at full pressure worked.
     //
-    // false is what the owner's EGS51 ROM (A0215451432) does: Y4 is off in N,
-    // P, R, 1st and 2nd, and off during the N/P -> D engagement. It is the
-    // ROM's only PWM-modulated shift solenoid, driven in gears 3-5 during a
-    // shift; the N/P pulse the code contains is calibrated to zero ticks on
-    // this part. See tmp/egs51/README.md section 11. false also restores the
-    // pre-merge property that engagement starts from Y4 off and gets a fresh
-    // inrush stroke under line pressure - 14 of 14 engagements in 1068-1162 ms.
+    // false: Y4 is not held in P/N and is released there outside a shift, so
+    // the garage shift's set_shift_circuit(sc_3_4, true) starts from the off
+    // state and strokes the valve with a full inrush under line pressure - the
+    // property every pre-merge engagement had (14 of 14 in 1068-1162 ms).
+    //
+    // What the owner's EGS51 ROM (A0215451432) actually does, decoded 2026-09-09
+    // (tmp/egs51/README.md section 12): in N and P it holds the hydraulic-
+    // neutral PAIR, Y5 + Y4, together; on leaving N/P it releases BOTH first and
+    // then engages D through the 1-2 and 2-3 valves (Y3, Y5) with Y4 off, and R
+    // through the 3-4 valve (Y4). So the OEM neither holds Y4 alone in P/N nor
+    // keeps it off; what it guarantees is that every engagement strokes its
+    // valve from the off state. false gives nag52 that guarantee. A faithful
+    // "hold Y5+Y4 in P/N, release both at engagement" is a further change that
+    // also touches how nag52 routes SPC for D (through the 3-4 valve, which the
+    // ROM does not use for D) - a separate drive.
     //
     // Live-editable over KWP so the two can be A/B'd without a reflash.
     bool hold_3_4_in_pn;

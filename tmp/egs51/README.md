@@ -432,6 +432,11 @@ of the two 7-lead `RY`-marked packages) back to the MCU pins or to whatever sits
 
 ## 11. The L9341 frame, and how the ROM drives Y4 (2026-09-09)
 
+> **Superseded in part by section 12.** The frame/SPI model here is right (confirmed by the
+> L9341 datasheet, `tmp/datasheet/`), but the channel-to-field map below is wrong by bit
+> order, the PWM-engine channel is the **TCC**, not Y4, and the 'Y4 off in N/P' conclusion
+> was about the TCC. Section 12 has the corrected map and the real Y4 behaviour.
+
 **Answered, with a board trace to check it.** Reconstructed C and a symbol map
 are in [`reconstructed/`](reconstructed/) - our own writing, safe to commit.
 
@@ -553,3 +558,93 @@ the L9341's four logic inputs, and the MCU pin that is `P0.7`'s CS, to whatever
 they land on. Until then the reconstructed C's device naming is provisional;
 the P/N conclusion about Y4 (field zero in N/P and during engagement) depends
 only on the trace Y4 = OUT2 and the ROM's frame-field logic, not on the bus.
+
+---
+
+## 12. Corrected: the solenoid pattern path, and what EGS51 really does with Y4 (2026-09-09, late)
+
+Sources: the ST L9341 datasheet (owner's copy, `tmp/datasheet/L9341_ST_CD00000102.pdf`),
+the owner's board traces (Y5 = OUT1 pin 2, Y4 = OUT2 pin 1, Y3 = OUT3 pin 15, TCC = OUT4
+pin 14; L9341 SDI <- MCU pin 9 from the top-left corner via 1 kOhm, which is why a
+continuity beep never rang; MPC/SPC on MCU pins 4 and 5 via the two `RY` power stages),
+and a raw-opcode scan of the image that found the writes the sweep-based regexes missed.
+Reconstructed C: [`reconstructed/egs51_outputs.c`](reconstructed/egs51_outputs.c).
+
+### The L9341 word (datasheet Fig. 6, MSB first)
+
+Bits 15-12 = channel 4 duty code, 11-8 = channel 3, 7-4 = channel 2, 3-0 = channel 1.
+The ROM sends `XRAM 0x12` first, so:
+
+| ROM field | bits | OUT | solenoid | written by |
+|---|---|---|---|---|
+| `0x12` high nibble | 15-12 | OUT4 | **TCC** | the demand-0x36 PWM engine (`0x02AC`) |
+| `0x12` low nibble | 11-8 | OUT3 | **Y3** | bit `0x08` (RAM 0x21.0) |
+| `0x13` high nibble | 7-4 | OUT2 | **Y4** | bit `0x0A` (RAM 0x21.2) |
+| `0x13` low nibble | 3-0 | OUT1 | **Y5** | bit `0x09` (RAM 0x21.1) |
+
+Fig. 5: code 0 = output off; for channels 1 and 3 code n = n/16 on; for channels 2 and
+4 code n = (16-n)/16 on. That resolves the "inverted polarity" of section 11: Y4's
+inrush code 1 is 15/16 and its hold codes 12/11/10 are 4/16-6/16 - identical to Y3/Y5's
+inrush 15 and hold 4/5/6. **All three shift solenoids are driven peak-and-hold: 15/16 for
+three PWM periods, then 25-38 % by ATF temperature** (`FUN_CODE_0711`, tables `0x087F`,
+`0x088D`, `0x088E`, `0x089C`). The TCC's demand byte `INTMEM 0x36` (0-238) is off below 14,
+which is why the section-11 "off in N/P/R/1st/2nd, modulated in gears 3-5" statement was
+true - of the torque converter lockup. `SFR 0x98` is a sequence watchdog (each task stamps
+its byte at entry); `0xC6/0xC7` is the SPI shift register/start bit, CS on `P0.7`, and the
+T1 ISR's double `0x0000` exchange is a status read (SDO returns the Fig. 7 diagnostics,
+decoded four channels x two bits in `FUN_CODE_1EA1`).
+
+### The pattern path the sweep hid
+
+`MOV bit,C` on `0x08/0x09/0x0A` (opcodes `92 08/09/0A`) at bank0 `0x6BD0/0x6BD7/0x6BE0` -
+Ghidra prints the operand as `CY`, which the earlier regexes (`,C$`) missed. That is the
+**output stage**, run every cycle by `FUN_CODE_675E` (the main loop, not an init
+sequencer) after the scheduler `FUN_CODE_6E6A` has called ~30 task functions: unless
+`XRAM 0x1B3` is set, the byte at **internal RAM 0x95** is shifted out, bit 0 -> Y3,
+bit 1 -> Y5, bit 2 -> Y4. `INTMEM 0x95` is the solenoid pattern byte; bits 3-6 carry other
+flags. Its writers are all in bank1 and reach it through `@R0`, which is why the
+`MOV DPTR` censuses saw nothing.
+
+**Shift solenoids during a shift** (`FUN_CODE_2344`, `0x23E9-0x2437`): at shift phase
+`INTMEM 0xAA == 0`, the shift index `INTMEM 0xAC` - in nag52's own `GearChange` order,
+1 = 1-2, 2 = 2-3, 3 = 3-4, 4 = 4-5, 5 = 2-1, 6 = 3-2, 7 = 4-3, 8 = 5-4 - selects the
+solenoid: {1,4,5,8} -> Y3, {2,6} -> Y5, {3,7} -> Y4. That is the 722.6 valve assignment
+exactly. At phase 4 (`0x29E3`) all three are cleared: **momentary during shifts, as nag52
+does.**
+
+### The engagement state machine (`FUN_CODE_5BB6`, bank1)
+
+Sub-state `INTMEM 0xB4` (0-8) dispatched through the jump table at `0x5C66`; timers
+`0xB0-0xB2` from calibration (`ROM 0xFF78` = 10, `0xFF7B` = 26, `0xFF87` table,
+`0xFFA1` = 80, `0xFF9F` = 45), target/selector `XRAM 0x334` (1-5 forward, 6 = N, 7 = R,
+8 = P), current gear `INTMEM 0xB9` (0 for N/P, 6 for R, from `FUN_CODE_2B80`), and
+`XRAM 0x1BD` bit 0 = "{XRAM 0x2EF:0x2F0} above ROM[0xFC3E], cleared below ROM[0xFC3C]"
+(`FUN_CODE_913D`; engine-speed-shaped, forced set outside R).
+
+- **State 8 = N/P idle (`0x60A1`): `Y3 off; Y5 ON; Y4 ON`.** EGS51 holds the
+  hydraulic-neutral pair in N and P. Entered from N (`0x334 == 6`), from P/R with
+  `0x1BD.0`, or on `XRAM 0x1C2` bit 0, with `0xB0 = 80`.
+- **Leaving N/P (`0x612E`, `0x6180`): `Y5 off; Y4 off; 0xB4 = 0; 0xAA = 0`** - both
+  released first, then the engagement sequence starts from state 0 at shift phase 0.
+- State 1 (`0x5CF8`): shift index `0xAC = 1` (1-2), **Y4 off**, timer; an alternate path
+  (`0x5D35`) sets Y4 on under a `0xB3 >= 6` condition.
+- State 2 (`0x5D44-0x5EDF`): may set **Y3** (1-2 valve) from a `ROM 0xFF81` compare; then
+  by `INTMEM 0xB3`: >= 4 -> Y5; == 3 -> Y5 + Y4 (rolling re-engagement into 3rd); < 2 with
+  `0xAB >= 3` -> Y5 on, **Y4 off**, `0xAC = 2` (2-3); and **`0x334 == 7` (R) with
+  `0x1BD.0` -> Y4 on, state 6** - the only engagement branch that energises Y4.
+- States 3-7: timed fill/apply/hold steps (`0x1061` interpolation of the `0xFF87` table,
+  `0x7093`), each ending in a pattern update; state 6 waits on `0x1BD` before state 7.
+
+**So for the question this was all for:** EGS51 does not hold Y4 alone in P/N and does
+not keep it off either. It holds **Y5 + Y4 together** in N/P, **releases both at the
+start of every engagement**, then engages D through the 1-2/2-3 valves (Y3, Y5) with Y4
+off and R through the 3-4 valve (Y4). Every engagement therefore strokes its valve from
+the off state under line pressure - the property nag52 had before 47c7633 and lost with
+the P/N hold. nag52's garage shift routes SPC through the 3-4 valve for D as well as R;
+the ROM does not use the 3-4 valve for D at all.
+
+### Files
+
+`tmp/datasheet/` (gitignored): `L9341_ST_CD00000102.pdf` (owner's copy), and the
+public `Siemens_1994_8bit_Microcontroller_Handbook.pdf` from bitsavers - the closest
+thing to a SIC810 datasheet that exists; none is public for the custom part.

@@ -70,3 +70,6 @@ tmp/egs51/*.bin
 tmp/egs51/disasm/
 tmp/egs51/ghidra_projects/
 tmp/egs51/logs/
+
+# L9341 driver datasheet (ST, third-party) - fetched copy, not ours
+tmp/datasheet/*.pdf
