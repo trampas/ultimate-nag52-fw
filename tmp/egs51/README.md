@@ -361,7 +361,7 @@ not by this image.
 | U | AMD **AM27C010-90JI** (1997) | 128 KB EPROM = this image | program + calibration, banked |
 | U | **74HC573** | octal latch | A0-A7 from the multiplexed bus |
 | U | ST **L9341** (1880F9922, Singapore) | quad low-side driver | the on/off solenoids Y3/Y4/Y5 (+TCC?) - **unconfirmed which pin drives it** |
-| U x2 | two separate Siemens 7-lead power packages (top-left of photo 1), both printed `RY 930620T QCZ923` (the first photo read as RX/RY was a misread; the owner confirms both are `RY`) - `RY` is part of the device marking, not a pin name, and these are not L9341 pins | unidentified, marking too blurred to read reliably | **MPC and SPC power stages**: owner traced MPC to the 4th and SPC to the 5th MCU pin counting from the top-left corner of the PLCC (2026-09-09) |
+| U x2 | two separate Siemens 7-lead power packages (top-left of photo 1), both printed `RY 930620T QCZ923` (the first photo read as RY was a misread; the owner confirms both are `RY`) - `RY` is part of the device marking, not a pin name, and these are not L9341 pins | unidentified, marking too blurred to read reliably | **MPC and SPC power stages**: owner traced MPC to the 4th and SPC to the 5th MCU pin counting from the top-left corner of the PLCC (2026-09-09) |
 | U x2 | Analog Devices **AD22057** | current-sense / sensor-interface amplifier | MPC/SPC current feedback (two channels, two amps) |
 | U | Siemens **BTS426L1** (hand-marked "N3") | PROFET smart high-side switch | solenoid supply cut - matches the `P4.0` output-enable line |
 | U | `P4383 / H8 MAX`, small power pkg | unidentified | |
@@ -383,7 +383,7 @@ no RAM chip on the other side of the board.**
   src/GS51.h`). `0x85` = ID `0x428`, which nag52 does not handle. `FUN_CODE_3FC3`
   is the **GS218 transmit**: 6 data bytes from `XRAM 0x7E`, `@R0`, `XRAM 0x93,
   0x92, 0x90, 0x83`, then `0xBA = 8, 0xB9 = 4` (TX request). `FUN_CODE_47A0` is
-  the RX service (`0xFF` = no data), `FUN_CODE_4CDC` the error/re-init path.
+  the RY service (`0xFF` = no data), `FUN_CODE_4CDC` the error/re-init path.
 - **`0xC1-0xC4` + `P4.3` = the K-line.** `FUN_CODE_2524` is the ISO/KWP
   protocol: `0x55` sync byte, states 0-10 in `XRAM 0x34`, bit timing `0xC2 =
   0x19/0x22`, `0xC4 = 3/0`, `JNB P4.3,$` spins on the K-line input. Its TX
