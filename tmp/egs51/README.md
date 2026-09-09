@@ -536,3 +536,20 @@ first byte's high nibble (`F0 E0 D0 C0 B0`) has bit 7 set while idle (`0x10`)
 and off (`0x00`) do not - the shape of a write/command flag in bit 15 with the
 channel fields below it. Needed: bits per word, which bits are channel on/off
 vs current/duty setting vs command flag, and what the device returns.
+
+### Status flag (2026-09-09, late): is the SPI device actually the L9341?
+
+The owner cannot find SPI connections from the MCU to the L9341, and the ROM
+never writes the OUT1/OUT3/OUT4 fields outside the actuator test. Two
+independent reasons to doubt the section-11 premise that the `0xC6/0xC7`
+exchange (CS on `P0.7`) talks to the L9341 directly. Treat "SPI device = L9341"
+as **unconfirmed**. Consistent alternatives: (a) a serial-to-parallel latch (a
+74HC595-class part, e.g. the unreadable SO-8 next to the AD22057s) on that bus
+feeds the L9341's parallel inputs - which would keep the 4/4 field-to-channel
+match and explain why no MCU pins reach the L9341; (b) the bus goes to a
+different device (the unidentified `P4383 / MAX` or `S+M` parts) and the L9341
+inputs come from MCU pins attributed elsewhere. Settle it on the board: follow
+the L9341's four logic inputs, and the MCU pin that is `P0.7`'s CS, to whatever
+they land on. Until then the reconstructed C's device naming is provisional;
+the P/N conclusion about Y4 (field zero in N/P and during engagement) depends
+only on the trace Y4 = OUT2 and the ROM's frame-field logic, not on the bus.

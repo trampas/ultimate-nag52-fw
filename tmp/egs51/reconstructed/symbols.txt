@@ -13,7 +13,7 @@ SFR:0xB9   CAN_DATA       ; [C] auto-increment data window
 SFR:0xBA   CAN_ADDR       ; [C] register/object address
 SFR:0xBC   CAN_PAGE       ; [C]
 SFR:0xC1   KLINE_CCEN     ; [C] with 0xC2-0xC4 = K-line bit timing (0x19/0x22, 3/0); input on P4.3
-SFR:0xC6   SPI_DATA       ; [C] L9341 shift register, 8 bits per transfer
+SFR:0xC6   SPI_DATA       ; [C] serial shift register, 8 bits per transfer. Target device UNCONFIRMED (owner sees no SPI lines to the L9341; may be a latch feeding it)
 SFR:0xC7   SPI_CTRL       ; [C] bit7 = start, polled until clear; 0x03 / 0x06 / 0x02 = mode
 P0.7       SPI_CS_N       ; [C] CLR before, SETB after the 16-bit exchange (FUN_068E)
 P0.0       WDT_STROBE     ; [P] pulsed around P4.0 (FUN_6DCB)
@@ -60,7 +60,7 @@ I:0xB9     CURRENT_GEAR   ; [C] 0 = N/P, 6 = R, 1-5 forward (bank1 FUN_2B80 maps
 # --- code
 B0:0x02AC  ISR_PWM_ENGINE ; [C] vector 0x0024; Y4 PWM: demand INTMEM 0x36 -> table 0x089D -> {F4:F3}; OUT2 nibble; period 0x1388
 B0:0x0521  ISR_T1         ; [C] sends an all-zero frame, reads status, restores; compare = {FB:FA}+500 if status bit1
-B0:0x068E  spi_exchange   ; [C] 16-bit full duplex with the L9341 via 0xC6/0xC7, CS on P0.7
+B0:0x068E  spi_exchange   ; [C] 16-bit full duplex via 0xC6/0xC7, CS on P0.7; peer device unconfirmed (see README status flag)
 B0:0x0711  frame_compose  ; [C] on/off channels: inrush code ROM[0x088D]=0x0F for 3 cycles then ROM[0x087F+idx]=4/5/6
 B0:0x1CED  keil_switch    ; [C]
 B0:0x1EA1  l9341_diag     ; [C] decodes four 2-bit channel states from XRAM 0x10

@@ -9,6 +9,12 @@
  * Board (owner's traces, 2026-09-09):  L9341 OUT1 = Y5, OUT2 = Y4, OUT3 = Y3,
  * OUT4 = TCC (or its clamp).  Frame field <-> channel was derived from the ROM
  * independently and matched all four.
+ *
+ * STATUS: the owner cannot find SPI lines from the MCU to the L9341, and the
+ * ROM never writes the Y5/Y3/TCC fields outside the actuator test, so "the
+ * exchange below talks to the L9341" is UNCONFIRMED. It may talk to a latch
+ * that feeds the L9341's inputs, or to another device. See README section 11
+ * status flag. The P/N conclusion for Y4 does not depend on this.
  */
 
 #include <stdint.h>
