@@ -427,3 +427,79 @@ pattern. Treat **`XRAM 0xF0-0xFF` as software shadows of the capture/compare SFR
 not as hardware. The solenoid latch is not there either. What would settle the output path
 now is a continuity trace on the board from the L9341's parallel input pins (and the inputs
 of the two 7-lead `RX`/`RY`-marked packages) back to the MCU pins or to whatever sits in between.
+
+---
+
+## 11. The L9341 frame, and how the ROM drives Y4 (2026-09-09)
+
+**Answered, with a board trace to check it.** Reconstructed C and a symbol map
+are in [`reconstructed/`](reconstructed/) - our own writing, safe to commit.
+
+### The frame (validated 4/4 against the owner's traces)
+
+`FUN_CODE_068E` is a 16-bit full-duplex SPI exchange with the L9341 through
+`SFR 0xC6` (data) / `0xC7` bit 7 (start), chip-select on `P0.7`. The frame is
+built in `XRAM 0x12:0x13`, copied to `0xFD:0xFE`, exchanged, and the two status
+bytes come back in the same place and are copied to `0x0F:0x10`, where
+`FUN_CODE_1EA1` decodes four 2-bit channel states. Four 4-bit fields:
+
+| field | written by | L9341 | solenoid (owner trace) |
+|---|---|---|---|
+| `0x12` low nibble | bit `0x08`, on/off with inrush 0x0F then hold 4/5/6 by ATF | OUT1 | **Y5** (pin 2) |
+| `0x12` high nibble | the PWM engine `FUN_CODE_02AC` (demand `INTMEM 0x36`) | OUT2 | **Y4** (pin 1) |
+| `0x13` low nibble | bit `0x09`, same inrush/hold logic | OUT3 | **Y3** (pin 15) |
+| `0x13` high nibble | bit `0x0A`, inrush 0x10 then hold C0/B0/A0 | OUT4 | **TCC** or its clamp (pin 14) |
+
+The field-to-channel assignment was derived from the ROM before the traces
+were made and matched all four.
+
+### Y4 is not an on/off solenoid in this ROM
+
+Y5 and Y3 are single bits with a 3-cycle inrush code and a temperature-indexed
+hold code (`FUN_CODE_0711`, `ROM 0x087F/0x088D`). **Y4 is a PWM channel**: the
+stub engine at vector `0x0024 -> 0x02AC` takes demand `INTMEM 0x36` (0-238;
+below 14 = off; `0xFF` = idle), converts it through the 16-bit table at
+`0x089D` into a compare offset inside a `0x1388`-tick period on `{F4:F3}` vs
+the free-running `{FB:FA}` with `0xDD = 0x88/0x08` as set/clear-on-match, and
+puts a coarse level (15..11 by the temperature x load index `XRAM 0x0B`) in the
+OUT2 nibble. That is the "3-4 is pulsed" behaviour rnd-ash left as a
+commented-out line in nag52's P/N branch.
+
+### What Y4 does in N/P and at engagement - on this calibration
+
+- `XRAM 0x334` is the target gear (1-5, 6 = N, 7 = R, 8 = P; the shift decision
+  `FUN_CODE_BD50` increments/decrements it). Bank1 `FUN_CODE_2B80` maps it to
+  `INTMEM 0xB9` = current gear, **0 for N and P**, 6 for R.
+- `FUN_CODE_B8FF` runs the shift-time Y4 modulation (`FUN_CODE_B77B`, 8-point
+  curve at `0xFE01` = 0,60,60,98,132,184,242,244, scaled through the MDU with
+  constants `0xFE62/64/66`) **only while `2 < gear < 6` and a shift is active**;
+  in every other state it writes demand 0. So Y4 is **off in N, P, R, 1st and
+  2nd, and off during the N/P -> D engagement**.
+- The N/P special case is `FUN_CODE_9F23`: in N/P with `XRAM 0x1C6` bit 3 set
+  and `0x1C0` bit 5 clear, Y4 = curve[7] (244, full) for `ROM[0xFE79]` ticks,
+  then mark done. **`0xFE79 = 0x00` here** - the pulse is calibrated out on
+  part 0215451432. The code is there; this car does not use it.
+- Consequence for nag52: neither of nag52's two behaviours is what this ROM
+  does. Pre-merge (Y4 off in P/N, inrush at engagement) is closer; the
+  post-47C7633 hold of Y4 at full hold current in P/N has no counterpart here.
+
+### Still open
+
+- **Who switches Y5 and Y3 in normal shifts.** In the visible code the only
+  writer of bits `0x08/0x09/0x0A` is the workshop actuator test
+  (`FUN_CODE_6DE5`, entered when `XRAM 0x1B7 == 2`). Either the L9341's
+  switching is by parallel input pins and the frame carries per-channel
+  current settings, or there is a writer the sweep cannot see. **Trace the
+  L9341 IN pins and its SPI CS/CLK/DI/DO back to the MCU** - that decides it.
+- The polarity difference of the OUT4 codes (inrush 0x10, hold C0/B0/A0) vs
+  OUT1/OUT3 (inrush 0x0F, hold 4/5/6) is unexplained; the L9341 datasheet's
+  frame definition would settle it.
+
+### Also settled this pass
+
+`SFR 0x98` is a **sequence watchdog**: every task function stamps its own byte
+of `01 FD 04 F7 10 DF 40 7F` at entry (`0x7331` -> `0xDF`, `0xB838` -> `0x10`,
+`0x4D40` -> `0x7F`, `0x5635` -> `0x01`, bank1 `0x236A` -> `0x04`, `0x2C4F` ->
+`0xF7`), `FUN_CODE_403A` feeds all eight inside long init loops, and the fault
+path feeds the middle four. `FUN_CODE_4020` (`0x9A` = 0x41, 0x20, poll 0x20)
+resynchronises it. Bank1 `0xE804 MOV 0x21,A` is data-as-code, not a writer.

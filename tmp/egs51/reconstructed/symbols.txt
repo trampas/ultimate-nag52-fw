@@ -1,0 +1,87 @@
+# EGS51 A0215451432 - symbol map reconstructed 2026-09-09. Apply in Ghidra or read alongside the listing.
+# Format: bank:address  name  ; note.  Confidence: [C]onfirmed by data flow + board trace, [P]robable, [?] guess.
+# --- MCU: Siemens SEC 51C810-N R7.0 ("SIECO 51"), custom 8051 ASIC. SFRs beyond the 8051 core are custom.
+SFR:0x98   WDT_SEQ        ; [C] sequence watchdog: tasks stamp 01/FD/04/F7/10/DF/40/7F at entry; FUN_403A feeds all eight
+SFR:0x9A   WDT_CTRL       ; [P] 0x41 then 0x20, polled for 0x20 (FUN_4020)
+SFR:0x91   XPAGE          ; [C] page select for paged input reads through 0x92
+SFR:0x92   PAGED_IN       ; [C] analog/switch input window; page 9 = ATF temperature -> XRAM 0x21
+SFR:0x96   GPIO_A         ; [C] bit6 = bit-bang clock (EEPROM at init), bit5 = strobe (FUN_4465), bit4 = input
+SFR:0x9C   GPIO_B         ; [P] data lines for the init-time bit-bang
+SFR:0xB3   MOVX_PAGE      ; [C] high byte for MOVX @Ri block copies (FUN_0833)
+SFR:0xB8   CAN_CTRL       ; [C] bit7 = update strobe
+SFR:0xB9   CAN_DATA       ; [C] auto-increment data window
+SFR:0xBA   CAN_ADDR       ; [C] register/object address
+SFR:0xBC   CAN_PAGE       ; [C]
+SFR:0xC1   KLINE_CCEN     ; [C] with 0xC2-0xC4 = K-line bit timing (0x19/0x22, 3/0); input on P4.3
+SFR:0xC6   SPI_DATA       ; [C] L9341 shift register, 8 bits per transfer
+SFR:0xC7   SPI_CTRL       ; [C] bit7 = start, polled until clear; 0x03 / 0x06 / 0x02 = mode
+P0.7       SPI_CS_N       ; [C] CLR before, SETB after the 16-bit exchange (FUN_068E)
+P0.0       WDT_STROBE     ; [P] pulsed around P4.0 (FUN_6DCB)
+P4.0       OUT_ENABLE     ; [C] cleared on fault (XRAM 0x78 bit1) and shutdown -> BTS426L1 solenoid supply
+P4.4       RUN_ENABLE     ; [P] follows "capture signal present" ({0x81:0x82} != 0)
+P2.1       PAGED_CS       ; [C] dropped during paged reads (FUN_206E)
+P2.2       FRAME_STROBE   ; [C] dropped/raised around the frame composer (FUN_0711)
+P5.0/2/6   SEL_SW         ; [P] three switch inputs (FUN_5821)
+SFR:0xE3-E6 CAPTURE       ; [C] speed sensor captures, ISRs 0x059C/0x05FF -> periods {0x8A:0x8B} {0x8C:0x8D}
+SFR:0xF3/F4 CMP_LO/HI     ; [C] compare register loaded as {FB:FA}+delta for the PWM engine
+SFR:0xFA/FB CNT_LO/HI     ; [C] free-running counter
+SFR:0xDD   PWM_SETCLR     ; [C] 0x88 = set on match, 0x08 = clear on match (FUN_02AC)
+SFR:0xFD/FE CAP_RANGE     ; [C] range words from FUN_5635 / FUN_547F
+# --- XRAM (on-chip, 0x000-0x3FF)
+X:0x0012   L9341_FRAME0   ; [C] lo nibble = OUT1 (Y5) code, hi nibble = OUT2 (Y4) code
+X:0x0013   L9341_FRAME1   ; [C] lo nibble = OUT3 (Y3) code, hi nibble = OUT4 (TCC) code
+X:0x00FC   SPI_LEN        ; [C] frame length / index for FUN_068E
+X:0x00FD   SPI_TX0_RX0    ; [C] frame byte 0 out, status byte 0 back
+X:0x00FE   SPI_TX1_RX1    ; [C] frame byte 1 out, status byte 1 back
+X:0x000F   L9341_STAT0    ; [C] copy of RX byte 0
+X:0x0010   L9341_STAT1    ; [C] copy of RX byte 1: four 2-bit channel states, decoded in FUN_1EA1
+X:0x000B   TEMP_LOAD_IDX  ; [C] 0-4 from XRAM 0x21 vs 0x7E/0x91 and XRAM 0x76 vs 0x46/0xAA (FUN_1FC6)
+X:0x0014   TEMP_IDX       ; [C] 3/4/5 from XRAM 0x21 vs 0x69/0x82 (FUN_0711)
+X:0x000C/0D/0E INRUSH_CNT ; [C] 3-cycle inrush countdown per on/off channel
+X:0x0021   ATF_TEMP       ; [C] paged input page 9
+X:0x0078   FAULT_FLAGS    ; [C] bit1 = output fault -> all solenoid bits cleared, P4.0 dropped
+X:0x0334   TARGET_GEAR    ; [C] 1-5 forward, 6 = N, 7 = R, 8 = P; INC/DEC in FUN_BD50
+X:0x0223   ACTUAL_GEAR    ; [P]
+X:0x0316   Y4_NP_TIMER    ; [C] loaded from ROM 0xFE79 (= 0 on this calibration), decremented in FUN_E48D
+X:0x0383   ; [P] timer loaded from ROM 0xFE78 (= 50)
+X:0x01C0   ; bit5 = Y4 N/P pulse done, bit4 = ..., set/cleared in FUN_A04B
+X:0x01C6   ; bit3 = threshold flag set in FUN_BEC3, gates the N/P pulse
+X:0x0195   SELFTEST_STEP  ; [C] FUN_5E20 sequencer state
+X:0x01B7/1B8 ACTUATOR_TEST ; [C] 0x1B7 == 2 -> actuator test; 0x1B8 = 1/2/3 selects Y5/Y3/TCC bit, 4 = running
+X:0x0390   ; [C] switch state byte of the bank0 0xD7xx state machine (FUN_1CED is the Keil switch dispatcher)
+# --- internal RAM
+I:0x21.0 (bit 0x08) OUT1_ON  ; [C] Y5 request (only the actuator test sets it in the visible code)
+I:0x21.1 (bit 0x09) OUT3_ON  ; [C] Y3 request (same)
+I:0x21.2 (bit 0x0A) OUT4_ON  ; [C] TCC request (same)
+I:0x21.4/5/6 (bits 0x0C-0E) OUTx_WAS_ON ; [C] previous state, for inrush detection
+I:0x36     Y4_DEMAND      ; [C] 0-238 PWM demand for OUT2; 0xFF = off/idle, 0xFE/0xED = actuator-test codes
+I:0x56     SHIFT_ACTIVE   ; [P]
+I:0xB9     CURRENT_GEAR   ; [C] 0 = N/P, 6 = R, 1-5 forward (bank1 FUN_2B80 maps it from XRAM 0x334)
+# --- code
+B0:0x02AC  ISR_PWM_ENGINE ; [C] vector 0x0024; Y4 PWM: demand INTMEM 0x36 -> table 0x089D -> {F4:F3}; OUT2 nibble; period 0x1388
+B0:0x0521  ISR_T1         ; [C] sends an all-zero frame, reads status, restores; compare = {FB:FA}+500 if status bit1
+B0:0x068E  spi_exchange   ; [C] 16-bit full duplex with the L9341 via 0xC6/0xC7, CS on P0.7
+B0:0x0711  frame_compose  ; [C] on/off channels: inrush code ROM[0x088D]=0x0F for 3 cycles then ROM[0x087F+idx]=4/5/6
+B0:0x1CED  keil_switch    ; [C]
+B0:0x1EA1  l9341_diag     ; [C] decodes four 2-bit channel states from XRAM 0x10
+B0:0x1FC6  temp_load_idx  ; [C]
+B0:0x2524  kline_protocol ; [C] ISO/KWP, 0x55 sync, TX buffer XRAM 0x40-0x53
+B0:0x3FC3  can_tx_gs218   ; [C] 6 bytes from XRAM 0x7E,@R0,0x93,0x92,0x90,0x83; TX request 0xBA=8,0xB9=4
+B0:0x46B1  can_init       ; [C] object table = nag52's EGS51 IDs >> 3, plus 0x428
+B0:0x47A0  can_rx_service ; [C]
+B0:0x4020  wdt_sync       ; [P]
+B0:0x403A  wdt_feed_all   ; [C]
+B0:0x5635  cap_range_a    ; [C] thresholds 625/1250/3333 on period {0x8C:0x8D}
+B0:0x547F  cap_range_b    ; [C]
+B0:0x5E20  selftest_seq   ; [C] writes test frames 2/4/5/6 to XRAM 0xFC-0xFE
+B0:0x6339  init_outputs   ; [C]
+B0:0x6711  init_sfrs      ; [C] CMEN 0xF6=0xFF, 0xFC=0x38, 0xFD=0x88 ...
+B0:0x675E  init_selftest_sequencer ; [C] XRAM 0x196 steps; fault path clears solenoid bits
+B0:0x6DE5  actuator_test  ; [C] cycles OUT1/OUT3/OUT4 bits, 50 ticks each, Y4 demand 0xFE, then 0xED
+B0:0x7331  shift_state_machine_a ; [P] 5.3 KB, starts with WDT stamp 0xDF
+B0:0x9F23  y4_np_pulse    ; [C] N/P: Y4 = curve[7] (244) for ROM[0xFE79] ticks (= 0 here) then flag 0x1C0.5
+B0:0xB77B  y4_shift_demand; [C] shift-time Y4 demand: {0x4E:0x4F} via MDU, curve at 0xFE01 (8 x u16: 0,60,60,98,132,184,242,244), consts 0xFE62/64/66
+B0:0xB8FF  y4_scheduler   ; [C] runs B77B only when 2 < gear < 6 and shift active; else demand 0
+B0:0xBD50  shift_decision ; [C] INC/DEC XRAM 0x334
+B1:0x2B80  gear_map       ; [C] XRAM 0x334 -> INTMEM 0xB9
+B1:0xD9A0  shift_state_machine_b ; [P] 3.7 KB, cross-bank entry
