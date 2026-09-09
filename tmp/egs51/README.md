@@ -242,6 +242,21 @@ copy B ~`0x1F87x`) differing in a few fields — two vehicle variants; know whic
   waiter never exits, and a `pkill -f` launched over SSH can kill the launching shell. Use a
   launcher script plus a pidfile (`run_bank0_funcs.sh` / `bank0.pid`, `kill -0 $(cat …)`).
 - Long headless runs: launch with `nohup … &` and **poll** briefly; do not block.
+- **A Ghidra project carries its creator's username.** These projects were made on the fast
+  box as `trampas`; opening them here as `tstern` aborts with
+  `NotOwnerException: Project is owned by trampas` and no hint of the fix. The owner is a
+  single field in `<proj>/<name>.rep/project.prp` (`STATE NAME="OWNER"`); both projects have
+  been rewritten to `tstern` and the originals kept as `project.prp.bak-trampas`.
+- **`MOVC` reads the bank that is currently selected**, so a `MOV DPTR,#0xFC3E` in bank1 code
+  reads *bank1* `0xFC3E`, not bank0's. The two differ completely: bank0 `0xFC3C/0xFC3E` are
+  the engine-speed thresholds 2100/2400 rpm used by `FUN_913D`, while bank1 `0xFC3E` sits
+  inside a map's z-data and reads `0x0000`. `FUN_56DE` (bank1) compares engine speed against
+  the bank1 value, so its "fast" branch (`INTMEM 0x72 = ROM[0xFF9D] = 80`) cannot be taken on
+  this calibration. Always say which bank a `MOVC` constant comes from.
+- **Read a byte as u8 or u16 only after seeing which the code does.** Several of the
+  engagement constants are u8 (`0xFF78`, `0xFF7B`, `0xFF9F`, `0xFFA1`, `0xFFA2`, `0xFF73`,
+  `0xFF9E`) and the neighbouring ones u16 (`0xFF81`, `0xFF87`, `0xFF9B`, `0xFFA7`, `0xFFAD`);
+  a first pass of this section published four wrong numbers by guessing.
 
 ## 8. Open threads
 
@@ -648,3 +663,307 @@ the ROM does not use the 3-4 valve for D at all.
 `tmp/datasheet/` (gitignored): `L9341_ST_CD00000102.pdf` (owner's copy), and the
 public `Siemens_1994_8bit_Microcontroller_Handbook.pdf` from bitsavers - the closest
 thing to a SIC810 datasheet that exists; none is public for the custom part.
+
+---
+
+## 13. The math block, the calibration pointers, the pressure path and the engagement machine (2026-09-09, pass 3)
+
+Third pass, done entirely on the existing exports with
+[`tools/egs51tool.py`](tools/egs51tool.py) (no Ghidra needed; see §14 for the
+tooling). Reconstructed C: [`reconstructed/egs51_pressure.c`](reconstructed/egs51_pressure.c);
+symbols appended to [`reconstructed/symbols.txt`](reconstructed/symbols.txt). This
+section supersedes parts of §2, §3, §5, §6, §8, §10 and §11; each superseded
+statement is named below rather than edited in place.
+
+### 13.1 The "reserved" SFRs are the MDU, and the helpers are now readable
+
+`A5 A6 A7 AD AE AF` are `MD0..MD5` of an 80C517-style multiply/divide unit. **The write
+order selects the operation, exactly as on the 80C517A datasheet:** `MD0,MD4,MD1,MD5` =
+16×16 multiply, `MD0,MD1,MD4,MD5` = 16/16 divide, `MD0..MD5` = 32/16 divide. The
+`LCALL 0x1DCA / 0x1DCB` pads are the mandatory wait. That resolves every helper
+(common area `0x0C00–0x1CFF`, byte-identical in both banks, so bank1 calls are the same code):
+
+| addr | name | semantics | calls (b0/b1) |
+|---|---|---|---|
+| `0x0BCC` | `mdu_muldiv_u16` | `(R6:R7 × R4:R5) / R2:R3 → R6:R7`, unsigned; `(x,1000)` pairs are the ubiquitous `/1000` | 96 / 146 |
+| `0x0C20` | `mdu_muldiv_s16` | same, signed (abs, count sign flips in R0, negate) | 25 / 40 |
+| `0x0C0C` | `mdu_mul16_32` | 32-bit product in `R4:R5:R6:R7` (Ghidra had it misaligned) | 11 / 1 |
+| `0x0C7B` | `mdu_div32_ram75` | `R4..R7 / INTMEM{0x75:0x76}`; the divisor is a sensor period | 11 / 1 |
+| `0x1061` | `lag_div` | `cur += (target − cur) / R3`; `R3 == 0` returns target | 2 / 69 |
+| `0x1412` | `lerp1d_intmem` | clamped two-point lerp on five u16 **values** in INTMEM (`y0,y1,x0,x1,x`) | – / 18 |
+| `0x14F3` | `map2d_rom` | bilinear 2-D map from a ROM descriptor (below); `0x1904` = u8-z variant | – / – |
+| `0x1CA2` | `dptr_add_a_mul_b` | `DPTR += A×B` (array indexing) | 30 / 58 |
+
+**Ghidra's decompile of anything using the MDU is wrong in the details** (it shows
+`FUN_CODE_1dca(x,y)` with made-up arguments and cannot see that `A5..AF` are a unit).
+Read the listing for those, or run `MduAnnotate.java` (§14) which comments every call.
+
+The `lag_div` idiom matters: the ramp divisor in `INTMEM 0xB1` is *decremented every
+cycle* by `timers_tick` (bank0 `0xE48D`), so `p += (target−p)/n` with `n = 10,9,…,1`
+is a **linear ramp that lands exactly on the target** — not an exponential filter.
+
+### 13.2 Corrections to earlier sections
+
+- **§2 / §3 vector table.** The SIC810 has interrupt vectors **three bytes apart** from
+  `0x0003`, each a bare `LJMP`, not the 8051's eight-byte table (`egs51tool.py vectors`):
+  1→`0664` (INT0 pulse counter), 5→`059B`, 6→`059C`, 7→`05FF` (speed captures),
+  8→`006A` (K-line/CAN service), 9→`0521` (SPI status / compare), **11→`01FD` (the
+  current-loop ISR, unlisted until now)**, 12→`02AC` (TCC PWM engine), 14→`0662`, 15→`0663`.
+  `PrepEntry.java` seeded the wrong slots and got the others only by luck of the sweep;
+  use `PrepEntrySIC810.java`.
+- **§9 / §11 `0xFD`/`0xFE` are not PWM controls.** `FUN_5635`/`547F` are the
+  period→speed conversions for the two speed sensors (`0x0C7B` divides by the captured
+  period in `0x75:0x76`; results `{0x83:0x84}` / `{0x81:0x82}`); `0xFD`/`0xFE` hold the
+  capture prescaler range (1/3/4). The "MPC/SPC PWM channel controls" reading is withdrawn.
+- **§8 thread 3 / §10 `D8–DD` is not an ADC.** `SFR 0xD9` and `0xDA` are the **MPC and
+  SPC PWM duty registers**, written only by the PI regulator (`0x3EEC`); the analog inputs
+  all come through the paged `0x91/0x92` window. `0xD5` in that code is `PSW.5` (F0), not an SFR.
+- **§10 "ATF temperature = page 9" is withdrawn.** ATF is **page `0xF`, 16-bit, averaged
+  over 8 samples, linearised in `FUN_2132` to `XRAM 0x17` and published as `XRAM 0x76`**.
+  `XRAM 0x21` (page 9, 8-bit) only feeds the on/off-solenoid hold-current index
+  (thresholds 126/145) and is most likely the driver/ECU temperature.
+- **§5 "calibration tables read through `0x3F5C`"** — `0x3F5C` is the PI step of the
+  current regulator (two callers). Calibration is read through the base pointers of
+  §13.3, the 1-D lerp `0x1412` and the 2-D map routine `0x14F3`.
+- **§6 "SM00 shift-algo pack: 0 of 32 arrays found"** stands for the *values*, but the
+  maps exist in the ROM as u8 (§13.4); the earlier search looked for u16.
+- **§6 "no temperature schedule for garage fill"** — there is one; it is a *time*
+  schedule (§13.6).
+- **Bank1 writes no hardware register at all** (SFR census, both banks): bank1 is pure
+  control logic, bank0 holds every driver. The `0xDC`/`0xC8` writes reported inside bank1
+  `0xEC93..0xFF87` are calibration bytes swept as code.
+
+### 13.3 Calibration: coding-selected pointer sets, and the real block layouts
+
+Bank1 `FUN_20BC` (init) fills **sixteen base pointers `XRAM 0x3B2..0x3D5`** from two
+coding bytes, one nibble per pointer, through tables at bank1 `0xE882..0xEA62`
+(`egs51tool.py calsets`). `0xFFFF` means "not populated" and sets a fault bit. Every
+calibration access in bank1 is `base + offset` (Keil generic pointer with a borrow
+fix-up), which is why no `MOV DPTR,#` census ever found the mech/hydr blocks.
+
+| pointer | coding | idx 0 | idx 1 | idx 2 | block |
+|---|---|---|---|---|---|
+| `0x3D4` | `0x17C` hi | `FE20` | `F77D` | **`F0DA`** | **mech** — `friction_map` at +1, `max_torque_on/off` +0x61/+0x69, `release_spring` +0x71, `strongest_clutch` +0x87; 0xA0 bytes |
+| `0x3CE` | `0x17C` hi | `FEC0` | `F81D` | **`F17A`** | **hydr** — layout below; 0x60 bytes |
+| `0x3B2` | `0x17B` lo | `F87D` | `F1DA` | – | block after hydr |
+| `0x3B4`/`0x3C2` | `0x17B` lo/hi | `EA8C` | `E77E` | – | 4×4 map descriptor (gear × temp) |
+| `0x3C8` | `0x17B` hi | `EA96` | `E788` | `E684` | 5×4 map descriptor (gear × ATF) — the fill term |
+| `0x3BC` | `0x17B` hi | `F8D6` | `F233` | `EB90` | shift-decision block (`FUN_B9F3/BB02/C144`) |
+| `0x3BA`,`0x3C6`,`0x3CA`,`0x3BE`,`0x3C0`,`0x3C4` | `0x17B` hi | … | … | … | shift-timing / SPC / TCC parameter blocks (offsets in `symbols.txt`) |
+| `0x3D0`,`0x3D2` | `0x17C` lo | `EAC8`,`EB80` | `E7BA`,`E872` | `E6B6`,`E76E` | lists of four 6×8 descriptors (one per upshift) |
+| `0x3CC` | `0x17C` lo | `EB20` | `E812` | `E70E` | list of four 3×2 descriptors |
+
+**This car is coding index 2 for mech/hydr** — `0xF0DA`/`0xF17A` are the blocks that
+match the TCU byte-for-byte (§6 called them "copy A"; the third set at `0xFE20/0xFEC0`
+was not noticed). The three variants are laid out contiguously (`mech, hydr, post-hydr`
+at `F0DA/F17A/F1DA`, `F77D/F81D/F87D`, `FE20/FEC0/–`), so the low-nibble index of `0x17B`
+that pairs with hydr index 2 is 1. The other nibbles are unknown; all three variants of
+every map are listed by `egs51tool.py desc`.
+
+**Hydr block, ROM layout** (base `0xF17A`, verified against the dump; nag52 names):
+`+0 id=3 · +1 p_multi_1=431 · +3 p_multi_other=592 · +5 lp_reg_spring=1828 ·
++7 overlap_circuit_factor_spc[8] · +0x17 …_mpc[8] · +0x27 …_spring_pressure[8] (s16) ·
++0x37 shift_reg_spring=601 · +0x39 shift_spc_gain[8] · +0x49 0,0,0 · +0x4F min_mpc=500 ·
++0x51 filter_factor=15 · +0x52 mpc_flush_temp_threshold=75 · +0x53 0,0,0 ·
++0x56 mpc_no_flush_time=30000 · +0x58 mpc_flush_time=50 · +0x5A 0,0,0`.
+nag52's `HydraulicCalibration` holds the same values in the EGS52 order (no gap at
++0x53, `inlet_*`/`pcs_map` inside the struct); in the ROM the inlet map lives at bank1
+`0xFFD6` and the pcs map at `0xFF21/2F/37` behind a descriptor. So §7's "unnamed block
+after `shift_spc_gain`" is `min_mpc … mpc_flush_time` at odd offsets.
+
+### 13.4 The 2-D map descriptor, and the 65 maps it finds
+
+Keil emitted every 2-D map as a 10-byte descriptor:
+
+```
+u8 x_intmem_addr, u8 nx, u8 y_intmem_addr, u8 ny, u16 *x_axis, u16 *y_axis, u16 *z
+```
+
+`map2d_rom` (`0x14F3`, `R6:R7` → descriptor) reads the **inputs from internal RAM at the
+addresses in the descriptor** — every map in this ROM uses `0xA5:0xA6` (x) and `0xA7:0xA8`
+(y), so callers load those first — and does a clamped bilinear lookup. Axes are u8 in
+64 of the 65 maps; only the pcs map (`0xEA82` → `0xFF21/0xFF2F/0xFF37`, x = pressure,
+y = ATF temperature) has u16 axes. `egs51tool.py desc` lists them all with values,
+`map BANK ADDR` prints one as a table; `FindMapDescriptors.java` turns them into typed
+data in Ghidra. Geometry per variant: four 6×8 (two families), four 6×10, four 3×4,
+four 3×2, one 5×4, one 4×4, plus three 6×6 in bank0 (`0xEB20/0xEC86/0xEF96`, the
+converter side). The geometries are nag52's `trq_adder` (6×8 up / 3×4 down) and
+`momentum` (6×10 up / 3×2 down) tables; **none of the values match nag52's `SM00`
+arrays in any variant**, so the car's shift-algorithm pack is not this ROM's, and this
+ROM's own values are now extractable.
+
+### 13.5 The pressure path, end to end
+
+```
+bank1 state machines  ──►  P_MPC 0x44:0x45  ──►  pressure_to_demand (D76E)  ──►  i_demand_mpc 0x37 ─┐
+                           P_CLUTCH 0x46:0x47 ─► spc_from_clutch (7093) ─► P_SPC_SOL 0x48:0x49 ─► D76E ─► i_demand_spc 0x35 ─┤
+                                                                                                                                 ▼
+bank0 ISR 0x01FD (vector 11, every 1250 ticks): feedback = page 1 / page 3 (AD22057) scaled by 5ACA  →  PI (3EEC/3F5C)  →  0xD9 / 0xDA = 255−u  →  MCU pins 4 / 5  →  RY stages  →  MPC / SPC
+```
+
+- **The three words** are internal RAM, overlaid by each state machine: `0x44:0x45`
+  MPC target (mbar), `0x46:0x47` the engaging-circuit target, `0x48:0x49` the SPC
+  solenoid pressure from `spc_from_clutch`. The demand stage at bank1 `0x3188–0x3198`
+  is unconditional: `0x35 = D76E(0x48:0x49)`, `0x37 = D76E(0x44:0x45)`.
+- **`spc_from_clutch` (`0x7093`)**: `shift_reg_spring + clamp(20·τ + p_clutch, P_SPC_MAX) ·
+  shift_spc_gain[idx] / 1000`, with `τ` a torque-shaped byte (`XRAM 0x167/0x168/0x174` by
+  phase) and `P_SPC_MAX` (`XRAM 0x273:0x274`) set per shift in `shift_setup` (`0x2BB2`).
+  This is the OEM form of nag52's clutch→solenoid pressure relation.
+- **`pressure_to_demand` (`0xD76E`)**: line model `p_multi_{1|other} × (lp_reg_spring +
+  P_MPC) / 1000` (or a per-shift lerp over ROM `0xFFE4..` while shifting), the **inlet
+  map** `3180..8820 → 2690..8330` (ROM `0xFFD6`, the map nag52 already uses live), then
+  the **pcs map** `(pressure, ATF) → mA`, then `× 10 / 45`: **the demand byte is
+  4.5 mA per count (255 = 1147 mA)**.
+- **The regulator**: per channel a 16-bit integrator resting at `0x8000`, reset while
+  the demand is 0; `I ±= Ki·|e|` saturating, output = high byte of `I − 0x8000 ± Kp·|e|`,
+  saturated, inverted into the duty register. **Kp = 4, Ki = 2** (ROM `0x0B38/0x0B39`),
+  period = `ROM[0x0B3A:0x0B3B]` = 1250 counter ticks. Feedback scaling constants
+  `XRAM 0x188..0x18D` are per channel and not in ROM (EEPROM trims, ?).
+- **The overlap computations** (`FUN_8200/80BC/7DDF/6FEE/8836`) use
+  `overlap_circuit_factor_spc/mpc[idx]`, `…_spring[idx]` and the `+5+idx` percent table of
+  block `0x3BE` with `/1000` and `/100` scalings — the same structure as
+  `pressure_manager.cpp`. **`FUN_5480`** is the MPC line/flush logic: `min_mpc_pressure`,
+  `filter_factor`, and the flush alternation between `mpc_no_flush_time` and
+  `mpc_flush_time` gated on ATF ≥ `mpc_flush_temp_threshold`.
+
+### 13.6 Temperature looks to be stored as °C + 50 — and nag52 reads the same numbers as °C
+
+Evidence, in order of strength:
+
+1. **The substitute value.** When the ATF sensor reads open/short (`XRAM 0x15` bit 7) the ROM
+   uses `XRAM 0x97` instead, and the CAN receive service loads it as **`byte + 10`** from an
+   engine frame (`FUN_47A0`: read CAN object at register `0xBA = 0xA8`; `< 0xD8` → `+10`,
+   else the sentinel `0xE1`). Every MB engine temperature byte on this bus — `T_MOT` and
+   `T_OEL` alike, both in `MS_608`, which is the frame nag52 itself decodes as `T_MOT − 40`
+   (`can_egs51.cpp:176`) — is in **°C + 40**. A substitute of `+10` on a °C+40 byte is a
+   °C+50 value, and this holds whichever of the two bytes it is. (Which frame and byte the
+   CAN object at `0xA8` actually is has **not** been pinned — the acceptance table streamed at
+   `0xBA = 0x57` gives the IDs but not the object-to-window mapping. That is the one gap in
+   this argument, and it does not change the conclusion, only the label.)
+2. **The measured range.** The linearisation is a straight line,
+   `XRAM 0x17 = ((mean8 × 177) >> 8 − 52) × 2`, over an 8-sample mean of paged input `0xF`.
+   Full scale maps to about **−50 °C … +198 °C**: the low end sits exactly at 0 and goes
+   negative below it, which is what an offset encoding looks like and not what a plain °C
+   reading would do.
+3. The boot default `ROM[0xFF01] = 0x82` = 130 → **30 °C** assumed at power-up, a sane
+   default; read as plain °C it would be 130 °C.
+
+Consequences, if the encoding is °C + 50:
+
+| ROM number | nag52 reads | ROM means |
+|---|---|---|
+| `hydr.mpc_flush_temp_threshold` = 75 | 75 °C | **25 °C** |
+| `pcs_map_y` = 25 / 70 / 110 / 200 | °C | **−25 / 20 / 60 / 150 °C** |
+| engagement-time axis 20 / 70 (`0xFF91/92`) | – | −30 / +20 °C |
+| 5×4 fill map axis 30 / 55 / 75 / 110 | – | −20 / 5 / 25 / 60 °C |
+| solenoid hold-current thresholds 70 / 170 | – | 20 / 120 °C |
+
+The pcs map is used live by nag52 with the ATF in °C, so at 45 °C it would interpolate
+between rows the OEM meant for 20 °C and 60 °C; the flush threshold would be off by 50 °C.
+**Nothing in nag52 was changed by this pass** — this is a calibration-*interpretation*
+finding, and acting on it means re-basing every temperature axis at once. The decisive test
+is cheap and belongs to the owner: park the car at a known ATF temperature and compare the
+value the TCU reports with what the OEM tables expect. Note that the sensor is a KTY-class
+part (a straight-line fit, no resistance table in the ROM, consistent with §6) and that our
+own TFT curve reads 7–10 °C high — so the check needs a real reference, not the TCU's own
+number alone.
+
+### 13.7 The engagement machine, with its pressures and times
+
+`FUN_5BB6`, sub-state `INTMEM 0xB4`, fully transcribed in `egs51_pressure.c`. What §12
+lacked — the numbers:
+
+- **N/P idle (state 8):** `Y5+Y4` held; `P_MPC = 0` (maximum regulator current, minimum
+  line pressure), `P_CLUTCH = 200`, `P_SPC_SOL = 800`; leaves after 80 cycles when a range
+  is selected, ATF ≥ 0 °C and the speed word is below `ROM16[0xFFAD]` = 1005 (fast path) or
+  the `0x1BD` engine-speed flag allows (normal path): **both valves released, state 0**.
+- **States 0–2:** arm (`≥ 45` cycles for 4-3), set `P_MPC = 1500` (`ROM 0xFF87`),
+  `P_CLUTCH = 4000`, choose the valve (Y3 above the speed threshold `ROM16 0xFF81` = 111; `Y5`,
+  `Y5+Y4`, or `Y4` for R by `INTMEM 0xB3`), load the **fill time** `t_lerp_150_40` =
+  150 cycles at ≤ −30 °C → 40 cycles at ≥ +20 °C (ROM `0xFF73`/`0xFF9E`, axis
+  `0xFF91` = 20, `0xFF92` = 70) and the ramp divisor `n = ROM[0xFF78] = 10`.
+- **States 3/4/7:** `P_MPC` and `P_CLUTCH` ramp linearly to their targets over the 10
+  cycles, `P_SPC_SOL` follows through `spc_from_clutch`; at the end of the fill time the
+  valves are dropped (3, 7) or Y3→Y4 is swapped and a hold of `t_lerp_40_7 + 26` cycles
+  runs (4). **State 5** settles at `P_MPC = 4500` with SPC off, then re-arms.
+- The per-gear × temperature **fill term** (`FUN_6856`, 5×4 map at `0x3C8`: 30/81/43/30/41
+  at −20 °C down to 8/7/7/9/6 at 60 °C, plus a per-clutch byte from `[0x16D + clutch]`,
+  possibly adaptive) is used by the *shift* functions, not by this machine.
+
+The scheduler cycle time is still unmeasured, so all times are in cycles of bank0
+`FUN_6E6A` (whose task order is: `E48D` timers, `BA18`, `BC4A`, `BD50` target-gear
+stepper, `BE8E`, `BEC3`, `BFD5`, `920F`, `C496`, `C6C6`, bank1 `236A`, `C6C6`, `CA22`,
+`CA65`, bank1 `2C4F`/`CE9F`/`AF12`/`D9C8`/`B708`, `D456`, `B838`, `E01E`, `E0CB`, `E214`,
+`913D`, `7331`, `E260`, `CFB1` GS218 compose, `D259`).
+
+### 13.9 What was verified, and how the check fails
+
+`tools/egs51tool.py verify` re-derives the two block layouts of §13.3 from the ROM at the
+coding-selected bases and compares all 25 fields against the TCU's own calibration
+(`tmp/shift_replay/cal_data.h`); it exits 1 on any mismatch and prints `NO DATA` rather than
+`ok` when it has nothing to compare. Current result: **25 fields checked, 0 mismatches** —
+the hydr block at `0xF17A` and the mech block at `0xF0DA` are byte-for-byte the car's, at
+the offsets documented above, which is what licenses reading the surrounding code as the
+OEM pressure logic. Proven to fail (§7 rule 7): moving the hydr base one byte to `0xF17B`
+gives `25 fields checked, 13 mismatches`, exit 1; a missing `cal_data.h` gives `NO DATA`,
+exit 1.
+
+One field does not match and is not a defect: the ROM byte at `mech+0` is **`0x33` = 51**, an
+id/version byte, whereas nag52 stores `gb_ty = 0` there. The hydr block's own `+0` is `3`.
+Every array after them matches exactly, so the first byte is a block id, not `gb_ty`.
+
+### 13.8 Where this leaves the questions of §8
+
+1. Chip marking: read (§10); the MDU and vector table are now decoded from behaviour.
+2. Banking model in Ghidra: still open; the tooling in §14 works around it.
+3. Analog input path: closed (paged window; ATF = page 0xF → `XRAM 0x76`).
+4. Bank0 `0xFBF7` area: read by `FUN_7331` (24 cells, the big bank0 machine), `889C`,
+   `9538`, `9B0A`, `A04B`… as scalar parameters (`egs51tool.py calrefs 0 f000`); the
+   **shift-point decision itself is in bank1** (`FUN_B9F3/BB02/C144` on block `0x3BC`) and
+   its target gear reaches bank0 as `XRAM 0x75` via `FUN_1DD0`. Not yet decoded.
+
+Still not decoded: the shift-execution phase machine (`INTMEM 0xAA`, bank1 `2344`/`D9A0`
+and the `0x33D6/0x37CC` family that calls `spc_from_clutch`), the shift-point maps, the
+TCC controller, adaptation (whether `[0x16D + clutch]` is learned, and the EEPROM link),
+the torque request (`FUN_CFB1` composes GS218). Each is now a bounded job with named
+entry points.
+
+## 14. Tooling for the next image (EGS52 or another EGS51)
+
+Everything below is ours and committed.
+
+**[`tools/egs51tool.py`](tools/egs51tool.py)** — works on the `DumpAll.java` exports plus
+the image, no Ghidra session needed: `asm` (listing slice), `fn` (enclosing function),
+`xrefs`, `calrefs` (which functions read which calibration cells), `desc` / `map` (find
+and print every 2-D map, match values against `cal_data.h`), `calsets` (decode the
+coding pointer tables), `find` (bytes → function), `mdu` (census of helper calls with
+semantics), `vectors`, and `verify` (§13.9: re-derives the block layouts and checks all 25
+fields against `cal_data.h`, exit 1 on mismatch, `NO DATA` when it has nothing to compare).
+Every question in this pass was answered with it.
+
+**Ghidra scripts (`ghidra/`)**, all headless-runnable; `ghidra/run_annotate.sh 0|1` applies
+the whole set to an existing project without re-analysis (bank1: 11 vectors, 419 MDU calls
+commented, 66 map descriptors, 9 jump tables, 103 symbols; bank0: 11 / 264 / 3 / 3 switch
+tables + 7 jump tables / 131 symbols):
+
+- `PrepEntrySIC810.java` — seeds the 3-byte vector table (use instead of `PrepEntry.java`).
+- `MduAnnotate.java` — names the MDU/library helpers, comments every call with its
+  semantics, labels the SIC810 SFRs (`MDU_MD0..5`, `XPAGE`, `SPI_*`, `PWM_*_DUTY`, …).
+- `FindMapDescriptors.java` — finds the descriptors, converts descriptor, axes and z to
+  typed data with labels and references (the sweep had them as instructions).
+- `KeilSwitchTables.java` — turns each `switch` case table after an `LCALL ?C?CCASE`
+  back into data and adds the jump references (§9's "overlapping instruction").
+  3 tables / 34 cases in bank0; bank1 never calls the dispatcher.
+- `LjmpTables.java` — the *other* table form: `MOV DPTR,#table … JMP @A+DPTR` over a run of
+  `LJMP`s, which Ghidra reports as "Could not recover jumptable" and leaves with no outgoing
+  flow. Labels the table, wires a computed-jump reference to each target and creates the case
+  functions. 9 tables / 108 targets in bank1 — including the engagement machine at `0x5C66`,
+  whose nine states were unreachable code before this.
+- `ApplySymbols.java` — applies `reconstructed/symbols.txt` (code, XRAM, INTMEM, SFR).
+
+What a Ghidra *plugin* would add over these scripts is a banked-memory model
+(`TCON.4` selecting the bank for cross-bank `LCALL`s) so one program holds both
+halves; that is a processor-spec/loader job, not a script, and is the one piece not
+done. For an EGS52 image (a different MCU, C167-class) the descriptor/MDU parts do
+not transfer, but `egs51tool.py`'s calibration-matching and `calsets`/`desc` logic
+and the discipline of §7 do.

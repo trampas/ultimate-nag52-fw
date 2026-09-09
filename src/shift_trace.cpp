@@ -76,7 +76,14 @@ static struct {
 // The applying clutch only starts to transmit once its pressure beats the return
 // spring, so slip before that dissipates nothing. The calibration puts the
 // springs at 1139-1289 mBar on this box.
-#define QUALITY_SPRING_MBAR 1300
+//
+// A fixed threshold cannot express that: p_on already includes the spring, so a
+// deliberate low fill of 620-750 mBar reads 1760-1955 and clears any constant set
+// near the spring. That let the 2026-09-09 drive charge full engine torque against
+// K3's ~3400 rpm of free speed for the whole fill and overlap of every 3-4, which
+// is where its 40-80 kJ came from. The gate is now the clutch's own torque
+// capacity at its net pressure, passed in by the caller, which goes to zero during
+// the fill without needing a constant at all.
 // Input shaft inertia, kg m^2, for the clutch torque estimate. Fitted from 302
 // logged inertia phase samples across four drives.
 #define QUALITY_INPUT_INERTIA 0.16f
@@ -218,7 +225,7 @@ void ShiftTrace::record_adaptation(uint8_t reason, int16_t spc_delta, int16_t pr
 void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                         uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
                         uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque,
-                        uint8_t agility_score) {
+                        uint8_t agility_score, uint16_t apply_capacity_nm) {
     if (nullptr == trace_ring || nullptr == sd || nullptr == algo) {
         return;
     }
@@ -280,11 +287,16 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
         float dt = dt_ms / 1000.0f;
         if (shifting) {
             if (accel_ok && accel < q.min_accel) { q.min_accel = accel; }
-            int32_t slip = (s->p_on > QUALITY_SPRING_MBAR) ? abs(algo->s_on) : -1;
+            int32_t slip = (apply_capacity_nm > 0) ? abs(algo->s_on) : -1;
             if (slip >= 0 && q.slip_prev >= 0) {
                 float dw = ((float)s->input_rpm - (float)q.in_prev) / dt;
-                float t_clutch = fabsf(QUALITY_INPUT_INERTIA * dw * 0.10472f) +
-                                 fabsf((float)sd->input_torque);
+                float demand = fabsf(QUALITY_INPUT_INERTIA * dw * 0.10472f) +
+                               fabsf((float)sd->input_torque);
+                // A clutch dissipates only through the torque it can actually hold.
+                // While it is filling, the releasing clutch still carries the load, so
+                // charging the full engine torque against the applying clutch's free
+                // differential speed invents energy that was never dissipated.
+                float t_clutch = MIN(demand, (float)apply_capacity_nm);
                 q.energy += t_clutch * ((float)slip * 0.10472f) * dt;
                 if (q.slip_prev > slip) {
                     uint16_t rate = (uint16_t)((q.slip_prev - slip) / dt);

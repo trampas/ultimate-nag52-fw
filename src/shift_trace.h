@@ -177,10 +177,14 @@ namespace ShiftTrace {
     /// Allocate the ring. Safe to fail - tracing is then simply inactive.
     void init(void);
     /// One sample. Called from Gearbox::controller_loop every 20 ms.
+    /// @param apply_capacity_nm Torque the applying clutch can hold at its current
+    ///        net (spring-subtracted) pressure, or 0 when no shift is running. The
+    ///        quality metric charges the clutch no more than this, so a clutch that
+    ///        is still filling dissipates nothing.
     void sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                 uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
                 uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque,
-                uint8_t agility_score);
+                uint8_t agility_score, uint16_t apply_capacity_nm);
     /// Header for the diagnostic readout, or nullptr if tracing is inactive.
     const ShiftTraceHeader* get_header(void);
 
