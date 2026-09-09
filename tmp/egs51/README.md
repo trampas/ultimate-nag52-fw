@@ -361,7 +361,7 @@ not by this image.
 | U | AMD **AM27C010-90JI** (1997) | 128 KB EPROM = this image | program + calibration, banked |
 | U | **74HC573** | octal latch | A0-A7 from the multiplexed bus |
 | U | ST **L9341** (1880F9922, Singapore) | quad low-side driver | the on/off solenoids Y3/Y4/Y5 (+TCC?) - **unconfirmed which pin drives it** |
-| U x2 | Siemens 7-pin power pkg, marked `RX` / `RY`, `930620T QCZ923` | unidentified | two identical -> the two current-regulated channels (MPC/SPC) |
+| U x2 | two separate Siemens 7-lead power packages (top-left of photo 1), each printed `RX 930620T QCZ923` / `RY 930620T QCZ923` - `RX`/`RY` is part of the device marking, not a pin name, and these are not L9341 pins | unidentified, marking too blurred to read reliably | two identical parts -> the two current-regulated channels (MPC/SPC) |
 | U x2 | Analog Devices **AD22057** | current-sense / sensor-interface amplifier | MPC/SPC current feedback (two channels, two amps) |
 | U | Siemens **BTS426L1** (hand-marked "N3") | PROFET smart high-side switch | solenoid supply cut - matches the `P4.0` output-enable line |
 | U | `P4383 / H8 MAX`, small power pkg | unidentified | |
@@ -425,5 +425,5 @@ and then `SFR 0xFD = ` the same byte, i.e. it keeps an XRAM copy of what it puts
 SFR; `FUN_CODE_5E20`'s timed writes to `0xFC-0xFE` between `0x068E` delays fit the same
 pattern. Treat **`XRAM 0xF0-0xFF` as software shadows of the capture/compare SFR block**,
 not as hardware. The solenoid latch is not there either. What would settle the output path
-now is a continuity trace on the board from the L9341 input pins (and the two `RX`/`RY`
-parts' inputs) back to the MCU pins or to whatever sits in between.
+now is a continuity trace on the board from the L9341's parallel input pins (and the inputs
+of the two 7-lead `RX`/`RY`-marked packages) back to the MCU pins or to whatever sits in between.
