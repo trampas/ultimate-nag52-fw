@@ -1102,6 +1102,20 @@ void Gearbox::shift_thread()
             bool completed_ok = false;
             bool jump_to_pid = false;
             bool tried_again = false;
+            // Why an abort happened is the question this log line has never been
+            // able to answer. "Garage shift aborted" on its own cannot separate a
+            // clutch that never took up from a sync gate that rejected a good
+            // engagement, and the abort is chronic - it appears in 8 of the 13
+            // logged drives, on vehicle power and USB power alike. Carry the
+            // evidence out with it. The discriminator is the turbine: an
+            // engagement that is working drags it to zero, and on both drives
+            // where the car never went into gear it did not move at all while
+            // shift pressure went to the 7700 mBar ceiling.
+            uint16_t in_rpm_start = sensor_data.input_rpm;
+            uint16_t in_rpm_min = sensor_data.input_rpm;
+            uint16_t p_shift_peak = 0;
+            int last_rpm_delta = 0;
+            int last_sync_thresh = 0;
             this->algo_feedback.active = true;
             
             while(true) {
@@ -1373,6 +1387,10 @@ void Gearbox::shift_thread()
                         }
                     }
                 }
+                last_rpm_delta = rpm_delta;
+                last_sync_thresh = sync_rpm_threshold;
+                if (sensor_data.input_rpm < in_rpm_min) { in_rpm_min = sensor_data.input_rpm; }
+                if (p_shift > p_shift_peak) { p_shift_peak = p_shift; }
                 pressure_mgr->set_target_modulating_pressure(p_mod);
                 pressure_mgr->set_target_shift_pressure(p_shift);
                 this->pressure_mgr->update_pressures(this->target_gear, circuit);
@@ -1394,7 +1412,13 @@ void Gearbox::shift_thread()
             }
 
             if (!completed_ok) {
-                ESP_LOGW("SHIFT", "Garage shift aborted");
+                ESP_LOGW("SHIFT",
+                    "Garage shift aborted at stage %d.%d: turbine %d->%d rpm (min %d), "
+                    "delta %d vs sync %d, peak shift p %d mBar, mpc %d mBar, out %d rpm, ATF %d C%s",
+                    (int)stage, (int)substage, (int)in_rpm_start, (int)sensor_data.input_rpm,
+                    (int)in_rpm_min, last_rpm_delta, last_sync_thresh, (int)p_shift_peak,
+                    (int)p_mod, (int)sensor_data.output_rpm, (int)sensor_data.atf_temp,
+                    tried_again ? ", after a retry" : "");
                 curr_target = this->shifter_pos == ShifterPosition::P ? GearboxGear::Park : GearboxGear::Neutral;
                 curr_actual = this->shifter_pos == ShifterPosition::P ? GearboxGear::Park : GearboxGear::Neutral;
                 pressure_mgr->set_target_shift_pressure(4000);
