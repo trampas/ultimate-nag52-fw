@@ -729,6 +729,7 @@ bool Gearbox::next_gear_can_pull(GearboxGear next) {
  * holds shifts that would have been clean.
  */
 #define DOWNSHIFT_TIME_MARGIN_X100 120   // measured actual/target on downshifts
+#define STANDSTILL_OUTPUT_RPM       60   // as is_stationary(); a stopped output shaft
 
 bool Gearbox::downshift_can_finish(AbstractProfile* p)
 {
@@ -736,9 +737,14 @@ bool Gearbox::downshift_can_finish(AbstractProfile* p)
         return true;                     // disabled, or nothing to ask
     }
     int floor_rpm = SBS_CURRENT_SETTINGS.downshift_min_end_rpm;
-    // Already at or below the floor: this IS the standstill shift, and it is the
-    // smooth one. Never hold it, or the car would be left in the higher gear.
-    if ((int)this->sensor_data.output_rpm <= floor_rpm) {
+    // A shift that starts at a true standstill is the smooth one - never hold it,
+    // or the car would be left in the higher gear. Judge that on the output shaft
+    // actually being stopped, the same test is_stationary() uses, and NOT against
+    // floor_rpm: comparing to the tunable made raising the floor exempt exactly
+    // the shifts the guard exists to hold (one starting at 200 rpm with a floor of
+    // 300 is the one that lands on the stop), so the guard got weaker the harder
+    // it was tuned and only ever behaved at floor 0.
+    if ((int)this->sensor_data.output_rpm < STANDSTILL_OUTPUT_RPM) {
         return true;
     }
     if (this->decel_rpm_s >= 0) {

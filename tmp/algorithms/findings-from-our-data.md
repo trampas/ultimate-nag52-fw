@@ -80,6 +80,43 @@ structural fix for polled rate.
 
 ---
 
+## The shift torque request costs more than it buys on this engine (2026-09-09)
+
+65 shifts carrying a torque request, across the 09-08 09:37 and 09-09 05:10 /
+06:51 drives. What the TCU asked for versus what the ECM delivered:
+
+| | median |
+|---|---|
+| request duration | **38 ms** |
+| torque hole it produced (engine under 80 % of its pre-shift value) | **152 ms** |
+| torque requested at the floor of the request | 150 Nm |
+| torque actually delivered at the minimum | **93 Nm** |
+| pre-shift engine torque | 171 Nm |
+
+* **56 of 65 holes outlast the request that caused them.** 23 of 65 run 300 ms or
+  longer; the worst is 800 ms.
+* The ECM **undershoots the request by ~38 %** — asked for 150 Nm, delivers 93.
+* On **7 shifts a request for a mere reduction drove the engine negative**, into
+  overrun (down to -81 Nm on the 09-08 3-2 at t=141292).
+
+This is a turbodiesel: cutting fuel drops boost, and restoring torque has to
+re-spool the turbo, so a short request buys a long recovery that the TCU neither
+commands nor sees. The driver feels two events, not one - the clutch taking up,
+then torque returning several hundred ms later into an already-locked driveline.
+That is the "double shift" reported on kickdown.
+
+Worked example, the 09-09 06:51 kickdown at t=92371 (5-4 then 4-3, chained):
+the 4-3's whole inertia phase (93971-94239, input 2322 -> 3174 rpm) runs at full
+engine torque with no request at all; the request arrives at 94201, *as the speeds
+sync*, and the engine then falls 279 -> 81 Nm and takes ~300 ms to come back,
+200 ms of it after the request had already ramped back to 250 Nm.
+
+`SBS en_trq_req_2_1 / _3_2 / _4_3 / _5_4` already exist and default to `true`.
+Turning the downshift ones off is the cheapest A/B available and needs no
+firmware change. **Not yet driven.**
+
+---
+
 ## Traps that cost real time
 
 **Jerk from polled data is half the truth.** 19.8 m/s³ against 39.3 from a 50 Hz

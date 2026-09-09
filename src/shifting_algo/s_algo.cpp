@@ -14,7 +14,13 @@ void ShiftingAlgorithm::reset_all_subphase_data() {
 ShiftAlgoFeedback ShiftingAlgorithm::get_diag_feedback(uint8_t phase_id) {
     return ShiftAlgoFeedback{
         .active = 1, // True
-        .shift_phase = 1, // Always (Fix weirdness)
+        // The real phase (0 BLEED, 1 FILL, 2 OVERLAP, 3 OVERLAP2, 4 MAX_PRESSURE,
+        // 5 END_CONTROL). This used to be hardcoded to 1, so the shift trace's
+        // phase column was constant and carried nothing - a shift could not be
+        // split into its phases offline, which is the first thing any analysis of
+        // shift harshness needs. Same size and offset, so RLI_SHIFTING_ALGO's
+        // layout is unchanged; the field simply stops being a constant.
+        .shift_phase = phase_id,
         .subphase_shift = this->subphase_shift,
         .subphase_mod = this->subphase_mod,
         .sync_rpm = this->threshold_rpm,
