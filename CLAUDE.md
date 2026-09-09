@@ -7,6 +7,17 @@ quality, road load and driver type adaptation, with an annotated bibliography an
 what our own logs measured. Almost everything needed here already exists in SAE
 papers; read it before inventing.
 
+**[tmp/egs51/README.md](tmp/egs51/README.md)** — the original Mercedes EGS51 ECU firmware
+(PN A0215451432, this car's own), fully disassembled and decompiled: 292 functions per bank
+with readable C, the Ghidra projects, and what it says about our calibration. Read it before
+claiming anything about "what the OEM does", and before re-running a Ghidra import — a raw
+import yields **zero** functions and the four scripts in `tmp/egs51/ghidra/` are what make it
+work. Key results already established there: our mechanical and hydraulic calibration blocks
+are byte-for-byte from this ROM, but the torque-converter and shift-algorithm blocks are not;
+the TFT resistance table is a stock NXP KTY81 curve, not OEM; and no garage-fill temperature
+schedule has been found. The ROM and its disassembly are gitignored (proprietary), so on a
+fresh clone that directory holds only the README and the scripts.
+
 **[TRANSMISSION_NOTES.md](TRANSMISSION_NOTES.md)** — how the 722.6 actually works: hydraulics,
 torque converter, shift algorithm structure, maps, and the physics needed to judge shift
 quality. Written because several confidently wrong conclusions came from not knowing it.

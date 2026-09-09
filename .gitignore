@@ -61,3 +61,12 @@ tmp/algorithms/refs/patents/*.pdf
 tmp/algorithms/refs/papers/*.pdf
 tmp/algorithms/refs/articles/*.html
 tmp/algorithms/refs/articles/*.txt
+
+# EGS51 ROM reverse engineering (tmp/egs51). The ROM image is proprietary Mercedes
+# firmware from the owner's own ECU, and the disassembly/decompilation and Ghidra
+# projects are derivative of it - none of that is distributed. The findings
+# (tmp/egs51/README.md) and our own Ghidra scripts (tmp/egs51/ghidra/) ARE tracked.
+tmp/egs51/*.bin
+tmp/egs51/disasm/
+tmp/egs51/ghidra_projects/
+tmp/egs51/logs/
