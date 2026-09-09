@@ -258,3 +258,93 @@ copy B ~`0x1F87x`) differing in a few fields — two vehicle variants; know whic
    FE5F FEF3 FF6A FF7E`), including a 7-point rpm axis `[800,1000,1200,1500,2000,2500,4000]` at
    `0xFE55`. These are the OEM shift/torque maps for this exact car; `src/maps.cpp` and the
    `scripts/shift_envelope.py` envelope are hand-derived by comparison.
+
+---
+
+## 9. Output path and solenoid drive (2026-09-09)
+
+Looked for how the ROM drives Y4 (the 3-4 shift solenoid) in P/N and at garage
+engagement, to compare with nag52's two behaviours (pre-merge: Y4 off in P/N,
+inrush at engagement; post-47c7633: Y4 held on in P/N). **Not resolved** - but the
+search mapped the output architecture and ruled a lot out. All addresses bank0
+unless stated; only code that decompiles cleanly is cited.
+
+### What the shift solenoids are NOT driven by
+
+- **Not port bits.** Every real-code write to a port is supervisory:
+  - `P4.0` (bit `0xE8`, Ghidra mislabels it `HIFLG_0`): cleared wherever the fault
+    flag `XRAM[0x78] |= 2` is set (`0x501D/0x504C/0x5061`, `0x6C13`), cleared at
+    shutdown (`0x659D`), set once at `0x6DD7` bracketed by `P0.0` pulses - an
+    output-enable / external-watchdog line.
+  - `P4.4` (`0xEC`): set at init end (`0x6705`), and set/cleared on whether the
+    16-bit capture value `{0x81:0x82}` is non-zero (`0x677B/0x69A7/0x69C5/0x6AE3`),
+    cleared at shutdown (`0x6593`) - an enable that follows "signal present".
+  - `P4.3`, `P4.7`, `P4.5`, all of `P5`: only read.
+  - `P2 = 6` at init (`0x66FF`) and `P2.1/P2.2/P2.5` bit toggles near `0x1FC1` /
+    `0x2071` - bank/latch housekeeping on the address bus, not outputs.
+  - `P1.5/P1.6` and `SFR 0x96` bit 6 are pulsed in loops around writes of
+    `0x9C = 0xCF` (`0x6602-0x665F`) - a bit-banged serial link to an external
+    part (EEPROM-shaped), not a solenoid.
+- **Not an external latch.** Zero `MOVX` writes to any address above XRAM
+  (`0x400+`) in either bank.
+- **Not a per-gear compare-register write.** A census of every real-code write to
+  `0xD2-0xE7`, `0xF3/0xF4/0xF6/0xF7/0xFA-0xFD` finds only: init (`0x6339`,
+  `0x6711`), the ADC scan (`0x3ECD`, writes `0xD9/0xDA`), the stub PWM engine
+  and T1 ISR (below), and `0x5635` (speed-range word, below).
+
+### What IS there
+
+- **Speed inputs.** ISRs at `0x059C` and `0x05FF` read capture pairs `{E3:E4}` and
+  `{E5:E6}`, subtract the previous capture (`{0x3C:0x3D}` / `{0x3E:0x3F}`) and
+  store the periods in `{0x8A:0x8B}` / `{0x8C:0x8D}`. So **E3-E6 are capture
+  registers for two speed sensors**, which corrects the 'CMH3-CMH5' guess in
+  section 3. `0x0664` (INT0) counts a third pulse input into `XRAM[0x1AE]`.
+  `FUN_CODE_5635` consumes `{0x8C:0x8D}` and runs a 3-state range selector
+  (states 1/3/4, thresholds 625 / 1250 / 3333 with hysteresis, per-state scaling
+  via the MDU) and writes the range word to `SFR 0xFD` - input conditioning.
+- **One proportional PWM channel, in the shared stub.** Vector `0x0024 -> 0x02AC`
+  (ends `RETI` at `0x0520`): a 3-phase scheduler on `XRAM[0x0007]`, period
+  `0x1388` = 5000 ticks, demand byte `INTMEM 0x36` (0-238; `0xFF` = off; forced
+  to 0 by the `XRAM[0x78]` fault flag), a 16-bit compare-offset table at
+  `0x089D` (`0, 4981, 4962, ... ` step -19) indexed by the demand, next compare
+  loaded as `{FB:FA} + delta` into `{F4:F3}`, `SFR 0xDD = 0x88 / 0x08` as the
+  set/clear control on the match. `XRAM[0x000B]` (0-4, set by `FUN_CODE_1FC6`
+  from `XRAM[0x21]` vs `0x7E/0x91` and `XRAM[0x76]` vs `0x46/0xAA` - a
+  temperature x load index) selects a nibble from the table at `0x088E`
+  (`F0 E0 D0 C0 ...`) OR'd into `XRAM[0x0012]`, a correction to the duty.
+  Demand writers: `FUN_CODE_B77B` (MOVC table lookup, clamped against
+  `{0x5D:0x5E}`), `FUN_CODE_9F23` (2-byte table via `0x1CA2`), and the special
+  codes `0xFE` (`0x6E12`) / `0xED` (`0x6E5D`) in the fault/limp path. This is a
+  pressure regulator (MPC or SPC shaped). Which one, unknown.
+- **`0x98` pulse sequences.** `MOV 0x98,#0x04 / #0xF7 / #0x10 / #0xDF` at
+  `0x6C05-0x6C0E` and `0x6B23-0x6B29` on the fault path - `0x98` is not SCON
+  here; it is a keyed write sequence to an undocumented register.
+
+### Where that leaves Y4
+
+The per-gear on/off solenoid drive is not visible as any port, latch or
+compare-register write in the real code. Given the `0x98` / `0x96` / `0x9C`
+sequences and the A5-AF block, the most likely explanation is a **driver
+peripheral behind undocumented SFRs**, which is exactly the section 3 open
+thread: the chip marking. Until that is known, the ROM cannot say whether EGS51
+holds the 3-4 solenoid in P/N or strokes it at engagement, and nag52's two
+readings of that (pre- and post-47c7633) have to be adjudicated by their author,
+not by this image.
+
+### Traps hit this time (add to section 7)
+
+- **`FUN_CODE_1CED` is the Keil `switch` dispatcher** (walks 3-byte
+  `{addr, case}` entries, `JMP @A+DPTR`). Anything that `LCALL 0x1CED`s is a
+  `switch` on A, and the bytes after the call are the case table - which the
+  sweep decodes as instructions. That is the "overlapping instruction" at
+  `0xD8D2/0xD8D3`. `XRAM[0x390]` is therefore a state byte (0-5, and -1/-2/-3),
+  not an output image, and the `MOV P1,@R1` at `0xD92E` sits inside case-table
+  bytes: not code.
+- **Bank0 `0xE8E0-0xEE85` and bank1 `0xE600-0xEBFF` are data swept as code.**
+  Ghidra says "bad instruction data" and the listing has `MOV A,R7` x12 and
+  `RETI` mid-stream. Every `SETB P4.2 / P4.6`, `CMEN = R6`, `ORL 0xF4,#0x4C`
+  and `MOV 0xF4,@R1` in those ranges is an artefact. Do not cite them.
+- **The bank1 `0xEEA0-0xEF90` and `0xFBE0-0xFCB8` byte runs are 2-D maps**
+  (header byte, rows of six with three leading zeros, then two axes such as
+  `0B 0D 17 2F 30 48` and `02 04 0A 0C 0E 18 2E`), not solenoid pattern tables;
+  bank1 `0x5701` references the second of the four at `0xFC3E`.
