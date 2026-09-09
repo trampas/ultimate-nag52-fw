@@ -419,3 +419,11 @@ init/test sequence, switching on `XRAM 0x195`) and mirrored every cycle by the
 PWM engine (`0x12/0x13 -> 0xFD/0xFE`). Confirming that needs either the SIC810
 register map or a board trace from the L9341 input pins back to the MCU - the
 latter is a multimeter job the owner can do.
+
+Follow-up on `XRAM 0x0FC-0x0FE`: `FUN_CODE_5635` writes `XRAM 0xF4 = (XRAM 0xF4 & 0xF8) | k`
+and then `SFR 0xFD = ` the same byte, i.e. it keeps an XRAM copy of what it puts in the
+SFR; `FUN_CODE_5E20`'s timed writes to `0xFC-0xFE` between `0x068E` delays fit the same
+pattern. Treat **`XRAM 0xF0-0xFF` as software shadows of the capture/compare SFR block**,
+not as hardware. The solenoid latch is not there either. What would settle the output path
+now is a continuity trace on the board from the L9341 input pins (and the two `RX`/`RY`
+parts' inputs) back to the MCU pins or to whatever sits in between.
