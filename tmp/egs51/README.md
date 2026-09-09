@@ -361,7 +361,7 @@ not by this image.
 | U | AMD **AM27C010-90JI** (1997) | 128 KB EPROM = this image | program + calibration, banked |
 | U | **74HC573** | octal latch | A0-A7 from the multiplexed bus |
 | U | ST **L9341** (1880F9922, Singapore) | quad low-side driver | the on/off solenoids Y3/Y4/Y5 (+TCC?) - **unconfirmed which pin drives it** |
-| U x2 | two separate Siemens 7-lead power packages (top-left of photo 1), each printed `RX 930620T QCZ923` / `RY 930620T QCZ923` - `RX`/`RY` is part of the device marking, not a pin name, and these are not L9341 pins | unidentified, marking too blurred to read reliably | two identical parts -> the two current-regulated channels (MPC/SPC) |
+| U x2 | two separate Siemens 7-lead power packages (top-left of photo 1), each printed `RX 930620T QCZ923` / `RY 930620T QCZ923` - `RX`/`RY` is part of the device marking, not a pin name, and these are not L9341 pins | unidentified, marking too blurred to read reliably | **MPC and SPC power stages**: owner traced MPC to the 4th and SPC to the 5th MCU pin counting from the top-left corner of the PLCC (2026-09-09) |
 | U x2 | Analog Devices **AD22057** | current-sense / sensor-interface amplifier | MPC/SPC current feedback (two channels, two amps) |
 | U | Siemens **BTS426L1** (hand-marked "N3") | PROFET smart high-side switch | solenoid supply cut - matches the `P4.0` output-enable line |
 | U | `P4383 / H8 MAX`, small power pkg | unidentified | |
@@ -503,3 +503,21 @@ of `01 FD 04 F7 10 DF 40 7F` at entry (`0x7331` -> `0xDF`, `0xB838` -> `0x10`,
 `0xF7`), `FUN_CODE_403A` feeds all eight inside long init loops, and the fault
 path feeds the middle four. `FUN_CODE_4020` (`0x9A` = 0x41, 0x20, poll 0x20)
 resynchronises it. Bank1 `0xE804 MOV 0x21,A` is data-as-code, not a writer.
+
+### Correction after the MPC/SPC pin trace (2026-09-09, later)
+
+MPC and SPC are driven from MCU pins (4th and 5th from the PLCC's top-left
+corner) through the two 7-lead power parts, not through the L9341. The ROM has
+two compare-based PWM engines sharing `{F4:F3}` (vector `0x0024 -> 0x02AC`, and
+the T1 ISR at `0x0521`), with `0xDD` / `0xFD` / `0xFE` as set/clear controls.
+Section 11 attributed the `0x02AC` engine's *hardware* PWM to Y4 because its
+demand byte `INTMEM 0x36` also sets Y4's OUT2 nibble; with MPC/SPC on their own
+pins, at least one of those engines is a pressure regulator, and **"Y4 is finely
+PWM-modulated on a pin" is withdrawn as unconfirmed.** What stands (validated
+4/4 by the traces): Y4 = L9341 OUT2, its drive code is the OUT2 nibble, and that
+nibble is 0 in N/P/R/1st/2nd and during the N/P -> D engagement on this
+calibration. `FUN_CODE_5635` / `547F` (writing `0xFD` / `0xFE` from a period
+measured by the capture ISRs) may be the MPC/SPC PWM channel controls rather
+than "capture range selectors" - unresolved. To settle: which MCU pins the
+L9341's IN2 and SPI lines land on, and whether the `RX`/`RY` inputs are the
+pins driven by `0xDD`-controlled compare matches.
