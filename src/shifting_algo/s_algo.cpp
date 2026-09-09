@@ -14,7 +14,13 @@ void ShiftingAlgorithm::reset_all_subphase_data() {
 ShiftAlgoFeedback ShiftingAlgorithm::get_diag_feedback(uint8_t phase_id) {
     return ShiftAlgoFeedback{
         .active = 1, // True
-        .shift_phase = 1, // Always (Fix weirdness)
+        // The real phase (0 BLEED, 1 FILL, 2 OVERLAP, 3 OVERLAP2, 4 MAX_PRESSURE,
+        // 5 END_CONTROL). This used to be hardcoded to 1, so the shift trace's
+        // phase column was constant and carried nothing - a shift could not be
+        // split into its phases offline, which is the first thing any analysis of
+        // shift harshness needs. Same size and offset, so RLI_SHIFTING_ALGO's
+        // layout is unchanged; the field simply stops being a constant.
+        .shift_phase = phase_id,
         .subphase_shift = this->subphase_shift,
         .subphase_mod = this->subphase_mod,
         .sync_rpm = this->threshold_rpm,
@@ -31,6 +37,32 @@ ShiftAlgoFeedback ShiftingAlgorithm::get_diag_feedback(uint8_t phase_id) {
 
 ShiftingAlgorithm::ShiftingAlgorithm(ShiftInterfaceData* data)  {
     this->sid = data;
+}
+
+int16_t ShiftingAlgorithm::trq_req_reference_torque(SensorData* sd) {
+    // The torque a reduction request has to be measured against.
+    //
+    // It must NOT be the live indicated torque: indicated torque is the *result*
+    // of the request we sent last cycle, so re-deriving `amount` from it every
+    // cycle ratchets the limit down to nothing. Measured 2026-09-08 on a 3-2
+    // kickdown: the amount ran 284 -> 2 Nm in 240 ms with the pedal held at
+    // 197/250, engine torque reached -81 Nm and engine speed fell 3920 -> 3413
+    // rpm before the request dropped out and the torque snapped back. The 20 %
+    // floor added in d4bb5fd cannot stop that, because 20 % of a collapsing
+    // reference collapses with it.
+    //
+    // So latch the engine torque at the moment the request starts, then cap it by the
+    // driver's demand - which our own request cannot move - so lifting off mid-shift
+    // still relaxes the request, and floor it at the torque the engine is actually
+    // making. The floor means the reference can only ever hold the request *higher*
+    // than the old behaviour, never deeper, so a lift-off cannot turn into a request
+    // for zero.
+    if (0 == this->trq_req_reference) {
+        this->trq_req_reference = MAX((int)sd->indicated_torque, (int)sd->converted_driver_torque);
+    }
+    int ref = MIN((int)this->trq_req_reference, MAX(0, (int)sd->converted_driver_torque));
+    ref = MAX(ref, (int)sd->indicated_torque);
+    return MAX(0, ref);
 }
 
 uint8_t ShiftingAlgorithm::step(
@@ -477,7 +509,7 @@ void ShiftingAlgorithm::adaptation_step() {
             this->do_fill_pressure_adaptation = false;
             ESP_LOGI("ADAPT", "Pressure adapt cancelled (Engine torque too high) %d > %d", abs_input_trq, this->adapting_trq_limit);
         }
-        bool rpm_in_range = (sd->engine_rpm - 5 <= sd->input_rpm && upshifting) || (sd->input_rpm - 5 <= sd->input_rpm && !upshifting);
+        bool rpm_in_range = ((int32_t)sd->input_rpm + 5) >= (int32_t)sd->engine_rpm;
         if (
             !rpm_in_range
         ) {
@@ -510,7 +542,7 @@ void ShiftingAlgorithm::adaptation_step() {
         // 3-4 -> 3-4
         // 4-5 -> 4-5 and 5-4
         // 4-3 -> 4-3
-        uint8_t allowed_crossover_shifts[8] = {1,1,1,1,0,0,1,0};
+        const uint8_t allowed_crossover_shifts[8] = {1,1,1,1,0,0,1,0};
         this->do_fill_pressure_adaptation = this->do_fill_time_adaptation;
         if (this->is_release_shift() || allowed_crossover_shifts[sid->inf.map_idx] == 0) {
             this->do_fill_pressure_adaptation = false;

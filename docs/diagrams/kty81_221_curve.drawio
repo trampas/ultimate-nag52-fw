@@ -1,0 +1,51 @@
+<mxfile host="app.diagrams.net" modified="2026-09-09T00:00:00.000Z" agent="GitHub Copilot" version="24.7.17" editor="www.diagrams.net">
+  <diagram id="kty81curve" name="KTY81-221 Curve">
+    <mxGraphModel dx="1280" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="KTY81/221 Resistance vs Temperature (Typ)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=20;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="60" y="30" width="680" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="xaxis" value="" style="shape=line;strokeColor=#333333;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="100" y="500" width="620" height="0" as="geometry" />
+        </mxCell>
+        <mxCell id="yaxis" value="" style="shape=line;strokeColor=#333333;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="100" y="130" width="0" height="370" as="geometry" />
+        </mxCell>
+        <mxCell id="xlabel" value="Temperature (degC)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14" vertex="1" parent="1">
+          <mxGeometry x="330" y="525" width="180" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="ylabel" value="Resistance (ohm)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;rotation=270" vertex="1" parent="1">
+          <mxGeometry x="30" y="250" width="120" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="curve" value="" style="curved=0;endArrow=none;html=1;rounded=0;strokeColor=#005f9e;strokeWidth=3" edge="1" parent="1" source="p0" target="p9">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="166" y="446" />
+              <mxPoint x="235" y="412" />
+              <mxPoint x="304" y="373" />
+              <mxPoint x="373" y="331" />
+              <mxPoint x="442" y="285" />
+              <mxPoint x="511" y="234" />
+              <mxPoint x="580" y="181" />
+              <mxPoint x="649" y="126" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="p0" value="" style="ellipse;html=1;fillColor=#005f9e;strokeColor=#005f9e" vertex="1" parent="1">
+          <mxGeometry x="96" y="492" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="p9" value="" style="ellipse;html=1;fillColor=#005f9e;strokeColor=#005f9e" vertex="1" parent="1">
+          <mxGeometry x="716" y="118" width="8" height="8" as="geometry" />
+        </mxCell>
+
+        <mxCell id="source" value="Data: docs/references/kty81_221_222_table.csv (typ column)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#555555" vertex="1" parent="1">
+          <mxGeometry x="100" y="560" width="620" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

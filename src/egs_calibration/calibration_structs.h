@@ -2,6 +2,7 @@
 #define __CALIBRATION_STRUCT_H_
 
 #include <stdint.h>
+#include <stddef.h>
 #include "esp_err.h"
 
 /**
@@ -189,6 +190,35 @@ typedef struct {
 } __attribute__ ((packed)) CalibrationInfo;
 // To check if we overflow
 static_assert(sizeof(CalibrationInfo) < CALIBRATION_MAX_LEN);
+
+/**
+ * Alignment of the maps that are handed out as raw uint16_t or int16_t pointers.
+ *
+ * The layout above is the EGS52/53 on-flash calibration format, so it cannot be
+ * repacked without invalidating every existing calibration blob. It is packed and
+ * MechanicalCalibration is an odd number of bytes, which puts everything after it
+ * at an odd offset. Accesses made *through* the packed struct pointers are safe -
+ * the compiler knows the reduced alignment and emits byte loads. The hazard is only
+ * where the address of a member is passed on as a plain pointer, because the callee
+ * then assumes natural alignment (-Waddress-of-packed-member flags exactly this).
+ *
+ * The torque converter maps are provably even-aligned, so those call sites are safe
+ * outright - asserted here so a future layout edit fails the build instead of the car.
+ */
+static_assert((offsetof(CalibrationInfo, tcc_cal) + offsetof(TorqueConverterCalibration, pump_map_x)) % 2 == 0);
+static_assert((offsetof(CalibrationInfo, tcc_cal) + offsetof(TorqueConverterCalibration, pump_map_z)) % 2 == 0);
+static_assert((offsetof(CalibrationInfo, tcc_cal) + offsetof(TorqueConverterCalibration, multiplier_map_x)) % 2 == 0);
+static_assert((offsetof(CalibrationInfo, tcc_cal) + offsetof(TorqueConverterCalibration, multiplier_map_z)) % 2 == 0);
+
+/**
+ * The hydraulic PCS map is NOT aligned - it sits at an odd offset because
+ * MechanicalCalibration precedes it. This is safe on the ESP32 only because the
+ * calibration is copied into RAM (see CAL_RAM_PTR) and the data bus tolerates
+ * unaligned 16-bit access to DRAM/SPIRAM. It would NOT be safe to point these at
+ * memory-mapped flash, and it would not be safe on a target that traps unaligned
+ * loads. Do not "optimise" the calibration to be read in place.
+ */
+#define UN52_HYDR_MAPS_ARE_UNALIGNED 1
 
 extern CalibrationInfo* CAL_RAM_PTR;
 extern HydraulicCalibration* HYDR_PTR;

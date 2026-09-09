@@ -22,7 +22,7 @@ public:
 private:
 	bool state = false;
 	bool esp_toggle = false;
-	ProgramSelector* programselector;
+	ProgramSelector* programselector = nullptr;
 };
 
 #endif // SHIFTER_EWM_H

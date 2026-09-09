@@ -1,9 +1,13 @@
 # Build output and generated data - all regenerable, see README.md
 sim_old
 sim_new
+sim_tcc*
 shifts/
+shifts_*/
 results/
 results_whatif/
 # Source copy of an older build, recreate with:
 #   git worktree add baseline_<sha> <sha>
 baseline_*/
+# TCC what-if: keep README.md + summary.csv, drop the 135 per-shift sim dumps
+results_tcc/per_shift/

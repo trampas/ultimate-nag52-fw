@@ -1,0 +1,130 @@
+{
+  "path": "logger/logs/nag52_20260909_175106.jsonl",
+  "started": "2026-09-09T17:51:06-04:00",
+  "duration_s": 964.0,
+  "cycles": 17815,
+  "log_lines": 466,
+  "events": 4,
+  "records": [
+    "sensors",
+    "can",
+    "pressures",
+    "solenoids",
+    "shift_live",
+    "shift_algo",
+    "clutch_speeds",
+    "tcc",
+    "sys_usage"
+  ],
+  "cycle_rate_hz": 18.5,
+  "firmware": {
+    "version": "8152244-dirty",
+    "project_name": "unified-un52",
+    "date": "09 Sep 2026",
+    "time": "17:49:37-0400",
+    "idf_ver": "5.5.0"
+  },
+  "ecu_serial": "B0CBD88C2250",
+  "calibration": {
+    "names": {
+      "tcc_cal_name": "0215451432.119",
+      "mech_cal_name": "0215451432.52",
+      "hydr_cal_name": "0215451432.STDP",
+      "shift_algo_pack_name": "0215451432.SM00"
+    },
+    "crc_ok": true,
+    "gearbox_type": "large (W5A580)",
+    "ratios": {
+      "P/N": 0.0,
+      "1": 3.932,
+      "2": 2.408,
+      "3": 1.486,
+      "4": 1.0,
+      "5": 0.83,
+      "R1": 3.1,
+      "R2": 1.899
+    },
+    "shift_spc_gain": {
+      "1-2": 1993,
+      "2-3": 1000,
+      "3-4": 1000,
+      "4-5": 1000,
+      "2-1": 1993,
+      "3-2": 1000,
+      "4-3": 1000,
+      "5-4": 1000
+    },
+    "p_multi_1": 431,
+    "p_multi_other": 592,
+    "max_solenoid_pressure_mbar": 7700,
+    "warnings": []
+  },
+  "shifts": 78,
+  "stats": {
+    "cycles": 17815,
+    "log_lines": 466,
+    "bad_frames": 1,
+    "errors": 1,
+    "reconnects": 0,
+    "tcu_reboots": 0,
+    "accel_samples": 3216,
+    "shift_traces": 86,
+    "trace_samples": 8335
+  },
+  "sha256": "651b4ef1a52c1d6056d8685065d9fb5b2a7f9eed45a3c7d42186fb2be7212edf",
+  "reconstructed_forward": 82,
+  "reconstructed_garage": 6,
+  "trace_events": 86,
+  "accel_hz": 3.3326198866208507,
+  "trace_median_dt_ms": 19.0,
+  "groups": {
+    "1->2": {
+      "n": 8,
+      "median_duration_ms": 1188.0,
+      "max_duration_ms": 1659,
+      "median_response_ms": 409.0
+    },
+    "2->1": {
+      "n": 10,
+      "median_duration_ms": 1188.5,
+      "max_duration_ms": 1542,
+      "median_response_ms": 361
+    },
+    "2->3": {
+      "n": 10,
+      "median_duration_ms": 1264.0,
+      "max_duration_ms": 2840,
+      "median_response_ms": 541.5
+    },
+    "3->2": {
+      "n": 10,
+      "median_duration_ms": 1684.5,
+      "max_duration_ms": 2727,
+      "median_response_ms": 656.5
+    },
+    "3->4": {
+      "n": 12,
+      "median_duration_ms": 1466.0,
+      "max_duration_ms": 1653,
+      "median_response_ms": 741.0
+    },
+    "4->3": {
+      "n": 12,
+      "median_duration_ms": 1007.5,
+      "max_duration_ms": 1256,
+      "median_response_ms": 456.5
+    },
+    "4->5": {
+      "n": 10,
+      "median_duration_ms": 1093.0,
+      "max_duration_ms": 1178,
+      "median_response_ms": 427.5
+    },
+    "5->4": {
+      "n": 10,
+      "median_duration_ms": 971.0,
+      "max_duration_ms": 1197,
+      "median_response_ms": 373.0
+    }
+  }
+}

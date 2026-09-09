@@ -1,0 +1,74 @@
+
+=== nag52_20260909_175106.jsonl
+  ERROR [torque_request] 2->1 at t=540.6: engine torque 0 Nm with pedal at 70/250 - the reduction became a fuel cut
+  ERROR [garage] t=551.57: garage shift aborted - the engagement was thrown away and re-attempted, slamming the clutch again
+  ERROR [garage] t=957.00: garage shift aborted - the engagement was thrown away and re-attempted, slamming the clutch again
+  ERROR [garage_sync] N/P->2 t_ms=52305: completion rejected at 88 rpm slip with pedal 46/250, but sync was declared at up to 350 rpm - the exit gate is stricter than the entry gate
+  ERROR [garage_sync] N/P->2 t_ms=762380: completion rejected at 56 rpm slip with pedal 0/250, but sync was declared at up to 90 rpm - the exit gate is stricter than the entry gate
+  ERROR [shift_completion] 2->3 at t=86.8: duration 2840 ms (limit 2500)
+  ERROR [shift_completion] 3->2 at t=162.4: duration 2666 ms (limit 2500)
+  ERROR [shift_completion] 3->2 at t=162.4: response 1011 ms (limit 1000)
+  ERROR [shift_completion] 2->3 at t=264.4: duration 2825 ms (limit 2500)
+  ERROR [shift_completion] 3->2 at t=540.4: duration 2663 ms (limit 2500)
+  ERROR [shift_completion] 3->2 at t=839.1: duration 2554 ms (limit 2500)
+  ERROR [shift_completion] 3->2 at t=924.2: duration 2727 ms (limit 2500)
+  ERROR [shift_completion] 3->2 at t=924.2: response 1262 ms (limit 1000)
+  ERROR [slip_energy] 3->4 at t=97.4: 69145 J of clutch slip (limit 40000, comfort target 12000)
+  ERROR [slip_energy] 3->4 at t=125.3: 75043 J of clutch slip (limit 40000, comfort target 12000)
+  ERROR [slip_energy] 3->4 at t=175.2: 43349 J of clutch slip (limit 40000, comfort target 12000)
+  ERROR [slip_energy] 3->4 at t=267.2: 40939 J of clutch slip (limit 40000, comfort target 12000)
+  ERROR [slip_energy] 3->4 at t=288.0: 44405 J of clutch slip (limit 40000, comfort target 12000)
+  ERROR [metric_agreement] offline peak_jerk: 69 of 78 values are exact multiples of 29.7 m/s^3 - the metric is counting quantisation steps of an integer rpm signal, not measuring jerk. Fix or drop it; do not gate on it.
+  ERROR [metric_agreement] peak_jerk: on-TCU median 16 vs offline 75 (4.5x apart) - the two implementations have drifted
+
+  torque_request     a torque reduction never becomes a cut               FAIL (1)
+  garage             engagement out of N/P succeeds first time            FAIL (2)
+  garage_sync        the engagement completion gate is satisfiable at a standstill FAIL (2)
+  shift_completion   no shift runs past the control-defect ceiling        FAIL (8)
+  slip_energy        no shift dumps more than 40000 J into the clutch     FAIL (5)
+  metric_agreement   the instruments agree with each other and are not quantisation FAIL (2)
+  shift_maps         static check of maps.cpp                             ok
+
+20 error(s), 42 warning(s)
+  WARN  [shift_maps] WARN  S 2->1 @ 80%                 cannot reach the 2400 rpm boost point: anything over 1960 hunts against 1->2 (upshift 3200). The upshift map has to move too.
+  WARN  [shift_maps] WARN  S 2->1 @ 90%                 at 90% pedal will not downshift until 2380 rpm, but boost needs 2400: 20 rpm of unusable band
+  WARN  [shift_maps] WARN  S 3->2 @ 80%                 cannot reach the 2400 rpm boost point: anything over 1790 hunts against 2->3 (upshift 2900). The upshift map has to move too.
+  WARN  [shift_maps] WARN  S 3->2 @ 90%                 cannot reach the 2400 rpm boost point: anything over 2191 hunts against 2->3 (upshift 3550). The upshift map has to move too.
+  WARN  [shift_maps] WARN  S 4->3 @ 80%                 cannot reach the 2400 rpm boost point: anything over 1817 hunts against 3->4 (upshift 2700). The upshift map has to move too.
+  WARN  [shift_maps] WARN  S 4->3 @ 90%                 cannot reach the 2400 rpm boost point: anything over 2322 hunts against 3->4 (upshift 3450). The upshift map has to move too.
+  WARN  [shift_maps] WARN  S 5->4 @ 80%                 cannot reach the 2400 rpm boost point: anything over 2200 hunts against 4->5 (upshift 2650). The upshift map has to move too.
+  WARN  [shift_maps] WARN  S 2->3 @ 90%                 at 90% pedal lands at 2191 rpm, under the 2400 boost point
+  WARN  [shift_maps] WARN  S 3->4 @ 90%                 at 90% pedal lands at 2322 rpm, under the 2400 boost point
+  WARN  [shift_maps] WARN  C 2->1 @ 80%                 cannot reach the 2400 rpm boost point: anything over 2143 hunts against 1->2 (upshift 3500). The upshift map has to move too.
+  WARN  [shift_maps] WARN  C 2->1 @ 90%                 at 90% pedal will not downshift until 1550 rpm, but boost needs 2400: 850 rpm of unusable band
+  WARN  [shift_maps] WARN  C 2->1 @100%                 at 100% pedal will not downshift until 1650 rpm, but boost needs 2400: 750 rpm of unusable band
+  WARN  [shift_maps] WARN  C 3->2 @ 80%                 cannot reach the 2400 rpm boost point: anything over 1975 hunts against 2->3 (upshift 3200). The upshift map has to move too.
+  WARN  [shift_maps] WARN  C 3->2 @ 90%                 cannot reach the 2400 rpm boost point: anything over 2314 hunts against 2->3 (upshift 3750). The upshift map has to move too.
+  WARN  [shift_maps] WARN  C 3->2 @100%                 at 100% pedal will not downshift until 1800 rpm, but boost needs 2400: 600 rpm of unusable band
+  WARN  [shift_maps] WARN  C 4->3 @ 80%                 cannot reach the 2400 rpm boost point: anything over 2288 hunts against 3->4 (upshift 3400). The upshift map has to move too.
+  WARN  [shift_maps] WARN  C 4->3 @ 90%                 at 90% pedal will not downshift until 1700 rpm, but boost needs 2400: 700 rpm of unusable band
+  WARN  [shift_maps] WARN  C 4->3 @100%                 at 100% pedal will not downshift until 1800 rpm, but boost needs 2400: 600 rpm of unusable band
+  WARN  [shift_maps] WARN  C 5->4 @ 80%                 at 80% pedal will not downshift until 1600 rpm, but boost needs 2400: 800 rpm of unusable band
+  WARN  [shift_maps] WARN  C 5->4 @ 90%                 at 90% pedal will not downshift until 1700 rpm, but boost needs 2400: 700 rpm of unusable band
+  WARN  [shift_maps] WARN  C 5->4 @100%                 at 100% pedal will not downshift until 1800 rpm, but boost needs 2400: 600 rpm of unusable band
+  WARN  [shift_maps] WARN  C 2->3 @ 90%                 at 90% pedal lands at 2314 rpm, under the 2400 boost point
+  WARN  [shift_maps] WARN  A 2->1 @ 80%                 cannot reach the 2400 rpm boost point: anything over 2143 hunts against 1->2 (upshift 3500). The upshift map has to move too.
+  WARN  [shift_maps] WARN  A 2->1 @ 90%                 at 90% pedal will not downshift until 2380 rpm, but boost needs 2400: 20 rpm of unusable band
+  WARN  [shift_maps] WARN  A 3->2 @ 80%                 cannot reach the 2400 rpm boost point: anything over 2006 hunts against 2->3 (upshift 3250). The upshift map has to move too.
+  WARN  [shift_maps] WARN  A 3->2 @ 90%                 cannot reach the 2400 rpm boost point: anything over 2376 hunts against 2->3 (upshift 3850). The upshift map has to move too.
+  WARN  [shift_maps] WARN  A 4->3 @ 80%                 cannot reach the 2400 rpm boost point: anything over 2120 hunts against 3->4 (upshift 3150). The upshift map has to move too.
+  WARN  [shift_maps] WARN  A 4->3 @ 90%                 at 90% pedal will not downshift until 2000 rpm, but boost needs 2400: 400 rpm of unusable band
+  WARN  [shift_maps] WARN  A 4->3 @100%                 at 100% pedal will not downshift until 2300 rpm, but boost needs 2400: 100 rpm of unusable band
+  WARN  [shift_maps] WARN  A 5->4 @ 80%                 at 80% pedal will not downshift until 1600 rpm, but boost needs 2400: 800 rpm of unusable band
+  WARN  [shift_maps] WARN  A 5->4 @ 90%                 at 90% pedal will not downshift until 1900 rpm, but boost needs 2400: 500 rpm of unusable band
+  WARN  [shift_maps] WARN  A 5->4 @100%                 at 100% pedal will not downshift until 2200 rpm, but boost needs 2400: 200 rpm of unusable band
+  WARN  [shift_maps] WARN  A 2->3 @ 90%                 at 90% pedal lands at 2376 rpm, under the 2400 boost point
+  WARN  [slip_energy] 2->3 at t=86.8: 26597 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 3->4 at t=88.7: 24712 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 4->5 at t=126.7: 20859 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 4->5 at t=188.7: 24231 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 5->4 at t=285.8: 24414 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 3->4 at t=306.0: 28904 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 3->4 at t=489.2: 37637 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 3->4 at t=800.2: 31857 J of clutch slip (over the 20000 J agility target)
+  WARN  [slip_energy] 3->4 at t=849.3: 34822 J of clutch slip (over the 20000 J agility target)

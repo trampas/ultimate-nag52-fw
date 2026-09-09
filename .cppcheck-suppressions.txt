@@ -1,0 +1,16 @@
+# Project-level cppcheck suppressions for non-blocking style/information rules.
+# Safety/correctness warnings are intentionally NOT suppressed.
+unusedFunction
+uselessOverride
+constParameterPointer
+normalCheckLevelMaxBranches
+unreadVariable
+shadowVariable
+functionStatic
+variableScope
+constVariable
+noConstructor
+redundantInitialization
+constVariablePointer
+constParameterCallback
+checkersReport

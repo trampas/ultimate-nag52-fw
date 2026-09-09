@@ -39,6 +39,9 @@ import sys
 
 DOWNSHIFTS = {("2", "1"), ("3", "2"), ("4", "3"), ("5", "4")}
 
+# Gearbox::is_stationary(), and STANDSTILL_OUTPUT_RPM in gearbox.cpp.
+STANDSTILL_OUTPUT_RPM = 60
+
 
 def load(path):
     out = []
@@ -97,7 +100,11 @@ def main() -> int:
             d = r["decel"]
             proj, guard = None, "no data"
             if tt and d is not None:
-                if r["out0"] <= a.floor:
+                if r["out0"] < STANDSTILL_OUTPUT_RPM:
+                    # A true standstill shift is the smooth one and is never held.
+                    # This test must NOT be against --floor: comparing to the
+                    # tunable exempts exactly the shifts the guard exists to hold,
+                    # so sweeping --floor upward held fewer clunks, not more.
                     guard = "RUN (standstill)"
                 elif d >= 0:
                     guard = "RUN (not slowing)"

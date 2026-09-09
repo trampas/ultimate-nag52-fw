@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Enforce diagram source/render parity in staged changes.
+# If a docs/diagrams/*.drawio file is staged, at least one matching rendered
+# file (png/svg/jpg/jpeg/webp/pdf by default) must also be staged.
+
+RENDER_EXTS_RAW="${DIAGRAM_RENDER_EXTS:-png svg jpg jpeg webp pdf}"
+# shellcheck disable=SC2206
+RENDER_EXTS=( ${RENDER_EXTS_RAW//,/ } )
+
+mapfile -t staged_files < <(git diff --cached --name-only --diff-filter=ACMRD)
+
+if [[ ${#staged_files[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+has_error=0
+
+is_staged() {
+  local path="$1"
+  git diff --cached --name-only -- "$path" | grep -Fxq "$path"
+}
+
+is_staged_deleted() {
+  local path="$1"
+  git diff --cached --name-status -- "$path" | grep -Eiq '^D[[:space:]]+'
+}
+
+has_valid_render_ext() {
+  local path="$1"
+  local ext="${path##*.}"
+  for allowed in "${RENDER_EXTS[@]}"; do
+    if [[ "$ext" == "$allowed" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+for path in "${staged_files[@]}"; do
+  [[ "$path" == docs/diagrams/*.drawio ]] || continue
+
+  stem="${path%.drawio}"
+
+  if is_staged_deleted "$path"; then
+    while IFS= read -r tracked; do
+      [[ "$tracked" == "$path" ]] && continue
+      has_valid_render_ext "$tracked" || continue
+      if ! is_staged_deleted "$tracked"; then
+        echo "[diagram-check] ERROR: '$path' is staged for deletion but '$tracked' is not staged for deletion." >&2
+        has_error=1
+      fi
+    done < <(git ls-files "${stem}.*")
+
+    while IFS= read -r candidate; do
+      has_valid_render_ext "$candidate" || continue
+      if is_staged "$candidate" && ! is_staged_deleted "$candidate"; then
+        echo "[diagram-check] ERROR: '$path' is deleted but '$candidate' is newly staged." >&2
+        has_error=1
+      fi
+    done < <(find docs/diagrams -maxdepth 1 -type f -name "$(basename "$stem").*" -print 2>/dev/null || true)
+
+    continue
+  fi
+
+  has_render=0
+  while IFS= read -r tracked; do
+    [[ "$tracked" == "$path" ]] && continue
+    has_valid_render_ext "$tracked" || continue
+    if is_staged "$tracked" && ! is_staged_deleted "$tracked"; then
+      has_render=1
+      break
+    fi
+  done < <(git ls-files "${stem}.*")
+
+  if [[ $has_render -eq 0 ]]; then
+    while IFS= read -r candidate; do
+      has_valid_render_ext "$candidate" || continue
+      if is_staged "$candidate" && ! is_staged_deleted "$candidate"; then
+        has_render=1
+        break
+      fi
+    done < <(find docs/diagrams -maxdepth 1 -type f -name "$(basename "$stem").*" -print 2>/dev/null || true)
+  fi
+
+  if [[ $has_render -eq 0 ]]; then
+    echo "[diagram-check] ERROR: '$path' is staged but no matching rendered output is staged." >&2
+    echo "[diagram-check] Allowed extensions: ${RENDER_EXTS[*]}" >&2
+    echo "[diagram-check] Run: make -C docs diagrams" >&2
+    echo "[diagram-check] Then stage the drawio and at least one rendered sibling file with the same stem." >&2
+    has_error=1
+    continue
+  fi
+
+  while IFS= read -r staged_render; do
+    has_valid_render_ext "$staged_render" || continue
+    if is_staged_deleted "$staged_render"; then
+      echo "[diagram-check] ERROR: '$path' is staged but '$staged_render' is staged for deletion." >&2
+      has_error=1
+    fi
+  done < <(git diff --cached --name-only -- "${stem}.*")
+done
+
+if [[ $has_error -ne 0 ]]; then
+  echo "[diagram-check] Commit blocked." >&2
+  exit 1
+fi
+
+exit 0

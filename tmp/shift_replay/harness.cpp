@@ -118,8 +118,10 @@ int main(int argc, char** argv) {
     int16_t spc_offsets[8] = {0}, prefill_offsets[8] = {0}, apply_trq_offsets[8] = {0}, free_trq_offsets[8] = {0};
     int atf_override = INT16_MAX;
     int ind_from_driver = 0;   // what-if: indicated/static torque taken from the (plausible) driver torque
+    int recompute_input_trq = 0; // what-if: derive input torque from driver torque through the ACTIVE TCC maps, as gearbox.cpp does
     for (int i = 3; i < argc; i++) {
         if (!strcmp(argv[i], "--start-cycle")) start_cycle = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--recompute-input-trq")) recompute_input_trq = 1;
         else if (!strcmp(argv[i], "--spc-offsets")) parse_int_list(argv[++i], spc_offsets, 8);
         else if (!strcmp(argv[i], "--prefill-offsets")) parse_int_list(argv[++i], prefill_offsets, 8);
         else if (!strcmp(argv[i], "--apply-trq-offsets")) parse_int_list(argv[++i], apply_trq_offsets, 8);
@@ -206,6 +208,7 @@ int main(int argc, char** argv) {
         sd.max_torque = r.max_trq;
         sd.pump_torque = InputTorqueModel::get_pump_torque(sd.engine_rpm, sd.input_rpm);
         sd.tcc_trq_multiplier = InputTorqueModel::get_input_torque_factor(sd.engine_rpm, sd.input_rpm);
+        if (recompute_input_trq) sd.input_torque = InputTorqueModel::get_input_torque(sd.engine_rpm, sd.input_rpm, r.drv_trq);
         sd.gear_ratio = r.output_rpm > 0 ? (float)r.input_rpm / (float)r.output_rpm : 0;
         sd.targ_gear_ratio = cfg.bounds[from_g - 1].ratio;
     };

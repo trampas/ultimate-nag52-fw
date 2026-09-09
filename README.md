@@ -30,4 +30,18 @@ This project contains code built from the ground up, or code based on black-box 
 
 * @chrissivo - ClassicCAN contributor
 
+## Docs diagram workflow
+
+For draw.io-based documentation diagrams and PNG export/build rules, see:
+
+- [docs/README.md](docs/README.md)
+
+For building docs to HTML and PDF, use the docs make targets described there.
+
+To enable repository git hooks (including diagram source/PNG parity checks):
+
+```sh
+scripts/install_git_hooks.sh
+```
+
 

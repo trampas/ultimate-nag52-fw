@@ -42,7 +42,7 @@ class LookupAllocMap : public LookupMap {
         LookupAllocMap(const int16_t* _xHeader, const uint16_t _xHeaderSize, const int16_t* _yHeader, const uint16_t _yHeaderSize, const int16_t* _data, const uint16_t _dataSize);
         bool add_data(const int16_t* map, const uint16_t size);
         bool is_allocated(void) const;
-        ~LookupAllocMap();
+        ~LookupAllocMap() override;
 };
 
 class LookupRefMap : public LookupMap {
@@ -55,7 +55,7 @@ class LookupByteMap : public LookupMap {
         LookupByteMap(uint8_t* _xHeader, const uint16_t _xHeaderSize, uint8_t* _yHeader, const uint16_t _yHeaderSize, uint8_t* _data, const uint16_t _dataSize);
         bool is_allocated(void) const;
         bool add_data(const uint8_t* map, const uint16_t size);
-        ~LookupByteMap();
+        ~LookupByteMap() override;
     private:
         int16_t* x_alloc;
         int16_t* y_alloc;

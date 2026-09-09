@@ -20,3 +20,17 @@ inputs on a 20 ms grid. Open loop: the logged RPMs do not react to changed press
 
 Not captured by the log and therefore assumed default: module settings (PRM/REL/CRS/ADP/SBS), the
 NVS-stored fill/low-fill/TCC maps and the adaptation maps (all zero here).
+
+## TCC converter-map what-if (2026-09-09)
+
+`results_tcc/` holds a comparison of the torque-converter calibration the car runs (egs_db block
+"71") against the two converter characterizations found in the car's own EGS51 ROM, which do not
+match it (see `tmp/egs51/README.md` section 6). `results_tcc/README.md` has the three blocks, the
+method and the result; `summary.csv` is the per-shift delta table. Verdict: 2-4 % on commanded
+pressure, minor. The per-shift sim dumps are gitignored - rerun to regenerate.
+
+`cal_data_tccA.h` / `cal_data_tccB.h` are the swapped-in calibrations, `cal_data_base71.h` is the
+baseline; `build.sh tccA <repo>` etc. builds each. All runs used `--recompute-input-trq`, which
+derives input torque from driver torque through the *active* converter maps the way `gearbox.cpp`
+does - without it the harness reuses the logged input torque, which the TCU computed with block 71,
+and the experiment measures nothing.

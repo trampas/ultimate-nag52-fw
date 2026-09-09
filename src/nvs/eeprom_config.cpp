@@ -241,11 +241,11 @@ esp_err_t EEPROM::read_core_config(TCM_CORE_CONFIG* dest) {
                 ESP_LOG_LEVEL(ESP_LOG_ERROR, "EEPROM", "Error calling nvs_commit: %s", esp_err_to_name(result));
             } else {
                 ESP_LOG_LEVEL(ESP_LOG_INFO, "EEPROM", "New SCN  creation OK!");
-                memcpy(dest, &s, sizeof(s));
+                memcpy(dest, &c, sizeof(c));
                 result = ESP_OK;
             }
         }
-        return true;
+        return result;
     }
     return result;
 }
@@ -279,7 +279,11 @@ esp_err_t EEPROM::ewm_btn_get_saved_profile(uint8_t* dest) {
 esp_err_t EEPROM::ewm_btn_save_profile(uint8_t save_profile) {
     nvs_handle_t handle;
     nvs_open(NVS_PARTITION_USER_CFG, NVS_READWRITE, &handle); // Must succeed as we have already opened it!
-    return nvs_set_u8(handle, NVS_KEY_LAST_PROFILE, save_profile);
+    esp_err_t e = nvs_set_u8(handle, NVS_KEY_LAST_PROFILE, save_profile);
+    if (e == ESP_OK) {
+        e = nvs_commit(handle);
+    }
+    return e;
 }
 
 esp_err_t EEPROM::read_efuse_config(TCM_EFUSE_CONFIG* dest) {

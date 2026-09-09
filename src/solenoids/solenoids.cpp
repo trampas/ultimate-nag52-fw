@@ -49,7 +49,7 @@ void read_solenoids_i2s(void*) {
         .max_store_buf_size = I2S_DMA_BUF_LEN * 2,
         .conv_frame_size = I2S_DMA_BUF_LEN,
     };
-    adc_continuous_new_handle(&c_cfg, &c_handle);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_continuous_new_handle(&c_cfg, &c_handle));
     adc_digi_pattern_config_t adc_pattern[SOC_ADC_PATT_LEN_MAX] = { 0 };
     for (int i = 0; i < NUM_SOLENOIDS; i++) {
         adc_pattern[i].atten = ADC_ATTEN_DB_12;
@@ -59,14 +59,14 @@ void read_solenoids_i2s(void*) {
         CHANNEL_ID_MAP[(uint8_t)sol_order[i]->get_adc_channel() & 0xF] = i;
     }
     adc_continuous_config_t dig_cfg = {
-        .pattern_num = 6,
+        .pattern_num = NUM_SOLENOIDS,
         .adc_pattern = adc_pattern,
         .sample_freq_hz = 732000 * 2, // Real freq is 600000hz. (Bug with IDF 5.1) 2000000
         .conv_mode = ADC_CONV_SINGLE_UNIT_1,
         .format = ADC_DIGI_OUTPUT_FORMAT_TYPE1,
     };
-    adc_continuous_config(c_handle, &dig_cfg);
-    adc_continuous_start(c_handle);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_continuous_config(c_handle, &dig_cfg));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_continuous_start(c_handle));
     esp_err_t ret;
     uint32_t read_len;
     while (true) {

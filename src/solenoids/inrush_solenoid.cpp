@@ -27,7 +27,7 @@ static bool IRAM_ATTR inrush_solenoid_timer_isr(gptimer_handle_t timer, const gp
 }
 
 static bool IRAM_ATTR inrush_solenoid_timer_isr_new(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_data) {
-    InrushControlSolenoid* solenoid = (InrushControlSolenoid*)user_data;
+    InrushControlSolenoid* solenoid = reinterpret_cast<InrushControlSolenoid*>(user_data);
     uint32_t next_alarm_in = solenoid->on_timer_interrupt_new();
     gptimer_alarm_config_t alarm_config = {
         .alarm_count = edata->alarm_value + next_alarm_in,

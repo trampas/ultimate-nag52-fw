@@ -181,7 +181,7 @@ Gearbox::Gearbox(Shifter* shifter) : shifter(shifter), kickdown(), brake_pedal()
     this->pedal_delta = new DeltaTracker(25);
 }
 
-bool Gearbox::is_stationary() {
+bool Gearbox::is_stationary() const {
     // The output shaft is what says the car has stopped. The old test also demanded
     // input_rpm < 100, but standing in gear the converter drags the turbine to
     // 100-300 rpm at idle, so a genuine standstill never satisfied it: a 2-1 coast
@@ -338,16 +338,16 @@ DATA_DRIVING_DYNAMICS Gearbox::get_driving_dynamics(void)
 void Gearbox::update_adaptive_profile(void)
 {
     // Only Comfort opts in. Anything else the driver selected is left alone.
-    if (nullptr == this->selected_profile || this->selected_profile != (AbstractProfile*)comfort ||
+    if (nullptr == this->selected_profile || this->selected_profile != static_cast<AbstractProfile*>(comfort) ||
         nullptr == agility) {
         return;
     }
     // Hysteresis, so a score hovering at the threshold cannot swap profiles back
     // and forth. Once engaged it stays until the driver has genuinely settled.
-    bool want_agility = (this->current_profile == (AbstractProfile*)agility)
+    bool want_agility = (this->current_profile == static_cast<AbstractProfile*>(agility))
         ? (this->agility_score > AGILITY_RELEASE)
         : (this->agility_score >= AGILITY_ENGAGE);
-    AbstractProfile* target = want_agility ? (AbstractProfile*)agility : this->selected_profile;
+    AbstractProfile* target = want_agility ? static_cast<AbstractProfile*>(agility) : this->selected_profile;
     // Never swap the maps out from under a shift in progress - the shift thread
     // reads chars/target time from the profile it started with.
     if (!this->shifting && target != this->current_profile) {
@@ -359,14 +359,14 @@ void Gearbox::update_adaptive_profile(void)
     }
 }
 
-bool Gearbox::blend_active(void)
+bool Gearbox::blend_active(void) const
 {
     return 0 != SBS_CURRENT_SETTINGS.agility_blend &&
-           nullptr != this->selected_profile && this->selected_profile == (AbstractProfile*)comfort &&
+           nullptr != this->selected_profile && this->selected_profile == static_cast<AbstractProfile*>(comfort) &&
            nullptr != comfort && nullptr != agility;
 }
 
-bool Gearbox::current_arm_is_a(void)
+bool Gearbox::current_arm_is_a(void) const
 {
     // Odd shifts get the feature, even shifts the baseline. With interleaving
     // off every shift is arm A, so the stamp reads the same either way.
@@ -619,7 +619,7 @@ GearboxGear prev_gear(GearboxGear g)
 #define SHIFT_DELAY_MS 20     // 20ms steps
 #define NUM_SCD_ENTRIES 100 / SHIFT_DELAY_MS // 100ms moving average window
 
-ClutchSpeeds Gearbox::diag_get_clutch_speeds()
+ClutchSpeeds Gearbox::diag_get_clutch_speeds() const
 {
 
     return ClutchSpeedModel::get_clutch_speeds_debug(
@@ -729,6 +729,7 @@ bool Gearbox::next_gear_can_pull(GearboxGear next) {
  * holds shifts that would have been clean.
  */
 #define DOWNSHIFT_TIME_MARGIN_X100 120   // measured actual/target on downshifts
+#define STANDSTILL_OUTPUT_RPM       60   // as is_stationary(); a stopped output shaft
 
 bool Gearbox::downshift_can_finish(AbstractProfile* p)
 {
@@ -736,9 +737,14 @@ bool Gearbox::downshift_can_finish(AbstractProfile* p)
         return true;                     // disabled, or nothing to ask
     }
     int floor_rpm = SBS_CURRENT_SETTINGS.downshift_min_end_rpm;
-    // Already at or below the floor: this IS the standstill shift, and it is the
-    // smooth one. Never hold it, or the car would be left in the higher gear.
-    if ((int)this->sensor_data.output_rpm <= floor_rpm) {
+    // A shift that starts at a true standstill is the smooth one - never hold it,
+    // or the car would be left in the higher gear. Judge that on the output shaft
+    // actually being stopped, the same test is_stationary() uses, and NOT against
+    // floor_rpm: comparing to the tunable made raising the floor exempt exactly
+    // the shifts the guard exists to hold (one starting at 200 rpm with a floor of
+    // 300 is the one that lands on the stop), so the guard got weaker the harder
+    // it was tuned and only ever behaved at floor 0.
+    if ((int)this->sensor_data.output_rpm < STANDSTILL_OUTPUT_RPM) {
         return true;
     }
     if (this->decel_rpm_s >= 0) {
@@ -791,7 +797,7 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
         else { stamp.features |= SHIFT_FEAT_ALGO_ADAPT; }
         if (INT16_MIN != SBS_CURRENT_SETTINGS.next_gear_min_accel_mms2) { stamp.features |= SHIFT_FEAT_NEXT_GEAR; }
         if (SBS_CURRENT_SETTINGS.ab_interleave) { stamp.features |= SHIFT_FEAT_INTERLEAVE; }
-        if (this->current_profile == (AbstractProfile*)agility && this->selected_profile == (AbstractProfile*)comfort) {
+        if (this->current_profile == static_cast<AbstractProfile*>(agility) && this->selected_profile == static_cast<AbstractProfile*>(comfort)) {
             stamp.features |= SHIFT_FEAT_PROFILE_AGILITY;
         }
         if (manually_requested) { stamp.flags |= SHIFT_STAMP_MANUAL; }
@@ -819,7 +825,6 @@ bool Gearbox::elapse_shift(GearChange req_lookup, AbstractProfile* profile, bool
         bool process_shift = true;
 
         ShiftPressures p_now = {};
-        memset(&p_now, 0, sizeof(ShiftPressures));
 
         uint32_t total_elapsed = 0;
         uint32_t phase_elapsed = 0;
@@ -1087,11 +1092,30 @@ void Gearbox::shift_thread()
             uint8_t substage = 0;
             uint8_t timer_s = 0;
             uint8_t timer_m = 0;
+            // NOTE: timer_3 is set (to 80) at three points below but is never
+            // decremented or read, unlike timer_s/timer_m above. It is an
+            // unfinished stage timer carried over from the EGS algorithm. Do not
+            // delete it (it marks missing logic, and the file tracks upstream) and
+            // do not wire it up without a drive to judge the resulting shift feel.
             uint8_t timer_3 = 0;
 
             bool completed_ok = false;
             bool jump_to_pid = false;
             bool tried_again = false;
+            // Why an abort happened is the question this log line has never been
+            // able to answer. "Garage shift aborted" on its own cannot separate a
+            // clutch that never took up from a sync gate that rejected a good
+            // engagement, and the abort is chronic - it appears in 8 of the 13
+            // logged drives, on vehicle power and USB power alike. Carry the
+            // evidence out with it. The discriminator is the turbine: an
+            // engagement that is working drags it to zero, and on both drives
+            // where the car never went into gear it did not move at all while
+            // shift pressure went to the 7700 mBar ceiling.
+            uint16_t in_rpm_start = sensor_data.input_rpm;
+            uint16_t in_rpm_min = sensor_data.input_rpm;
+            uint16_t p_shift_peak = 0;
+            int last_rpm_delta = 0;
+            int last_sync_thresh = 0;
             this->algo_feedback.active = true;
             
             while(true) {
@@ -1280,8 +1304,21 @@ void Gearbox::shift_thread()
                             substage = 8;
                         }
                     } else if (substage == 8) {
-                        // Check for completion
-                        if (rpm_delta < 20) {
+                        // Check for completion.
+                        //
+                        // Use the same sync threshold that substages 3/4/5 used to
+                        // declare sync and hand over to the max-pressure ramp. A fixed
+                        // 20 rpm here rejected the very sync that got us to this
+                        // substage: with any throttle the converter drags the turbine,
+                        // and input_rpm never reaches zero at a standstill in gear
+                        // (CLAUDE.md), so the check could not pass. Measured 2026-09-08
+                        // on N->D with the driver already on the pedal: rpm_delta was 96
+                        // at the first check and 34 at the second, so both engagements
+                        // were thrown away, the clutch was slammed to max pressure three
+                        // times and the gear only took 3.9 s later once the car rolled.
+                        // With zero pedal the turbine does stall to 0, which is why the
+                        // same code engages reverse cleanly first time.
+                        if (rpm_delta < sync_rpm_threshold) {
                             // Sync is OK!
                             //int rpm_delta_engine = abs(sensor_data.engine_rpm - sensor_data.input_rpm);
                             //if (rpm_delta_engine > 150 || rpm_delta < 10) {
@@ -1328,6 +1365,18 @@ void Gearbox::shift_thread()
                         p_apply_clutch = 0;
                         p_shift = 0;
                         if (0 == timer_s) {
+                            if (tried_again) {
+                                // We have already retried once and still did not sync.
+                                // Without this the loop cycles stage 1 <-> stage 3
+                                // indefinitely, because its only other exits are a
+                                // successful sync or the driver selecting N/P - so a
+                                // shift that can never complete (failed clutch, bad
+                                // N2/N3 signal, low line pressure) would hang the
+                                // shift thread with the car in gear. Fall through to
+                                // the existing abort path instead.
+                                completed_ok = false;
+                                break;
+                            }
                             tried_again = true;
                             this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
                             this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_2_3, false);
@@ -1338,6 +1387,10 @@ void Gearbox::shift_thread()
                         }
                     }
                 }
+                last_rpm_delta = rpm_delta;
+                last_sync_thresh = sync_rpm_threshold;
+                if (sensor_data.input_rpm < in_rpm_min) { in_rpm_min = sensor_data.input_rpm; }
+                if (p_shift > p_shift_peak) { p_shift_peak = p_shift; }
                 pressure_mgr->set_target_modulating_pressure(p_mod);
                 pressure_mgr->set_target_shift_pressure(p_shift);
                 this->pressure_mgr->update_pressures(this->target_gear, circuit);
@@ -1359,7 +1412,13 @@ void Gearbox::shift_thread()
             }
 
             if (!completed_ok) {
-                ESP_LOGW("SHIFT", "Garage shift aborted");
+                ESP_LOGW("SHIFT",
+                    "Garage shift aborted at stage %d.%d: turbine %d->%d rpm (min %d), "
+                    "delta %d vs sync %d, peak shift p %d mBar, mpc %d mBar, out %d rpm, ATF %d C%s",
+                    (int)stage, (int)substage, (int)in_rpm_start, (int)sensor_data.input_rpm,
+                    (int)in_rpm_min, last_rpm_delta, last_sync_thresh, (int)p_shift_peak,
+                    (int)p_mod, (int)sensor_data.output_rpm, (int)sensor_data.atf_temp,
+                    tried_again ? ", after a retry" : "");
                 curr_target = this->shifter_pos == ShifterPosition::P ? GearboxGear::Park : GearboxGear::Neutral;
                 curr_actual = this->shifter_pos == ShifterPosition::P ? GearboxGear::Park : GearboxGear::Neutral;
                 pressure_mgr->set_target_shift_pressure(4000);
@@ -1597,8 +1656,6 @@ void Gearbox::controller_loop()
             continue;
         }
 
-        // Set sensors Motor temperature (Always ran)
-        int16_t coolant_temp = egs_can_hal->get_engine_coolant_temp(50);
 
         bool speeds_valid = this->process_speed_sensors();
         if (speeds_valid)
@@ -1744,13 +1801,23 @@ void Gearbox::controller_loop()
         {
             bool lock_state = pll != 0;
             if (lock_state) {
-                if (engine_running && !shifting) {
-                    this->pressure_mgr->set_target_shift_pressure(500);
-                    if (this->last_motion_gear < GearboxGear::Third) {
+                if (SBS_CURRENT_SETTINGS.hold_3_4_in_pn) {
+                    // EGS52-derived: pre-position the 3-4 valve and park SPC behind it.
+                    if (engine_running && !shifting) {
+                        this->pressure_mgr->set_target_shift_pressure(500);
+                        if (this->last_motion_gear < GearboxGear::Third) {
+                            this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                        }
+                    } else if (!engine_running) {
                         this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
                     }
-                } else if (!engine_running) {
-                    this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, true);
+                } else if (!shifting) {
+                    // EGS51-derived: Y4 stays off in P/N. Releasing it here (rather than
+                    // merely not setting it) is what guarantees the garage shift's
+                    // set_shift_circuit(sc_3_4, true) starts from the off state and
+                    // therefore strokes the valve with a full inrush under line pressure.
+                    // See hold_3_4_in_pn in module_settings.h for the measurements.
+                    this->pressure_mgr->set_shift_circuit(ShiftCircuit::sc_3_4, false);
                 }
             }
             egs_can_hal->set_safe_start(lock_state);
@@ -2195,6 +2262,20 @@ void Gearbox::controller_loop()
         this->update_adaptive_profile();
         // High rate shift recorder. This loop is the algorithm's own 20 ms period,
         // so the capture is lossless; the sampler is O(1) and allocation free.
+        // What the applying clutch can actually hold right now. The quality metric
+        // charges it no more than this, so a clutch that is still filling - at the
+        // spring plus a 620-750 mBar low fill - dissipates nothing, however fast it
+        // happens to be spinning.
+        uint16_t apply_capacity_nm = 0;
+        if (this->shifting && GearChange::_IDLE != this->shift_ctx.change) {
+            Clutch applying = get_clutch_to_apply(this->shift_ctx.change);
+            uint16_t spring = this->pressure_mgr->get_spring_pressure(applying);
+            uint16_t p_on = this->algo_feedback.p_on;
+            if (p_on > spring) {
+                apply_capacity_nm = this->pressure_mgr->calc_max_torque_for_clutch(
+                    this->target_gear, applying, p_on - spring, CoefficientTy::Sliding);
+            }
+        }
         ShiftTrace::sample(&this->sensor_data, &this->algo_feedback, this->shifting,
             (uint8_t)gear_to_idx_lookup(this->actual_gear), (uint8_t)gear_to_idx_lookup(this->target_gear),
             this->pressure_mgr->get_corrected_spc_pressure(),
@@ -2202,7 +2283,8 @@ void Gearbox::controller_loop()
             this->pressure_mgr->get_active_shift_circuits(),
             (this->output_data.ctrl_type == TorqueRequestControlType::None)
                 ? INT16_MAX : (int16_t)this->output_data.torque_req_amount,
-            (int16_t)this->sensor_data.converted_torque, this->agility_score);
+            (int16_t)this->sensor_data.converted_torque, this->agility_score,
+            apply_capacity_nm);
         // Closed loop on shift quality: runs once per completed shift, between shifts.
         this->quality_adaptation_step();
         uint32_t time = GET_CLOCK_TIME() - start;
