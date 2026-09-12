@@ -74,7 +74,7 @@ def analyze(path, out):
                  forward=forward)
         notes=[]
         if not forward:
-            nearby=[c for c in log.cycles if a['t_ms']-100<=c['tcu_ms']<end+400]
+            nearby=[c for c in log.cycles if a['t_ms']-100<=c['tcu_ms']<end+1000]
             pos=list(dict.fromkeys(c['can'].get('shifter_position') for c in nearby))
             notes.append('Selector '+ '/'.join(str(p) for p in pos))
             notes.append('Cancel on selector transit; record cancellation reason' if gt=='R1' else 'Completed; retain sequence pending separate OEM garage comparison')
@@ -91,6 +91,17 @@ def analyze(path, out):
             if not notes:notes.append('No specific control failure established; retain as comparison shift')
         row['review']='; '.join(notes)
         rows.append(row)
+    for r, following in zip(rows, rows[1:]):
+        if not r['forward'] or not following['forward']:
+            continue
+        gf, gt = r['shift'].split('->')
+        nf, nt = following['shift'].split('->')
+        gap = round((following['start_s']-r['end_s'])*1000)
+        if 0 <= gap < 1000 and nf == gt:
+            if nt == gf:
+                r['review'] += f'; Reverses to {gf} after {gap} ms: check useful gear residence and changing demand'
+            elif int(gt)<int(gf) and int(nt)<int(nf):
+                r['review'] += f'; Next downshift follows after {gap} ms: judge total ladder response'
     forward=[r for r in rows if r['forward']]
     summary=log.summary()
     summary.update(sha256=hashlib.sha256(path.read_bytes()).hexdigest(), reconstructed_forward=len(forward),

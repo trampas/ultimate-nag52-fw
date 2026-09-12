@@ -2,6 +2,8 @@
 #include "adaptation/quality_adapt.h"
 #include <egs_calibration/calibration_structs.h>
 #include "nvs/module_settings.h"
+#include "control_limits.h"
+#include "clock.hpp"
 
 void ShiftingAlgorithm::reset_all_subphase_data() {
     this->subphase_mod = 0;
@@ -78,6 +80,10 @@ uint8_t ShiftingAlgorithm::step(
 
 
     this->upshifting = is_upshift;
+    const uint32_t now_ms = GET_CLOCK_TIME();
+    this->step_ms = this->first_run ? 20.0f :
+        ShiftControl::clamp((float)(now_ms - this->last_step_ms), 5.0f, 50.0f);
+    this->last_step_ms = now_ms;
     // update EGS compatibility vars
     this->phase_id = phase_id;
     // Vars that are updated every cycle
@@ -396,7 +402,12 @@ uint16_t ShiftingAlgorithm::correct_shift_shift_pressure(int pressure) {
 
 short ShiftingAlgorithm::calc_correction_trq(ShiftStyle style, short momentum) {
     int intertia = MAX(1, (int)ShiftHelpers::get_shift_intertia(sid->inf.map_idx)); // Guard divide by zero
-    if (this->upshifting) {
+    if (SBS_CURRENT_SETTINGS.feedback_guard && sd->output_rpm > 150) {
+        const float sync = sd->output_rpm * MECH_PTR->ratio_table[sid->inf.targ_g] / 1000.0f;
+        this->target_turbine_speed = (short)ShiftControl::turbine_target(
+            this->target_turbine_speed, sd->input_rpm, sync,
+            MAX(0, momentum) * this->step_ms / intertia, this->upshifting);
+    } else if (this->upshifting) {
         this->target_turbine_speed -= ((momentum * 20) / intertia);
         this->target_turbine_speed = MAX(0, this->target_turbine_speed);
     }
@@ -432,10 +443,22 @@ short ShiftingAlgorithm::calc_correction_trq(ShiftStyle style, short momentum) {
     int16_t error = ((int16_t)sd->input_rpm - this->target_turbine_speed);
 
     int32_t p_v = (p * error) / 1000;
+    if (SBS_CURRENT_SETTINGS.feedback_guard) {
+        const short correction = (short)ShiftControl::pid(error, momentum_pid[0], this->pid_integral,
+            p / 1000.0f, i / 1000.0f, d / 1000.0f, this->step_ms / 20.0f,
+            this->correction_min, this->correction_max);
+        momentum_pid[0] = error;
+        if (this->do_torque_adaptation) {
+            this->pid_sum += correction;
+            this->abs_sum += this->abs_input_trq;
+            this->pid_count += 1;
+        }
+        return correction;
+    }
     momentum_pid[1] += error;
     momentum_pid[1] = MAX(INT16_MIN, MIN(INT16_MAX, momentum_pid[1]));
 
-    // TODO - EGS has no anti-windup logic for its PID algorithm
+    // Legacy baseline: numerical integral clamp only, independent of actuator limits.
     int32_t i_v = (i * momentum_pid[1]) / 1000;
     int32_t d_v = (d * (error - momentum_pid[0])) / 1000;
     momentum_pid[0] = error;

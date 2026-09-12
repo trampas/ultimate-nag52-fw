@@ -1,0 +1,801 @@
+address,name,evidence,confidence
+080000,egs52_register_sequence_080000,Register-level instruction sequence; higher-level role unresolved,structural
+080004,egs52_register_sequence_080004,Register-level instruction sequence; higher-level role unresolved,structural
+080008,egs52_register_sequence_080008,Register-level instruction sequence; higher-level role unresolved,structural
+08000c,egs52_register_sequence_08000c,Register-level instruction sequence; higher-level role unresolved,structural
+080010,egs52_register_sequence_080010,Register-level instruction sequence; higher-level role unresolved,structural
+080014,egs52_register_sequence_080014,Register-level instruction sequence; higher-level role unresolved,structural
+080018,egs52_register_sequence_080018,Register-level instruction sequence; higher-level role unresolved,structural
+08001c,egs52_register_sequence_08001c,Register-level instruction sequence; higher-level role unresolved,structural
+080020,egs52_register_sequence_080020,Register-level instruction sequence; higher-level role unresolved,structural
+080024,egs52_register_sequence_080024,Register-level instruction sequence; higher-level role unresolved,structural
+080028,egs52_register_sequence_080028,Register-level instruction sequence; higher-level role unresolved,structural
+08002c,egs52_register_sequence_08002c,Register-level instruction sequence; higher-level role unresolved,structural
+080030,egs52_register_sequence_080030,Register-level instruction sequence; higher-level role unresolved,structural
+080034,egs52_register_sequence_080034,Register-level instruction sequence; higher-level role unresolved,structural
+080038,egs52_register_sequence_080038,Register-level instruction sequence; higher-level role unresolved,structural
+08003c,egs52_register_sequence_08003c,Register-level instruction sequence; higher-level role unresolved,structural
+080040,egs52_register_sequence_080040,Register-level instruction sequence; higher-level role unresolved,structural
+080044,egs52_register_sequence_080044,Register-level instruction sequence; higher-level role unresolved,structural
+080048,egs52_register_sequence_080048,Register-level instruction sequence; higher-level role unresolved,structural
+08004c,egs52_register_sequence_08004c,Register-level instruction sequence; higher-level role unresolved,structural
+080050,egs52_register_sequence_080050,Register-level instruction sequence; higher-level role unresolved,structural
+080054,egs52_register_sequence_080054,Register-level instruction sequence; higher-level role unresolved,structural
+080058,egs52_register_sequence_080058,Register-level instruction sequence; higher-level role unresolved,structural
+08005c,egs52_register_sequence_08005c,Register-level instruction sequence; higher-level role unresolved,structural
+080060,egs52_register_sequence_080060,Register-level instruction sequence; higher-level role unresolved,structural
+080064,egs52_register_sequence_080064,Register-level instruction sequence; higher-level role unresolved,structural
+080068,egs52_register_sequence_080068,Register-level instruction sequence; higher-level role unresolved,structural
+08006c,egs52_register_sequence_08006c,Register-level instruction sequence; higher-level role unresolved,structural
+080070,egs52_register_sequence_080070,Register-level instruction sequence; higher-level role unresolved,structural
+080074,egs52_register_sequence_080074,Register-level instruction sequence; higher-level role unresolved,structural
+080078,egs52_register_sequence_080078,Register-level instruction sequence; higher-level role unresolved,structural
+08007c,egs52_register_sequence_08007c,Register-level instruction sequence; higher-level role unresolved,structural
+080080,egs52_register_sequence_080080,Register-level instruction sequence; higher-level role unresolved,structural
+080084,egs52_register_sequence_080084,Register-level instruction sequence; higher-level role unresolved,structural
+080088,egs52_register_sequence_080088,Register-level instruction sequence; higher-level role unresolved,structural
+08008c,egs52_register_sequence_08008c,Register-level instruction sequence; higher-level role unresolved,structural
+080090,egs52_register_sequence_080090,Register-level instruction sequence; higher-level role unresolved,structural
+080094,egs52_register_sequence_080094,Register-level instruction sequence; higher-level role unresolved,structural
+080098,egs52_register_sequence_080098,Register-level instruction sequence; higher-level role unresolved,structural
+08009c,egs52_register_sequence_08009c,Register-level instruction sequence; higher-level role unresolved,structural
+0800a0,egs52_register_sequence_0800a0,Register-level instruction sequence; higher-level role unresolved,structural
+0800a4,egs52_register_sequence_0800a4,Register-level instruction sequence; higher-level role unresolved,structural
+0800a8,egs52_register_sequence_0800a8,Register-level instruction sequence; higher-level role unresolved,structural
+0800ac,egs52_register_sequence_0800ac,Register-level instruction sequence; higher-level role unresolved,structural
+0800b0,egs52_register_sequence_0800b0,Register-level instruction sequence; higher-level role unresolved,structural
+0800b4,egs52_register_sequence_0800b4,Register-level instruction sequence; higher-level role unresolved,structural
+0800b8,egs52_register_sequence_0800b8,Register-level instruction sequence; higher-level role unresolved,structural
+0800bc,egs52_register_sequence_0800bc,Register-level instruction sequence; higher-level role unresolved,structural
+0800c0,egs52_register_sequence_0800c0,Register-level instruction sequence; higher-level role unresolved,structural
+0800c4,egs52_register_sequence_0800c4,Register-level instruction sequence; higher-level role unresolved,structural
+0800c8,egs52_register_sequence_0800c8,Register-level instruction sequence; higher-level role unresolved,structural
+0800cc,egs52_register_sequence_0800cc,Register-level instruction sequence; higher-level role unresolved,structural
+0800d0,egs52_register_sequence_0800d0,Register-level instruction sequence; higher-level role unresolved,structural
+0800d4,egs52_register_sequence_0800d4,Register-level instruction sequence; higher-level role unresolved,structural
+0800d8,egs52_register_sequence_0800d8,Register-level instruction sequence; higher-level role unresolved,structural
+0800dc,egs52_register_sequence_0800dc,Register-level instruction sequence; higher-level role unresolved,structural
+0800e0,egs52_register_sequence_0800e0,Register-level instruction sequence; higher-level role unresolved,structural
+0800e4,egs52_register_sequence_0800e4,Register-level instruction sequence; higher-level role unresolved,structural
+0800e8,egs52_register_sequence_0800e8,Register-level instruction sequence; higher-level role unresolved,structural
+0800ec,egs52_register_sequence_0800ec,Register-level instruction sequence; higher-level role unresolved,structural
+0800f0,egs52_register_sequence_0800f0,Register-level instruction sequence; higher-level role unresolved,structural
+0800f4,egs52_register_sequence_0800f4,Register-level instruction sequence; higher-level role unresolved,structural
+0800f8,egs52_register_sequence_0800f8,Register-level instruction sequence; higher-level role unresolved,structural
+0800fc,egs52_register_sequence_0800fc,Register-level instruction sequence; higher-level role unresolved,structural
+080100,egs52_register_sequence_080100,Register-level instruction sequence; higher-level role unresolved,structural
+080104,egs52_register_sequence_080104,Register-level instruction sequence; higher-level role unresolved,structural
+080108,egs52_register_sequence_080108,Register-level instruction sequence; higher-level role unresolved,structural
+08010c,egs52_register_sequence_08010c,Register-level instruction sequence; higher-level role unresolved,structural
+080110,egs52_register_sequence_080110,Register-level instruction sequence; higher-level role unresolved,structural
+080114,egs52_register_sequence_080114,Register-level instruction sequence; higher-level role unresolved,structural
+080118,egs52_register_sequence_080118,Register-level instruction sequence; higher-level role unresolved,structural
+08011c,egs52_register_sequence_08011c,Register-level instruction sequence; higher-level role unresolved,structural
+080120,egs52_register_sequence_080120,Register-level instruction sequence; higher-level role unresolved,structural
+080124,egs52_register_sequence_080124,Register-level instruction sequence; higher-level role unresolved,structural
+080128,egs52_register_sequence_080128,Register-level instruction sequence; higher-level role unresolved,structural
+08012c,egs52_register_sequence_08012c,Register-level instruction sequence; higher-level role unresolved,structural
+080130,egs52_register_sequence_080130,Register-level instruction sequence; higher-level role unresolved,structural
+080134,egs52_register_sequence_080134,Register-level instruction sequence; higher-level role unresolved,structural
+080138,egs52_register_sequence_080138,Register-level instruction sequence; higher-level role unresolved,structural
+08013c,egs52_register_sequence_08013c,Register-level instruction sequence; higher-level role unresolved,structural
+080140,egs52_register_sequence_080140,Register-level instruction sequence; higher-level role unresolved,structural
+080144,egs52_register_sequence_080144,Register-level instruction sequence; higher-level role unresolved,structural
+080148,egs52_register_sequence_080148,Register-level instruction sequence; higher-level role unresolved,structural
+08014c,egs52_register_sequence_08014c,Register-level instruction sequence; higher-level role unresolved,structural
+080150,egs52_register_sequence_080150,Register-level instruction sequence; higher-level role unresolved,structural
+080154,egs52_register_sequence_080154,Register-level instruction sequence; higher-level role unresolved,structural
+080158,egs52_register_sequence_080158,Register-level instruction sequence; higher-level role unresolved,structural
+08015c,egs52_register_sequence_08015c,Register-level instruction sequence; higher-level role unresolved,structural
+080160,egs52_register_sequence_080160,Register-level instruction sequence; higher-level role unresolved,structural
+080164,egs52_register_sequence_080164,Register-level instruction sequence; higher-level role unresolved,structural
+080168,egs52_register_sequence_080168,Register-level instruction sequence; higher-level role unresolved,structural
+08016c,egs52_register_sequence_08016c,Register-level instruction sequence; higher-level role unresolved,structural
+080170,egs52_register_sequence_080170,Register-level instruction sequence; higher-level role unresolved,structural
+080174,egs52_register_sequence_080174,Register-level instruction sequence; higher-level role unresolved,structural
+080178,egs52_register_sequence_080178,Register-level instruction sequence; higher-level role unresolved,structural
+08017c,egs52_register_sequence_08017c,Register-level instruction sequence; higher-level role unresolved,structural
+080180,egs52_register_sequence_080180,Register-level instruction sequence; higher-level role unresolved,structural
+080184,egs52_register_sequence_080184,Register-level instruction sequence; higher-level role unresolved,structural
+080188,egs52_register_sequence_080188,Register-level instruction sequence; higher-level role unresolved,structural
+08018c,egs52_register_sequence_08018c,Register-level instruction sequence; higher-level role unresolved,structural
+080190,egs52_register_sequence_080190,Register-level instruction sequence; higher-level role unresolved,structural
+080194,egs52_register_sequence_080194,Register-level instruction sequence; higher-level role unresolved,structural
+080198,egs52_register_sequence_080198,Register-level instruction sequence; higher-level role unresolved,structural
+08019c,egs52_register_sequence_08019c,Register-level instruction sequence; higher-level role unresolved,structural
+0801a0,egs52_register_sequence_0801a0,Register-level instruction sequence; higher-level role unresolved,structural
+0801a4,egs52_register_sequence_0801a4,Register-level instruction sequence; higher-level role unresolved,structural
+0801a8,egs52_register_sequence_0801a8,Register-level instruction sequence; higher-level role unresolved,structural
+0801ac,egs52_register_sequence_0801ac,Register-level instruction sequence; higher-level role unresolved,structural
+0801b0,egs52_register_sequence_0801b0,Register-level instruction sequence; higher-level role unresolved,structural
+0801b4,egs52_register_sequence_0801b4,Register-level instruction sequence; higher-level role unresolved,structural
+0801b8,egs52_register_sequence_0801b8,Register-level instruction sequence; higher-level role unresolved,structural
+0801bc,egs52_register_sequence_0801bc,Register-level instruction sequence; higher-level role unresolved,structural
+0801c0,egs52_register_sequence_0801c0,Register-level instruction sequence; higher-level role unresolved,structural
+0801c4,egs52_register_sequence_0801c4,Register-level instruction sequence; higher-level role unresolved,structural
+0801c8,egs52_register_sequence_0801c8,Register-level instruction sequence; higher-level role unresolved,structural
+0801cc,egs52_register_sequence_0801cc,Register-level instruction sequence; higher-level role unresolved,structural
+0801d0,egs52_register_sequence_0801d0,Register-level instruction sequence; higher-level role unresolved,structural
+0801d4,egs52_register_sequence_0801d4,Register-level instruction sequence; higher-level role unresolved,structural
+0801d8,egs52_register_sequence_0801d8,Register-level instruction sequence; higher-level role unresolved,structural
+0801dc,egs52_register_sequence_0801dc,Register-level instruction sequence; higher-level role unresolved,structural
+0801e0,egs52_register_sequence_0801e0,Register-level instruction sequence; higher-level role unresolved,structural
+0801e4,egs52_register_sequence_0801e4,Register-level instruction sequence; higher-level role unresolved,structural
+0801e8,egs52_register_sequence_0801e8,Register-level instruction sequence; higher-level role unresolved,structural
+0801ec,egs52_register_sequence_0801ec,Register-level instruction sequence; higher-level role unresolved,structural
+0801f0,egs52_register_sequence_0801f0,Register-level instruction sequence; higher-level role unresolved,structural
+0801f4,egs52_register_sequence_0801f4,Register-level instruction sequence; higher-level role unresolved,structural
+0801f8,egs52_register_sequence_0801f8,Register-level instruction sequence; higher-level role unresolved,structural
+0801fc,egs52_register_sequence_0801fc,Register-level instruction sequence; higher-level role unresolved,structural
+080960,egs52_update_near_fdee_080960,Instruction destination near addresses fdee;f3e6;f3ec;f3ea,structural
+080b22,egs52_update_near_fdee_080b22,Instruction destination near addresses fdee;f3e6,structural
+080c1a,egs52_update_near_f3e6_080c1a,Instruction destination near addresses f3e6;f3e8;f3ea;f3ec,structural
+080c30,egs52_update_near_f3e6_080c30,Instruction destination near addresses f3e6;f3e8,structural
+080c4a,egs52_update_near_f3f8_080c4a,Instruction destination near addresses f3f8;f5c4;f5c6;f5bc;f597;f5c0;f5c2;f5ba;f618;f5c8;f5ca;f5be;f619,structural
+080f5e,egs52_transform_far_memory_080f5e,Indirect non-R0 memory destinations in decoded instructions,structural
+080f90,egs52_call_081058_080f90,Direct call targets 081058;0810cc,structural
+081058,egs52_transform_far_memory_081058,Indirect non-R0 memory destinations in decoded instructions,structural
+0810cc,egs52_register_arithmetic_0810cc,Register-level instruction sequence; higher-level role unresolved,structural
+0810fc,egs52_register_sequence_0810fc,Register-level instruction sequence; higher-level role unresolved,structural
+08112c,egs52_register_sequence_08112c,Register-level instruction sequence; higher-level role unresolved,structural
+08115c,egs52_update_near_f3fe_08115c,Instruction destination near addresses f3fe;f3ff;f400;f401;f615,structural
+0812e8,egs52_update_near_f406_0812e8,Instruction destination near addresses f406,structural
+081334,egs52_update_near_f3fe_081334,Instruction destination near addresses f3fe;f3ff;f400;f401;f5d0;fdee;f617;f5d2;f3f0;f3f4;f5cc;f5ce;f3ec,structural
+08152a,egs52_update_near_f3fe_08152a,Instruction destination near addresses f3fe;f3ff;f400;f401;f406,structural
+081584,egs52_update_near_f3fe_081584,Instruction destination near addresses f3fe;f3ff;f400;f401;f615,structural
+08172a,egs52_update_near_f615_08172a,Instruction destination near addresses f615,structural
+081a2e,egs52_update_near_f406_081a2e,Instruction destination near addresses f406;f403;f615;f405,structural
+081a42,egs52_compute_from_near_fdee_081a42,Instruction source near addresses fdee,structural
+081a92,egs52_transform_memory_081a92,Indirect non-R0 memory destinations in decoded instructions,structural
+081aa4,egs52_update_near_f615_081aa4,Instruction destination near addresses f615;fdee,structural
+081af0,egs52_register_sequence_081af0,Register-level instruction sequence; higher-level role unresolved,structural
+081af4,egs52_register_sequence_081af4,Register-level instruction sequence; higher-level role unresolved,structural
+081b00,egs52_register_sequence_081b00,Register-level instruction sequence; higher-level role unresolved,structural
+081b04,egs52_register_sequence_081b04,Register-level instruction sequence; higher-level role unresolved,structural
+081d84,egs52_update_near_f402_081d84,Instruction destination near addresses f402;f5b4,structural
+081db0,egs52_update_near_fdee_081db0,Instruction destination near addresses fdee;f1ce;f1c6;f1c2;f1d2;f5ae;f5a6;f5a8;f5aa;f5ac;f5b0;f3f8;f572;f45e;f5b2;f18e;f186,structural
+081f1e,egs52_register_sequence_081f1e,Register-level instruction sequence; higher-level role unresolved,structural
+081f30,egs52_register_sequence_081f30,Register-level instruction sequence; higher-level role unresolved,structural
+081f3a,egs52_register_sequence_081f3a,Register-level instruction sequence; higher-level role unresolved,structural
+081f3c,egs52_update_near_fdea_081f3c,Instruction destination near addresses fdea;fdec;f582;f594;f595;f581;f462;f464;f46b;f46c;f466;f57e;f460;f5b2;f469;f46f;f46e;f572;f454;f456;f444;f46a,structural
+082384,egs52_call_08244a_082384,Direct call targets 08244a;082392;081a2e,structural
+082392,egs52_update_near_f57f_082392,Instruction destination near addresses f57f;f594;f595;f580;fdea;fdec;f460;f462;f464;f468;f572;f5b0;f574;f576;f578;f57c;f5b2;f57e;fde8;f5a0,structural
+08244a,egs52_update_near_f1c6_08244a,Instruction destination near addresses f1c6,structural
+082472,egs52_update_near_f594_082472,Instruction destination near addresses f594;f595,structural
+0824c8,egs52_update_near_f581_0824c8,Instruction destination near addresses f581;f590,structural
+0826ea,egs52_call_082900_0826ea,Direct call targets 082900,structural
+0826f0,egs52_call_082900_0826f0,Direct call targets 082900,structural
+0826f6,egs52_update_near_fdea_0826f6,Instruction destination near addresses fdea;fdec;f5b2,structural
+082724,egs52_call_0829c6_082724,Direct call targets 0829c6,structural
+08272c,egs52_update_near_f471_08272c,Instruction destination near addresses f471;f46c;f46d;fdea;f460;f46e;f46f,structural
+08278c,egs52_update_near_f471_08278c,Instruction destination near addresses f471;f46d;f470;fdea;f460;f46e;f46f,structural
+0827e6,egs52_update_near_f460_0827e6,Instruction destination near addresses f460;f464;f57e;fdea;f5b2;f57c;f574;f576;f578;f57d;f584,structural
+082900,egs52_update_near_fdea_082900,Instruction destination near addresses fdea;f572;f5b2;f582;fde8;f469;f456;f454;f462;f464;fdec,structural
+08298a,egs52_update_near_f456_08298a,Instruction destination near addresses f456;f454;f45a;f458;f40e;f410,structural
+0829c6,egs52_update_near_f5b2_0829c6,Instruction destination near addresses f5b2;f572;f456;f469;f464;f444,structural
+082a00,egs52_update_near_f581_082a00,Instruction destination near addresses f581;fdec,structural
+082b14,egs52_update_near_f581_082b14,Instruction destination near addresses f581,structural
+083040,egs52_compute_from_near_fdee_083040,Instruction source near addresses fdee,structural
+088ea2,egs52_update_near_f462_088ea2,Instruction destination near addresses f462,structural
+088f1e,egs52_update_near_f57f_088f1e,Instruction destination near addresses f57f,structural
+088f56,egs52_update_near_f41e_088f56,Instruction destination near addresses f41e;f420,structural
+089090,egs52_update_near_f186_089090,Instruction destination near addresses f186;f18e,structural
+0894ca,egs52_update_near_f422_0894ca,Instruction destination near addresses f422;f424;f426;f428;f186,structural
+089650,egs52_update_near_f439_089650,Instruction destination near addresses f439;f442;f43a;f456;f438;f434;f436;f451;f452;f444;f432;f45e;f3e0;f3e2;f422;fde8;f447;f45a;f454;f44c;f448;f44a;f44d;f450;f44e;f44f,structural
+089ce0,egs52_update_near_f40a_089ce0,Instruction destination near addresses f40a;f40c;f432,structural
+089dbe,egs52_call_083132_089dbe,Direct call targets 083132;0826f6,structural
+089e22,egs52_transform_far_memory_089e22,Indirect non-R0 memory destinations in decoded instructions,structural
+089e62,egs52_register_sequence_089e62,Register-level instruction sequence; higher-level role unresolved,structural
+089e70,egs52_register_sequence_089e70,Register-level instruction sequence; higher-level role unresolved,structural
+089e76,egs52_transform_memory_089e76,Indirect non-R0 memory destinations in decoded instructions,structural
+089e7e,egs52_call_089ef6_089e7e,Direct call targets 089ef6,structural
+089e84,egs52_call_089fc0_089e84,Direct call targets 089fc0,structural
+089e8a,egs52_update_near_f439_089e8a,Instruction destination near addresses f439;f43a;f43b;f438;f432;f434;f436;f45e;f3e0,structural
+089ef6,egs52_update_near_f438_089ef6,Instruction destination near addresses f438;f439;f456;f442;f45e;f3e0;f432;f434;f436;f3e2,structural
+089fc0,egs52_call_089fc6_089fc0,Direct call targets 089fc6,structural
+089fc6,egs52_update_near_f3e0_089fc6,Instruction destination near addresses f3e0;f444;f45a;f442;f458;f45c;f456;f454;f44c;f451;f44d;f452;fde8;f447,structural
+08a00c,egs52_update_near_f186_08a00c,Instruction destination near addresses f186,structural
+08a036,egs52_register_arithmetic_08a036,Register-level instruction sequence; higher-level role unresolved,structural
+08a084,egs52_transform_memory_08a084,Indirect non-R0 memory destinations in decoded instructions,structural
+092780,egs52_transform_memory_092780,Indirect non-R0 memory destinations in decoded instructions,structural
+093b50,egs52_register_sequence_093b50,Register-level instruction sequence; higher-level role unresolved,structural
+093b54,egs52_register_sequence_093b54,Register-level instruction sequence; higher-level role unresolved,structural
+093b58,egs52_register_sequence_093b58,Register-level instruction sequence; higher-level role unresolved,structural
+093b70,egs52_register_sequence_093b70,Register-level instruction sequence; higher-level role unresolved,structural
+093b74,egs52_register_sequence_093b74,Register-level instruction sequence; higher-level role unresolved,structural
+093b78,egs52_register_sequence_093b78,Register-level instruction sequence; higher-level role unresolved,structural
+093b84,egs52_register_sequence_093b84,Register-level instruction sequence; higher-level role unresolved,structural
+093b88,egs52_register_sequence_093b88,Register-level instruction sequence; higher-level role unresolved,structural
+093b98,egs52_register_sequence_093b98,Register-level instruction sequence; higher-level role unresolved,structural
+093ba0,egs52_register_sequence_093ba0,Register-level instruction sequence; higher-level role unresolved,structural
+093bb4,egs52_register_sequence_093bb4,Register-level instruction sequence; higher-level role unresolved,structural
+093bb8,egs52_register_sequence_093bb8,Register-level instruction sequence; higher-level role unresolved,structural
+093bbc,egs52_register_sequence_093bbc,Register-level instruction sequence; higher-level role unresolved,structural
+093c00,egs52_register_sequence_093c00,Register-level instruction sequence; higher-level role unresolved,structural
+093c04,egs52_register_sequence_093c04,Register-level instruction sequence; higher-level role unresolved,structural
+093c0c,egs52_register_sequence_093c0c,Register-level instruction sequence; higher-level role unresolved,structural
+093c14,egs52_register_sequence_093c14,Register-level instruction sequence; higher-level role unresolved,structural
+093d4c,egs52_call_09cb2e_093d4c,Direct call targets 09cb2e,structural
+093d60,egs52_update_near_c040_093d60,Instruction destination near addresses c040;c041;c042,structural
+093dae,egs52_transform_memory_093dae,Indirect non-R0 memory destinations in decoded instructions,structural
+093de4,egs52_update_near_c040_093de4,Instruction destination near addresses c040;c041;c042,structural
+093e10,egs52_update_near_c043_093e10,Instruction destination near addresses c043;c062,structural
+093f8a,egs52_compute_from_near_c064_093f8a,Instruction source near addresses c064,structural
+093f90,egs52_update_near_c068_093f90,Instruction destination near addresses c068;c06a,structural
+094156,egs52_call_0a0000_094156,Direct call targets 0a0000,structural
+09415c,egs52_call_0a00aa_09415c,Direct call targets 0a00aa,structural
+094162,egs52_call_0a00c6_094162,Direct call targets 0a00c6,structural
+094168,egs52_call_0a00d4_094168,Direct call targets 0a00d4;0a013e,structural
+094172,egs52_call_0a01a8_094172,Direct call targets 0a01a8,structural
+094178,egs52_call_0a0302_094178,Direct call targets 0a0302,structural
+09419a,egs52_update_near_cab6_09419a,Instruction destination near addresses f7b5;f456;f442;f7b6;f451;f452;f444;f45e;cab6;cab2;fde8;f447;f45c;f458;f45a;f454;f448;f44a;f44c;f44d;f450;f44e;f44f,structural
+094830,egs52_call_09419a_094830,Direct call targets 09419a,structural
+094840,egs52_update_near_cab6_094840,Instruction destination near addresses f7b5;f7b6;f7b7;f45e;cab6,structural
+094884,egs52_call_09488a_094884,Direct call targets 09488a,structural
+09488a,egs52_update_near_cab6_09488a,Instruction destination near addresses f7b5;f456;f442;f45e;cab6;cab2,structural
+09491e,egs52_call_094924_09491e,Direct call targets 094924,structural
+094924,egs52_call_09492a_094924,Direct call targets 09492a,structural
+09492a,egs52_update_near_f878_09492a,Instruction destination near addresses f878;f444;f45a;f442;f458;f45c;f456;f454;f44c;f451;f44d;f452;fde8;f447,structural
+094d98,egs52_compute_from_near_c06e_094d98,Instruction source near addresses c06e,structural
+094db4,egs52_compute_from_near_c100_094db4,Instruction source near addresses c100,structural
+094dd2,egs52_update_near_c086_094dd2,Instruction destination near addresses c086,structural
+094dfe,egs52_call_0964d2_094dfe,Direct call targets 0964d2,structural
+094e18,egs52_call_0964d2_094e18,Direct call targets 0964d2;0981ca;09fbc0,structural
+094e52,egs52_call_0964d2_094e52,Direct call targets 0964d2;0a1b8c;094dfe,structural
+094e88,egs52_update_near_fd26_094e88,Instruction destination near addresses fd26,structural
+094eda,egs52_call_0964d2_094eda,Direct call targets 0964d2;094d98;09c462;09fbc0,structural
+094f42,egs52_update_near_fd26_094f42,Instruction destination near addresses fd26,structural
+094f96,egs52_update_near_c086_094f96,Instruction destination near addresses c086,structural
+0950e0,egs52_update_near_c086_0950e0,Instruction destination near addresses c086,structural
+09512a,egs52_call_0a2d18_09512a,Direct call targets 0a2d18,structural
+095130,egs52_update_near_c0bc_095130,Instruction destination near addresses c0bc;c0be;c0c0;c0b8;c0ba;f7be,structural
+095abc,egs52_call_095b6a_095abc,Direct call targets 095b6a;0a2fba,structural
+095b38,egs52_call_095b6a_095b38,Direct call targets 095b6a;0a3b10,structural
+095b58,egs52_call_0a3d02_095b58,Direct call targets 0a3d02,structural
+095b76,egs52_register_arithmetic_095b76,Register-level instruction sequence; higher-level role unresolved,structural
+095b96,egs52_compute_from_near_f7be_095b96,Instruction source near addresses f7be,structural
+095bbc,egs52_update_near_c0c6_095bbc,Instruction destination near addresses c0c6;c0c8;c0b6;c0b2;c0c4;c0b4;c0c2;fd00;c0ca,structural
+095f04,egs52_update_near_c0d4_095f04,Instruction destination near addresses c0d4;c0d6;c0d2,structural
+095f8e,egs52_update_near_fd00_095f8e,Instruction destination near addresses fd00,structural
+095fa8,egs52_call_09fbc0_095fa8,Direct call targets 09fbc0,structural
+09600a,egs52_transform_memory_09600a,Indirect non-R0 memory destinations in decoded instructions,structural
+09613e,egs52_update_near_d2ae_09613e,Instruction destination near addresses fd26;d2ae;d2b0;d2b2;d2b3;d2b6;d2b8;d2ba;d2bd;d2bc;fd00,structural
+09629a,egs52_update_near_d3da_09629a,Instruction destination near addresses fd26;d3da;d3de,structural
+096330,egs52_update_near_c106_096330,Instruction destination near addresses c106;c108,structural
+096490,egs52_call_0d02e2_096490,Direct call targets 0d02e2,structural
+0964aa,egs52_call_0a4f28_0964aa,Direct call targets 0a4f28,structural
+0964b2,egs52_update_near_c105_0964b2,Instruction destination near addresses c105,structural
+0964cc,egs52_call_0a1dd2_0964cc,Direct call targets 0a1dd2,structural
+0964d2,egs52_compute_from_near_f61e_0964d2,Instruction source near addresses f61e,structural
+09652c,egs52_call_097e9e_09652c,Direct call targets 097e9e,structural
+09653c,egs52_update_near_d3e2_09653c,Instruction destination near addresses d3e2;d3e4,structural
+09655e,egs52_call_097b0a_09655e,Direct call targets 097b0a,structural
+096564,egs52_update_near_c112_096564,Instruction destination near addresses c112;c110,structural
+0965a8,egs52_call_0a4426_0965a8,Direct call targets 0a4426,structural
+0965ae,egs52_register_sequence_0965ae,Register-level instruction sequence; higher-level role unresolved,structural
+0965b0,egs52_update_near_f878_0965b0,Instruction destination near addresses f878,structural
+0965d2,egs52_update_near_c10a_0965d2,Instruction destination near addresses f3f8;f803;c10a;fd00;c114,structural
+09677a,egs52_update_near_c116_09677a,Instruction destination near addresses c116,structural
+096786,egs52_compute_from_near_c116_096786,Instruction source near addresses c116,structural
+096794,egs52_update_near_d3e8_096794,Instruction destination near addresses d3e8;c117;d3e6,structural
+096962,egs52_register_sequence_096962,Register-level instruction sequence; higher-level role unresolved,structural
+0969a2,egs52_update_near_c13e_0969a2,Instruction destination near addresses fdf0;c13e,structural
+0969c0,egs52_update_near_fd00_0969c0,Instruction destination near addresses fd00,structural
+0969da,egs52_compute_from_near_c13e_0969da,Instruction source near addresses c13e;c12a,structural
+096a0e,egs52_compute_from_near_c12b_096a0e,Instruction source near addresses c12b,structural
+096a1e,egs52_update_near_c12e_096a1e,Instruction destination near addresses c12e;c12f;fdf0;fd00,structural
+096a60,egs52_update_near_c130_096a60,Instruction destination near addresses fd00;c130;c131;fdf0,structural
+096ad6,egs52_update_near_c12a_096ad6,Instruction destination near addresses fd00;fdf0;c12a;c12b;c12c;c12d;c132;c133,structural
+096d68,egs52_update_near_c134_096d68,Instruction destination near addresses fd00;c134;c135;fdf0,structural
+096dba,egs52_update_near_c136_096dba,Instruction destination near addresses fd00;c136;c137;fdf0,structural
+096e0c,egs52_update_near_c138_096e0c,Instruction destination near addresses c138;c139;fdf0;fd00,structural
+096e4a,egs52_update_near_c13a_096e4a,Instruction destination near addresses c13a;c13c;fdf0;fd00,structural
+096e94,egs52_update_near_fc20_096e94,Instruction destination near addresses fc20;fdf2,structural
+096eec,egs52_update_near_fd00_096eec,Instruction destination near addresses fd00;fcfc;fcfe,structural
+096f26,egs52_update_near_fc40_096f26,Instruction destination near addresses fc40;fd00,structural
+096f56,egs52_update_near_fd00_096f56,Instruction destination near addresses fd00,structural
+096f96,egs52_update_near_f0a0_096f96,Instruction destination near addresses f0a0,structural
+096fb6,egs52_compute_from_near_f0a0_096fb6,Instruction source near addresses f0a0,structural
+096ff2,egs52_update_near_f03c_096ff2,Instruction destination near addresses f03c;f034;f03e;f036,structural
+097036,egs52_compute_from_near_c160_097036,Instruction source near addresses c160,structural
+097052,egs52_update_near_c161_097052,Instruction destination near addresses c161;c162,structural
+097116,egs52_compute_from_near_f03c_097116,Instruction source near addresses f03c;f03e,structural
+097172,egs52_update_near_c166_097172,Instruction destination near addresses c166,structural
+0971e8,egs52_update_near_c166_0971e8,Instruction destination near addresses c166,structural
+09721c,egs52_update_near_c168_09721c,Instruction destination near addresses c168;c164;c169,structural
+09729a,egs52_update_near_c168_09729a,Instruction destination near addresses c168,structural
+0972dc,egs52_update_near_c168_0972dc,Instruction destination near addresses c168;c164;c169,structural
+097350,egs52_update_near_c16e_097350,Instruction destination near addresses c16e;c169;c16c;c16a;f804;c164,structural
+097610,egs52_update_near_c172_097610,Instruction destination near addresses c172;c170,structural
+097634,egs52_update_near_c170_097634,Instruction destination near addresses c170;c172,structural
+097676,egs52_register_sequence_097676,Register-level instruction sequence; higher-level role unresolved,structural
+097678,egs52_update_near_c172_097678,Instruction destination near addresses c172;c170,structural
+0977f4,egs52_update_near_c170_0977f4,Instruction destination near addresses c170,structural
+097904,egs52_update_near_c170_097904,Instruction destination near addresses c170,structural
+097954,egs52_update_near_f160_097954,Instruction destination near addresses f160;f162;f164;f166;f168;f16a;f16c;f16e;f170;f172;f174;f176;f178;f184;f18c;f194;f186;f19e;f17a;f17c,structural
+097a40,egs52_register_sequence_097a40,Register-level instruction sequence; higher-level role unresolved,structural
+097a84,egs52_update_near_f1c2_097a84,Instruction destination near addresses f1c2;f1c6;f1ca;f1ce;f1d2;f1d6;f1c4,structural
+097ac6,egs52_update_near_f0b4_097ac6,Instruction destination near addresses f0b4,structural
+097ad6,egs52_update_near_c17a_097ad6,Instruction destination near addresses f030;f038;c17a;f806,structural
+097b0a,egs52_call_097ad6_097b0a,Direct call targets 097ad6,structural
+097b1a,egs52_update_near_f808_097b1a,Instruction destination near addresses f808;f18c;f806,structural
+097b40,egs52_update_near_c178_097b40,Instruction destination near addresses fc60;c178;c176;c17a;f808;f030,structural
+097ea4,egs52_compute_from_near_c176_097ea4,Instruction source near addresses c176;c0eb;c178,structural
+097f16,egs52_update_near_c17a_097f16,Instruction destination near addresses c17a,structural
+098002,egs52_compute_from_near_c0eb_098002,Instruction source near addresses c0eb;c176,structural
+0980fa,egs52_update_near_c189_0980fa,Instruction destination near addresses f1c6;f0b4;c189;c18a;c18b;fd02,structural
+098170,egs52_update_near_c18b_098170,Instruction destination near addresses c18b;c17e,structural
+0981ca,egs52_compute_from_near_c189_0981ca,Instruction source near addresses c189;c18a,structural
+0981ec,egs52_update_near_c180_0981ec,Instruction destination near addresses c180;c182;c184;c17e,structural
+098220,egs52_update_near_c180_098220,Instruction destination near addresses c180;c182;c184;c17e,structural
+098254,egs52_update_near_c18c_098254,Instruction destination near addresses fc80;f0b0;c18c;c189;c18a;fd02;c18f;c190;c191;fce4;fce6;c186;fce0;fce2;c187;c188;c18e;f0b4;c18d;c180;c184,structural
+098722,egs52_register_sequence_098722,Register-level instruction sequence; higher-level role unresolved,structural
+098724,egs52_update_near_c188_098724,Instruction destination near addresses c188;f0b4;c186,structural
+0987a2,egs52_update_near_c19c_0987a2,Instruction destination near addresses c19c;c19d;c19e;c19f,structural
+09885c,egs52_call_0987a2_09885c,Direct call targets 0987a2,structural
+09887a,egs52_update_near_c19d_09887a,Instruction destination near addresses fd02;c19d;c19e;c19c,structural
+09895a,egs52_update_near_c19f_09895a,Instruction destination near addresses c19f,structural
+0989ea,egs52_update_near_c19f_0989ea,Instruction destination near addresses c19f,structural
+098aaa,egs52_transform_memory_098aaa,Indirect non-R0 memory destinations in decoded instructions,structural
+098b32,egs52_update_near_f960_098b32,Instruction destination near addresses f960,structural
+098b9e,egs52_call_09212e_098b9e,Direct call targets 09212e;09214e,structural
+098bca,egs52_call_097904_098bca,Direct call targets 097904;0981ca;0990f6;09fbc0,structural
+098d44,egs52_update_near_c19c_098d44,Instruction destination near addresses f980;fd02;c19c,structural
+098de6,egs52_update_near_c19d_098de6,Instruction destination near addresses f980;fd02;c19d,structural
+098e8a,egs52_update_near_c19e_098e8a,Instruction destination near addresses f980;fd02;c19e,structural
+098f2e,egs52_update_near_fcc0_098f2e,Instruction destination near addresses fcc0;fd02,structural
+098fc6,egs52_update_near_fcc0_098fc6,Instruction destination near addresses fcc0;fd02,structural
+09905e,egs52_update_near_fcc0_09905e,Instruction destination near addresses fcc0;fd02,structural
+0990f6,egs52_compute_from_near_c19f_0990f6,Instruction source near addresses c19f,structural
+099124,egs52_update_near_f80c_099124,Instruction destination near addresses f80c;f80e;f810;f811;f812;f80a;fdfb;fdf6;fdf8;fdfa,structural
+0993d6,egs52_update_near_f80a_0993d6,Instruction destination near addresses f80a;fdfb,structural
+099400,egs52_update_near_f80a_099400,Instruction destination near addresses f80a,structural
+09941e,egs52_compute_from_near_f80a_09941e,Instruction source near addresses f80a;fdfb,structural
+099450,egs52_update_near_c1aa_099450,Instruction destination near addresses c1aa,structural
+09945a,egs52_update_near_c1aa_09945a,Instruction destination near addresses c1aa,structural
+0994aa,egs52_update_near_c1aa_0994aa,Instruction destination near addresses c1aa,structural
+0994ba,egs52_update_near_c1aa_0994ba,Instruction destination near addresses c1aa,structural
+0994da,egs52_update_near_c1aa_0994da,Instruction destination near addresses fdfd;c1aa,structural
+09950e,egs52_update_near_c1aa_09950e,Instruction destination near addresses c1aa,structural
+099570,egs52_update_near_c2b4_099570,Instruction destination near addresses c2b4;c2b0,structural
+099688,egs52_update_near_c1ac_099688,Instruction destination near addresses c1ac;c1ad;c2af;c2ae;c2b3,structural
+0996a2,egs52_update_near_c2b0_0996a2,Instruction destination near addresses c2b0;c2b1;c2b3;c2af;c2b2,structural
+0996d6,egs52_update_near_c2b0_0996d6,Instruction destination near addresses c2b0;c2b1;c1ad;c2b2;c2af;c2ae;c1b0;c1af;c1b1,structural
+0997f8,egs52_register_sequence_0997f8,Register-level instruction sequence; higher-level role unresolved,structural
+09997a,egs52_update_near_c1b0_09997a,Instruction destination near addresses c1b0;c1af;c2b0;c2b1;c1ad;c2b2;c2b3;c2af,structural
+0999ca,egs52_call_09997a_0999ca,Direct call targets 09997a,structural
+0999e2,egs52_compute_from_near_c2b6_0999e2,Instruction source near addresses c2b6,structural
+0999ec,egs52_update_near_c2b6_0999ec,Instruction destination near addresses c2b6,structural
+099a02,egs52_update_near_c105_099a02,Instruction destination near addresses c105;fdec,structural
+099a20,egs52_update_near_f581_099a20,Instruction destination near addresses f581;f469;fdea;f464;fdec,structural
+099adc,egs52_update_near_f581_099adc,Instruction destination near addresses f581;f469;fdea;f464;fdec,structural
+099b98,egs52_update_near_c100_099b98,Instruction destination near addresses f581;fdea;f469;f464;c100;c104;c2bb;c0fc;c0f6;c0ee;c0f2;c0ec,structural
+09a486,egs52_update_near_c2bc_09a486,Instruction destination near addresses f581;c2bc;f464;fdea;f469;fdec,structural
+09aa56,egs52_update_near_c2be_09aa56,Instruction destination near addresses c2be;fdea;f581;f464;f469;f814;f615;fdec,structural
+09b072,egs52_update_near_c102_09b072,Instruction destination near addresses c102;c103;f581;f462;c2b8;c2c2;c2c0;fdea;f464;f469;fd02,structural
+09b222,egs52_update_near_c2b8_09b222,Instruction destination near addresses f57d;c2b8;f583;f581;fdea;fdec;f408;fde8;f469;f46b;f46c;f57e;fd02,structural
+09b302,egs52_update_near_c2c3_09b302,Instruction destination near addresses c2c3;c2ba;fd02;c2b8,structural
+09b39a,egs52_update_near_c2c4_09b39a,Instruction destination near addresses c2c4;f464;fdea;f581;f469;f586;f588;f58a;f58c;f585,structural
+09bb8a,egs52_update_near_f469_09bb8a,Instruction destination near addresses f469;f581;fdea,structural
+09bbce,egs52_update_near_c2c6_09bbce,Instruction destination near addresses c2c6,structural
+09bca4,egs52_update_near_c2ba_09bca4,Instruction destination near addresses f581;f469;f462;fdec;f57c;f576;c2ba;fd02;fdea;c2c8;c2ca;f464;f57a,structural
+09be4e,egs52_transform_memory_09be4e,Indirect non-R0 memory destinations in decoded instructions,structural
+09be7c,egs52_register_sequence_09be7c,Register-level instruction sequence; higher-level role unresolved,structural
+09bed0,egs52_update_near_d2d3_09bed0,Instruction destination near addresses d2d3;d2d4;d2d5;d2da;d2d9;d2d8;d2d7;d2d6,structural
+09bf18,egs52_compute_from_near_c2ce_09bf18,Instruction source near addresses c2ce,structural
+09bf36,egs52_update_near_c2d0_09bf36,Instruction destination near addresses c2d0;c2d1;c2d3;c2d2;c2cf;c2cc,structural
+09bf7a,egs52_update_near_d2d3_09bf7a,Instruction destination near addresses d2d3;c2cf;d2d4;c2d3,structural
+09c016,egs52_update_near_d2d3_09c016,Instruction destination near addresses d2d3,structural
+09c2f2,egs52_update_near_d2d3_09c2f2,Instruction destination near addresses d2d3;c2d3,structural
+09c448,egs52_call_096eec_09c448,Direct call targets 096eec;09c652,structural
+09c462,egs52_call_096f56_09c462,Direct call targets 096f56;09c4aa,structural
+09c4aa,egs52_call_09c4d8_09c4aa,Direct call targets 09c4d8;09c670,structural
+09c4d8,egs52_call_0a1b8c_09c4d8,Direct call targets 0a1b8c;09fbc0,structural
+09c652,egs52_transform_memory_09c652,Indirect non-R0 memory destinations in decoded instructions,structural
+09c670,egs52_transform_memory_09c670,Indirect non-R0 memory destinations in decoded instructions,structural
+09c710,egs52_update_near_c31a_09c710,Instruction destination near addresses c31a;c31b;c31c,structural
+09c724,egs52_update_near_c31e_09c724,Instruction destination near addresses c31e;c31f;fd6a;c31a;c322;c324;c320;c325;c329;c31b;c328;c326,structural
+09cb2e,egs52_update_near_c32a_09cb2e,Instruction destination near addresses c32a;c330;c32c;c32b;c32e,structural
+09ceaa,egs52_register_sequence_09ceaa,Register-level instruction sequence; higher-level role unresolved,structural
+09cec0,egs52_update_near_c32e_09cec0,Instruction destination near addresses c32e;c32a;c330;c32c;c32b,structural
+09da5e,egs52_update_near_c32a_09da5e,Instruction destination near addresses c32a,structural
+09db38,egs52_update_near_c346_09db38,Instruction destination near addresses c346;c33e;c33b;c33c;c340;c348;c342;c33a;c344;c32b;c33d,structural
+09de7a,egs52_update_near_c32b_09de7a,Instruction destination near addresses c32b,structural
+09df5c,egs52_transform_far_memory_09df5c,Indirect non-R0 memory destinations in decoded instructions,structural
+09e304,egs52_update_near_c34a_09e304,Instruction destination near addresses c34a,structural
+09e4c8,egs52_transform_far_memory_09e4c8,Indirect non-R0 memory destinations in decoded instructions,structural
+09e9da,egs52_update_near_c34c_09e9da,Instruction destination near addresses c34c,structural
+09ed5c,egs52_compute_from_near_c32b_09ed5c,Instruction source near addresses c32b;c32c;c32a;c330,structural
+09edae,egs52_register_arithmetic_09edae,Register-level instruction sequence; higher-level role unresolved,structural
+09edde,egs52_transform_far_memory_09edde,Indirect non-R0 memory destinations in decoded instructions,structural
+09ef1e,egs52_update_near_c332_09ef1e,Instruction destination near addresses c332;c336,structural
+09efe6,egs52_transform_memory_09efe6,Indirect non-R0 memory destinations in decoded instructions,structural
+09f018,egs52_compute_from_near_c32e_09f018,Instruction source near addresses c32e,structural
+09f05e,egs52_call_092118_09f05e,Direct call targets 092118;09efaa;0994c8;0994da,structural
+09f118,egs52_update_near_c388_09f118,Instruction destination near addresses c388;c389;c38a;c38c,structural
+09f35a,egs52_update_near_c3a2_09f35a,Instruction destination near addresses c3a2,structural
+09f3bc,egs52_transform_memory_09f3bc,Indirect non-R0 memory destinations in decoded instructions,structural
+09f3f8,egs52_transform_far_memory_09f3f8,Indirect non-R0 memory destinations in decoded instructions,structural
+09f47c,egs52_transform_memory_09f47c,Indirect non-R0 memory destinations in decoded instructions,structural
+09f510,egs52_compute_from_near_c3a2_09f510,Instruction source near addresses c3a2,structural
+09f592,egs52_update_near_c3a8_09f592,Instruction destination near addresses c3a8;c3aa;c3a4;c3a6,structural
+09f6de,egs52_transform_memory_09f6de,Indirect non-R0 memory destinations in decoded instructions,structural
+09f874,egs52_update_near_f84c_09f874,Instruction destination near addresses f84c,structural
+09fb68,egs52_transform_memory_09fb68,Indirect non-R0 memory destinations in decoded instructions,structural
+09ff1e,egs52_transform_memory_09ff1e,Indirect non-R0 memory destinations in decoded instructions,structural
+09ff88,egs52_update_near_f402_09ff88,Instruction destination near addresses f402;f403;f5b4,structural
+09ff9a,egs52_update_near_f402_09ff9a,Instruction destination near addresses f402;f5b4,structural
+09ffc6,egs52_register_sequence_09ffc6,Register-level instruction sequence; higher-level role unresolved,structural
+0a0000,egs52_update_near_c34e_0a0000,Instruction destination near addresses c34e;c354;c356;c358;c35a,structural
+0a00aa,egs52_update_near_c34e_0a00aa,Instruction destination near addresses c34e,structural
+0a00c6,egs52_update_near_c34e_0a00c6,Instruction destination near addresses c34e,structural
+0a00d4,egs52_update_near_c34e_0a00d4,Instruction destination near addresses c34e;f844;f846,structural
+0a013e,egs52_update_near_c34e_0a013e,Instruction destination near addresses c34e;f848;f84a,structural
+0a01a8,egs52_transform_far_memory_0a01a8,Indirect non-R0 memory destinations in decoded instructions,structural
+0a0302,egs52_update_near_c350_0a0302,Instruction destination near addresses c350;c352;c354;c356;c358;c35a,structural
+0a0770,egs52_transform_far_memory_0a0770,Indirect non-R0 memory destinations in decoded instructions,structural
+0a081a,egs52_transform_far_memory_0a081a,Indirect non-R0 memory destinations in decoded instructions,structural
+0a08ee,egs52_update_near_c34e_0a08ee,Instruction destination near addresses f842;c34e,structural
+0a0984,egs52_update_near_c34e_0a0984,Instruction destination near addresses fd02;c34e;c380;c382;c384;c386,structural
+0a0cc6,egs52_transform_far_memory_0a0cc6,Indirect non-R0 memory destinations in decoded instructions,structural
+0a0e7c,egs52_transform_far_memory_0a0e7c,Indirect non-R0 memory destinations in decoded instructions,structural
+0a1032,egs52_compute_from_near_f842_0a1032,Instruction source near addresses f842,structural
+0a107a,egs52_update_near_fd6c_0a107a,Instruction destination near addresses fd6c,structural
+0a10ec,egs52_update_near_fd6c_0a10ec,Instruction destination near addresses fd6c,structural
+0a1220,egs52_update_near_fd6c_0a1220,Instruction destination near addresses fd6c,structural
+0a1288,egs52_update_near_fd6c_0a1288,Instruction destination near addresses fd6c,structural
+0a130c,egs52_update_near_fd6c_0a130c,Instruction destination near addresses fd6c,structural
+0a134c,egs52_register_arithmetic_0a134c,Register-level instruction sequence; higher-level role unresolved,structural
+0a1388,egs52_update_near_c44e_0a1388,Instruction destination near addresses c44e;f84e,structural
+0a13da,egs52_register_sequence_0a13da,Register-level instruction sequence; higher-level role unresolved,structural
+0a13e8,egs52_transform_memory_0a13e8,Indirect non-R0 memory destinations in decoded instructions,structural
+0a14c0,egs52_update_near_fd6c_0a14c0,Instruction destination near addresses fd6c,structural
+0a1522,egs52_update_near_fd6c_0a1522,Instruction destination near addresses fd6c,structural
+0a1586,egs52_update_near_c44e_0a1586,Instruction destination near addresses fd6c;c44e,structural
+0a160c,egs52_update_near_fd6c_0a160c,Instruction destination near addresses fd6c,structural
+0a16c8,egs52_update_near_f84e_0a16c8,Instruction destination near addresses f84e,structural
+0a17de,egs52_update_near_c44e_0a17de,Instruction destination near addresses c44e,structural
+0a180a,egs52_transform_memory_0a180a,Indirect non-R0 memory destinations in decoded instructions,structural
+0a18cc,egs52_update_near_c44e_0a18cc,Instruction destination near addresses fd6c;c44e;c44f,structural
+0a1b54,egs52_register_arithmetic_0a1b54,Register-level instruction sequence; higher-level role unresolved,structural
+0a1c32,egs52_compute_from_near_f84e_0a1c32,Instruction source near addresses f84e,structural
+0a1c96,egs52_compute_from_near_f84e_0a1c96,Instruction source near addresses f84e,structural
+0a1cc8,egs52_update_near_fd6c_0a1cc8,Instruction destination near addresses fd6c,structural
+0a1d8c,egs52_update_near_c44e_0a1d8c,Instruction destination near addresses fd6c;c44e,structural
+0a1dd8,egs52_transform_memory_0a1dd8,Indirect non-R0 memory destinations in decoded instructions,structural
+0a1e8a,egs52_update_near_fd6c_0a1e8a,Instruction destination near addresses fd6c,structural
+0a1f12,egs52_update_near_fd6c_0a1f12,Instruction destination near addresses fd6c,structural
+0a1fc4,egs52_transform_memory_0a1fc4,Indirect non-R0 memory destinations in decoded instructions,structural
+0a20ea,egs52_compute_from_near_c504_0a20ea,Instruction source near addresses c504,structural
+0a2120,egs52_update_near_fd6c_0a2120,Instruction destination near addresses fd6c,structural
+0a2200,egs52_update_near_fd6c_0a2200,Instruction destination near addresses fd6c,structural
+0a233e,egs52_register_arithmetic_0a233e,Register-level instruction sequence; higher-level role unresolved,structural
+0a2418,egs52_transform_memory_0a2418,Indirect non-R0 memory destinations in decoded instructions,structural
+0a2440,egs52_call_0a1288_0a2440,Direct call targets 0a1288;0a2120,structural
+0a24c8,egs52_call_09f858_0a24c8,Direct call targets 09f858;0a1388;0a2418;0a27f6,structural
+0a2504,egs52_call_0a13da_0a2504,Direct call targets 0a13da;0a2440;0a2834;0a16c8;09f874,structural
+0a2550,egs52_update_near_fd6c_0a2550,Instruction destination near addresses fd6c,structural
+0a2682,egs52_update_near_fd6c_0a2682,Instruction destination near addresses fd6c,structural
+0a2728,egs52_update_near_fd6c_0a2728,Instruction destination near addresses fd6c,structural
+0a27c2,egs52_update_near_fd6c_0a27c2,Instruction destination near addresses fd6c,structural
+0a27f6,egs52_update_near_f850_0a27f6,Instruction destination near addresses f850,structural
+0a2834,egs52_update_near_f850_0a2834,Instruction destination near addresses f850,structural
+0a283e,egs52_update_near_fd6c_0a283e,Instruction destination near addresses fd6c,structural
+0a28ce,egs52_update_near_fd6c_0a28ce,Instruction destination near addresses fd6c,structural
+0a290e,egs52_transform_far_memory_0a290e,Indirect non-R0 memory destinations in decoded instructions,structural
+0a2a92,egs52_transform_memory_0a2a92,Indirect non-R0 memory destinations in decoded instructions,structural
+0a2b52,egs52_register_arithmetic_0a2b52,Register-level instruction sequence; higher-level role unresolved,structural
+0a2b70,egs52_update_near_fd6c_0a2b70,Instruction destination near addresses fd6c,structural
+0a2bd4,egs52_update_near_fd6c_0a2bd4,Instruction destination near addresses fd6c,structural
+0a2c70,egs52_transform_memory_0a2c70,Indirect non-R0 memory destinations in decoded instructions,structural
+0a2d18,egs52_transform_memory_0a2d18,Indirect non-R0 memory destinations in decoded instructions,structural
+0a2fba,egs52_update_near_caa4_0a2fba,Instruction destination near addresses caa4,structural
+0a33b2,egs52_update_near_caa4_0a33b2,Instruction destination near addresses caa4,structural
+0a3424,egs52_update_near_caa4_0a3424,Instruction destination near addresses caa4,structural
+0a350e,egs52_update_near_caa4_0a350e,Instruction destination near addresses caa4;f854,structural
+0a3b10,egs52_update_near_caa4_0a3b10,Instruction destination near addresses caa4,structural
+0a3ca8,egs52_update_near_caa4_0a3ca8,Instruction destination near addresses caa4,structural
+0a3d02,egs52_update_near_caa4_0a3d02,Instruction destination near addresses caa4,structural
+0a3d74,egs52_call_092118_0a3d74,Direct call targets 092118;09efaa,structural
+0a3d94,egs52_update_near_caa6_0a3d94,Instruction destination near addresses caa6;caa4;caa8,structural
+0a3e0c,egs52_update_near_caaa_0a3e0c,Instruction destination near addresses caaa;caac,structural
+0a3eba,egs52_update_near_caaf_0a3eba,Instruction destination near addresses caaf;caae;cab0,structural
+0a3f66,egs52_update_near_f876_0a3f66,Instruction destination near addresses f876;e100;e101;e102;e1fc;e1fd;e1fe;e200;e202;e204,structural
+0a41b6,egs52_call_096f56_0a41b6,Direct call targets 096f56;0a1b8c;097f16,structural
+0a4270,egs52_update_near_f5b0_0a4270,Instruction destination near addresses f5b0;fdea;f878;f462;f581;fdec;f464;f454;f456;f444;f469,structural
+0a4426,egs52_call_0a4430_0a4426,Direct call targets 0a4430;0a4446,structural
+0a4430,egs52_update_near_f1c6_0a4430,Instruction destination near addresses f1c6,structural
+0a4446,egs52_update_near_f57f_0a4446,Instruction destination near addresses f57f;f594;f595;f580;fdea;fdec;f460;f462;f464;f468;f572;f5b0;f574;f576;f578;f57c;f878;f57e;fde8;f5a0,structural
+0a44ec,egs52_update_near_f594_0a44ec,Instruction destination near addresses f594;f595,structural
+0a4542,egs52_call_0a4582_0a4542,Direct call targets 0a4582,structural
+0a4548,egs52_call_0a4582_0a4548,Direct call targets 0a4582,structural
+0a454e,egs52_update_near_fdea_0a454e,Instruction destination near addresses fdea;fdec;f878,structural
+0a457c,egs52_call_0a463e_0a457c,Direct call targets 0a463e,structural
+0a4582,egs52_update_near_fdea_0a4582,Instruction destination near addresses fdea;f572;f878;f582;fde8;f469;f456;f454;f462;f464;fdec,structural
+0a460c,egs52_update_near_f456_0a460c,Instruction destination near addresses f456;f454;f45a;f458,structural
+0a463e,egs52_update_near_f878_0a463e,Instruction destination near addresses f878;f572;f456;f469;f464;f444,structural
+0a4678,egs52_transform_memory_0a4678,Indirect non-R0 memory destinations in decoded instructions,structural
+0a474c,egs52_register_sequence_0a474c,Register-level instruction sequence; higher-level role unresolved,structural
+0a474e,egs52_update_near_caca_0a474e,Instruction destination near addresses caca,structural
+0a475e,egs52_call_09c462_0a475e,Direct call targets 09c462,structural
+0a476e,egs52_update_near_cacc_0a476e,Instruction destination near addresses cacc;fd02,structural
+0a47a8,egs52_call_09cb22_0a47a8,Direct call targets 09cb22,structural
+0a47c0,egs52_compute_from_near_cace_0a47c0,Instruction source near addresses cace,structural
+0a47d4,egs52_compute_from_near_cace_0a47d4,Instruction source near addresses cace,structural
+0a47f0,egs52_call_09f47c_0a47f0,Direct call targets 09f47c,structural
+0a4800,egs52_transform_memory_0a4800,Indirect non-R0 memory destinations in decoded instructions,structural
+0a488e,egs52_transform_memory_0a488e,Indirect non-R0 memory destinations in decoded instructions,structural
+0a48ca,egs52_transform_memory_0a48ca,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4906,egs52_transform_memory_0a4906,Indirect non-R0 memory destinations in decoded instructions,structural
+0a49d8,egs52_transform_memory_0a49d8,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4a18,egs52_transform_memory_0a4a18,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4a34,egs52_transform_memory_0a4a34,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4aa8,egs52_transform_memory_0a4aa8,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4ac4,egs52_transform_memory_0a4ac4,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4b9e,egs52_transform_memory_0a4b9e,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4be0,egs52_transform_memory_0a4be0,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4c0c,egs52_transform_memory_0a4c0c,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4d64,egs52_update_near_fd6c_0a4d64,Instruction destination near addresses fd6c,structural
+0a4e2c,egs52_update_near_fd6c_0a4e2c,Instruction destination near addresses fd6c,structural
+0a4e9c,egs52_transform_memory_0a4e9c,Indirect non-R0 memory destinations in decoded instructions,structural
+0a4f28,egs52_update_near_ccd4_0a4f28,Instruction destination near addresses ccd4;ccd6;c504,structural
+0a4fc0,egs52_update_near_cce8_0a4fc0,Instruction destination near addresses cce8;fd6c;ccea,structural
+0a50f6,egs52_compute_from_near_c606_0a50f6,Instruction source near addresses c606,structural
+0a5104,egs52_compute_from_near_c606_0a5104,Instruction source near addresses c606,structural
+0a5112,egs52_update_near_cce8_0a5112,Instruction destination near addresses cce8;ccea;fd6c,structural
+0a514a,egs52_call_0a1c96_0a514a,Direct call targets 0a1c96;09ff1e,structural
+0a5198,egs52_update_near_ccec_0a5198,Instruction destination near addresses ccec;ccee;ccf0;ccf2;ccf4;ccf6;ccf8;ccfa;ccfc;ccfe;cd00;cd02;cd04;cd06;cd08;cd0a;cd0c;cd0e;cd10;cd12;cd14,structural
+0a51f2,egs52_transform_memory_0a51f2,Indirect non-R0 memory destinations in decoded instructions,structural
+0a5490,egs52_call_0a638a_0a5490,Direct call targets 0a638a,structural
+0a549e,egs52_update_near_cd16_0a549e,Instruction destination near addresses cd16;cd18;cd1a;cd1c;cd1e;cd20;cd22;cd24;cd26;cd28;cd2a;cd2c;cd2d;cd2e;cd30;cd32;cd34;cd36;cd3a;cd3c;cd3e;cd40;cd42;cd44;cd46;cd47;cd48;cd4a;cd4c;cd4e;cd50;cd54;cd56;cd58;cd5a;cd5c;cd5e;cd60;cd61;cd62,structural
+0a556c,egs52_update_near_cd64_0a556c,Instruction destination near addresses cd64;cd66;cd68;cd6a;cd6c;cd6e;cd70;cd72;cd74;cd75;cd76;cd78;cd7a;cd7c;cd7e;cd80;cd82;cd84;cd86;cd87;cd88;cd8a;cd8c;cd8e;cd90;cd92;cd94;cd96;cd98;cd99,structural
+0a56f0,egs52_update_near_cda0_0a56f0,Instruction destination near addresses cda0,structural
+0a57f8,egs52_register_sequence_0a57f8,Register-level instruction sequence; higher-level role unresolved,structural
+0a5800,egs52_call_0a4446_0a5800,Direct call targets 0a4446;0a4430,structural
+0a580a,egs52_compute_from_near_f581_0a580a,Instruction source near addresses f581,structural
+0a582c,egs52_register_sequence_0a582c,Register-level instruction sequence; higher-level role unresolved,structural
+0a582e,egs52_register_sequence_0a582e,Register-level instruction sequence; higher-level role unresolved,structural
+0a5830,egs52_update_near_f462_0a5830,Instruction destination near addresses f462;f464;f582;f469;f468,structural
+0a5856,egs52_update_near_c1ad_0a5856,Instruction destination near addresses c1ad;c1b1,structural
+0a5874,egs52_update_near_fdea_0a5874,Instruction destination near addresses fdea;fdec;f471;f57d;f46d;f46e;f57c;f572,structural
+0a58ac,egs52_update_near_f405_0a58ac,Instruction destination near addresses f405;f407;fdee,structural
+0a58da,egs52_register_sequence_0a58da,Register-level instruction sequence; higher-level role unresolved,structural
+0a58e2,egs52_compute_from_near_f3e4_0a58e2,Instruction source near addresses f3e4,structural
+0a5a62,egs52_update_near_f3fe_0a5a62,Instruction destination near addresses f3fe;f3ff;f400;f401;f3e6;f3e8;f3ea;f3ec,structural
+0a5b5e,egs52_transform_far_memory_0a5b5e,Indirect non-R0 memory destinations in decoded instructions,structural
+0a5c46,egs52_update_near_cda4_0a5c46,Instruction destination near addresses cda4;cda6,structural
+0a5f28,egs52_update_near_f186_0a5f28,Instruction destination near addresses f186;f18e,structural
+0a5f76,egs52_transform_memory_0a5f76,Indirect non-R0 memory destinations in decoded instructions,structural
+0a5f9c,egs52_compute_from_near_cda2_0a5f9c,Instruction source near addresses cda2,structural
+0a6006,egs52_transform_far_memory_0a6006,Indirect non-R0 memory destinations in decoded instructions,structural
+0a612e,egs52_transform_far_memory_0a612e,Indirect non-R0 memory destinations in decoded instructions,structural
+0a62aa,egs52_update_near_f9e0_0a62aa,Instruction destination near addresses f9e0,structural
+0a6336,egs52_update_near_f1de_0a6336,Instruction destination near addresses f1de,structural
+0a6346,egs52_update_near_f9e0_0a6346,Instruction destination near addresses f9e0;f1de,structural
+0a6388,egs52_register_sequence_0a6388,Register-level instruction sequence; higher-level role unresolved,structural
+0a638a,egs52_transform_memory_0a638a,Indirect non-R0 memory destinations in decoded instructions,structural
+0a644c,egs52_call_096f56_0a644c,Direct call targets 096f56,structural
+0a6498,egs52_transform_memory_0a6498,Indirect non-R0 memory destinations in decoded instructions,structural
+0a64f2,egs52_call_0a6784_0a64f2,Direct call targets 0a6784,structural
+0a64fe,egs52_transform_memory_0a64fe,Indirect non-R0 memory destinations in decoded instructions,structural
+0a6710,egs52_transform_memory_0a6710,Indirect non-R0 memory destinations in decoded instructions,structural
+0a6784,egs52_update_near_cdb4_0a6784,Instruction destination near addresses f160;cdb4;fcfa;f162;cdb6;fcee;f166;cdb8;fcf2,structural
+0a6808,egs52_transform_memory_0a6808,Indirect non-R0 memory destinations in decoded instructions,structural
+0a68b2,egs52_update_near_fdec_0a68b2,Instruction destination near addresses fdec,structural
+0a69a6,egs52_update_near_f581_0a69a6,Instruction destination near addresses f581,structural
+0a69e2,egs52_update_near_f469_0a69e2,Instruction destination near addresses f469;f581;fdea;f464;fdec,structural
+0a6a82,egs52_update_near_cde0_0a6a82,Instruction destination near addresses f581;cde0;cde1;cde2;f469;fdea,structural
+0a6bf8,egs52_update_near_f469_0a6bf8,Instruction destination near addresses f469;f581,structural
+0a6c78,egs52_update_near_fdea_0a6c78,Instruction destination near addresses fdea;f468;f469;f581;f462;f58e;f464,structural
+0a6e7c,egs52_update_near_cdec_0a6e7c,Instruction destination near addresses f581;fdea;f469;cdec;cdee;f464;f3fe;f3ff;f400;f401;f3e6;f3e8;f3ea;f3ec;f615;fdec;cdea;cde8;cde4,structural
+0a76d8,egs52_update_near_f581_0a76d8,Instruction destination near addresses f581;f469;fdec,structural
+0a77dc,egs52_update_near_cdf1_0a77dc,Instruction destination near addresses cdf1;cdf0,structural
+0a79fc,egs52_transform_memory_0a79fc,Indirect non-R0 memory destinations in decoded instructions,structural
+0a7ab6,egs52_update_near_cdf4_0a7ab6,Instruction destination near addresses cdf4;cdf6;cdf8;cdfa,structural
+0a7b9e,egs52_update_near_fd02_0a7b9e,Instruction destination near addresses fd02;f8b4;f8b6;f8ba;f8b8,structural
+0a7c20,egs52_transform_memory_0a7c20,Indirect non-R0 memory destinations in decoded instructions,structural
+0a7d0e,egs52_update_near_f8c0_0a7d0e,Instruction destination near addresses f8c0,structural
+0a7dea,egs52_register_sequence_0a7dea,Register-level instruction sequence; higher-level role unresolved,structural
+0a7e36,egs52_update_near_f8b6_0a7e36,Instruction destination near addresses f8b6;f8b8;f8ba;f8b4,structural
+0d0000,egs52_update_near_d447_0d0000,Instruction destination near addresses d447,structural
+0d0086,egs52_update_near_d64a_0d0086,Instruction destination near addresses d64a;d640;d64e;d63e;d63c;d64c;d644;d646;d647;d648;d649;d658;d650;d652;d651;d654;d656;d65a;fd2c;d474;d54e;d40e;d420,structural
+0d01a8,egs52_register_sequence_0d01a8,Register-level instruction sequence; higher-level role unresolved,structural
+0d01aa,egs52_update_near_d588_0d01aa,Instruction destination near addresses fd54;d588;d584;d582;d58a;d58c;d58e;d586,structural
+0d02e2,egs52_update_near_d23f_0d02e2,Instruction destination near addresses d23f;d243;d29b;d29c;d29d;d29f;d2a0;fd20;d472;d5cd;d5f4;d5cb;d4f4;d520,structural
+0d032c,egs52_update_near_d468_0d032c,Instruction destination near addresses d468;d462;d454;d775;d777;d453;d451;d442;d4c6;fd54;fd5a;d5a3;d5bc;d60d;d60e;fd56;d613;d611;d610;d5c2;d5c6;fd5c;d446;d5c8;d5af;d616;d612;fd58;d7aa;fd3a;fd3c;fd68;d579;d577;d56e;d470;d50c;d508;d500;d504;d4f8;d52a;d52c;d526;d7c8;d3e9;d704;d706;fd2a;d447;d6dc;d59e;fd38;d439;d4e2;fd2e;d7d7;d74c;d75c;d75e;fd48;d54c,structural
+0d06bc,egs52_update_near_d536_0d06bc,Instruction destination near addresses d536;d532;d49c;d552,structural
+0d072a,egs52_update_near_d56a_0d072a,Instruction destination near addresses fd48;d56a;d556;d56c;d5f6;d5f8;d5fa;d5fc;d5fe;d7c2;d600;d602;d604;d606;d608;fd4c;d42a;d4b2;d437;fd3a;d4ca;d612;d3dc;d3d8;d3e6,structural
+0d0c8e,egs52_update_near_d4cc_0d0c8e,Instruction destination near addresses d4cc;d434;fd38;fd34;d599;d51e;d48e;d42c;d5f6;d5f8;d5fa;d5fc;d5fe;d359,structural
+0d1464,egs52_update_near_d412_0d1464,Instruction destination near addresses d412,structural
+0d1498,egs52_update_near_d431_0d1498,Instruction destination near addresses d431,structural
+0d151e,egs52_update_near_d412_0d151e,Instruction destination near addresses d412;d59b;d431;fd34,structural
+0d1658,egs52_update_near_d59b_0d1658,Instruction destination near addresses fd34;d59b,structural
+0d175c,egs52_update_near_d59b_0d175c,Instruction destination near addresses fd34;d59b,structural
+0d1816,egs52_update_near_d435_0d1816,Instruction destination near addresses d435;fd34;d431;fd38;d578;d5c1;d410,structural
+0d1c5e,egs52_compute_from_near_f638_0d1c5e,Instruction source near addresses f638;d579;f63a,structural
+0d1ca8,egs52_update_near_d436_0d1ca8,Instruction destination near addresses fd4e;d436,structural
+0d1d92,egs52_update_near_d436_0d1d92,Instruction destination near addresses fd4e;d436,structural
+0d1e5c,egs52_update_near_fd4e_0d1e5c,Instruction destination near addresses fd4e,structural
+0d1eac,egs52_update_near_fd4e_0d1eac,Instruction destination near addresses fd4e,structural
+0d1f5e,egs52_update_near_fd4e_0d1f5e,Instruction destination near addresses fd4e,structural
+0d202e,egs52_update_near_d436_0d202e,Instruction destination near addresses d436;d492;d4aa;d4bc;d5a8;fd4e;d4b8;fd64;d433;d5a2,structural
+0d269c,egs52_update_near_d5a4_0d269c,Instruction destination near addresses d5a4;d480;fd4e;d4b8;d565,structural
+0d2856,egs52_update_near_d5b0_0d2856,Instruction destination near addresses d5b0;fd48;d56a;d556;d56c;d577,structural
+0d289a,egs52_update_near_d3f6_0d289a,Instruction destination near addresses d3f6;d3f4,structural
+0d290c,egs52_compute_from_near_f62e_0d290c,Instruction source near addresses f62e,structural
+0d2958,egs52_transform_memory_0d2958,Indirect non-R0 memory destinations in decoded instructions,structural
+0d2b08,egs52_update_near_d4fe_0d2b08,Instruction destination near addresses fd34;d4fe;d576;d438;d3f8;d4f6,structural
+0d3124,egs52_update_near_d4f6_0d3124,Instruction destination near addresses d4f6;d47c,structural
+0d33ec,egs52_update_near_d5f6_0d33ec,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe,structural
+0d3426,egs52_compute_from_near_d4e1_0d3426,Instruction source near addresses d4e1;d46e;d43c;d54a;d552,structural
+0d3464,egs52_update_near_d422_0d3464,Instruction destination near addresses d422;d4d8,structural
+0d34e2,egs52_update_near_d556_0d34e2,Instruction destination near addresses fd3a;fd3c;fd4e;fd48;d556;d56c;d56a;d5b0;d5b1;d618,structural
+0d3638,egs52_update_near_d566_0d3638,Instruction destination near addresses fd3a;fd3c;fd4e;d566;d567;d437;fd48;d5b0,structural
+0d370e,egs52_update_near_d566_0d370e,Instruction destination near addresses fd3c;fd3a;d566;d567;d5b0;d5b1;d5b2;d618;d56a;d556;d56c;fd48;d477;d43c;d46e;d54a;d536;d579;d437,structural
+0d385e,egs52_update_near_d4d8_0d385e,Instruction destination near addresses fd3c;d4d8;d422;fd48;d5a6;d5f6;d5f8;d5fa;d5fc;d5fe;d5b0;d56a;d556;d56c;fd3a;d5b1;d5b2;d566;d550;d522;d498;d49a;d567,structural
+0d405a,egs52_update_near_d56a_0d405a,Instruction destination near addresses fd48;d56a;d556;d56c;fd3a;fd5a;d577;d5b0;fd3c,structural
+0d40b6,egs52_update_near_d5b0_0d40b6,Instruction destination near addresses fd48;d5b0;d556;d56c;d56a;fd3a;d566;d567;d437,structural
+0d40fe,egs52_update_near_d5b0_0d40fe,Instruction destination near addresses d5b0;d566;d437;d44a;d454;d453,structural
+0d41e8,egs52_compute_from_near_f624_0d41e8,Instruction source near addresses f624;d5cc;d524;d4e4,structural
+0d42a6,egs52_compute_from_near_d579_0d42a6,Instruction source near addresses d579;f636;d5cc;d477;d54c;fd4a;d454,structural
+0d4338,egs52_update_near_d426_0d4338,Instruction destination near addresses d426,structural
+0d44ce,egs52_update_near_d5b0_0d44ce,Instruction destination near addresses d5b0;fd4a;fd4c;d556;d566;d56a;d56c;d567,structural
+0d492a,egs52_update_near_d5b0_0d492a,Instruction destination near addresses d5b0;d590;d542;d4ae;d556;d53c;d56c,structural
+0d4b5e,egs52_compute_from_near_d4e1_0d4b5e,Instruction source near addresses d4e1;f63a;d4ae;d4df;d492;d490;f634;d579;d4bc,structural
+0d4bf8,egs52_update_near_d5b1_0d4bf8,Instruction destination near addresses d5b1;d498;d49a;d580;d57e;d49c;d56a;d4b2;d4b0;d4f2;d4c0;d522;fd4c;fd48;d567;d566,structural
+0d4f4c,egs52_update_near_d5b8_0d4f4c,Instruction destination near addresses d5b8;fd4c,structural
+0d5094,egs52_update_near_d5f6_0d5094,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe,structural
+0d50d2,egs52_update_near_d5f6_0d50d2,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe,structural
+0d513e,egs52_update_near_d566_0d513e,Instruction destination near addresses fd3a;fd48;d566;d437,structural
+0d5150,egs52_update_near_d566_0d5150,Instruction destination near addresses d566;d567;fd3a;fd4e;fd48;fd4a;fd3c;d437,structural
+0d52c0,egs52_update_near_d5b0_0d52c0,Instruction destination near addresses d5b0;d5a6;d56a;d556;d56c;fd48;fd3a,structural
+0d5382,egs52_update_near_d477_0d5382,Instruction destination near addresses d477;d46e;d54a;d536;d56a;fd48;d5b0;d5b2;d556;d56c;d566;d437;d5b1,structural
+0d54ea,egs52_update_near_d556_0d54ea,Instruction destination near addresses d556;d56c;d437,structural
+0d54fc,egs52_update_near_d5b0_0d54fc,Instruction destination near addresses fd3a;fd4a;fd3c;d5b0;d566;d56a;d556;d56c;fd48;d5b1;d579;d437;d5b2,structural
+0d5b66,egs52_update_near_d408_0d5b66,Instruction destination near addresses d408;d440;d41e;fd48;fd44;d566;d594;d428;d556;d56a;d544;d40a;d40c;d5b4;d424;d617;d554;d528;d56c,structural
+0d63b0,egs52_update_near_d4b2_0d63b0,Instruction destination near addresses fd48;d4b2;d5b1;d5a6;d49a;d498;d556;d56c;d56a;d522;fd4c;d566;d567;d437,structural
+0d66ee,egs52_update_near_d550_0d66ee,Instruction destination near addresses fd48;d550;d5b1;d5b0;d402;d556;d56c;d56a;d566;d567;d437,structural
+0d6866,egs52_update_near_d5b0_0d6866,Instruction destination near addresses d5b0;d432;d5a6;fd48;d556;d56c;d56a;d498;d49a;d566;d522;fd4c;d5b1;d567;d437,structural
+0d6ac2,egs52_update_near_d5b0_0d6ac2,Instruction destination near addresses fd48;d5b0;d5b1;d556;d56c;d56a;d566,structural
+0d6b8c,egs52_update_near_d5b0_0d6b8c,Instruction destination near addresses fd48;d5b0;d556;d56c;d56a;fd4a;fd4e;d590;d577;d442,structural
+0d6bee,egs52_update_near_d3e0_0d6bee,Instruction destination near addresses d3e0,structural
+0d6c32,egs52_update_near_fd48_0d6c32,Instruction destination near addresses fd48;fd4a;fd4c;fd3a;fd3c,structural
+0d6c72,egs52_update_near_d490_0d6c72,Instruction destination near addresses d490;d4ae;d4ac;d4aa;d59b;fd4c;fd34;d4ca,structural
+0d6c96,egs52_update_near_d579_0d6c96,Instruction destination near addresses d579;d477;d46e;d54a;d536;d475;d546;d532;d47e;d46a;d476;d46c;d548;d534,structural
+0d6e1a,egs52_update_near_d477_0d6e1a,Instruction destination near addresses d477;d46e;d54a;d536;d475;d46a;d546;d532;d476;d46c;d548;d534,structural
+0d6eb0,egs52_update_near_d41a_0d6eb0,Instruction destination near addresses d41a,structural
+0d6f4e,egs52_update_near_d418_0d6f4e,Instruction destination near addresses d418,structural
+0d7010,egs52_update_near_d5f6_0d7010,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe,structural
+0d7110,egs52_update_near_d5f6_0d7110,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe,structural
+0d714e,egs52_update_near_d5f6_0d714e,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe,structural
+0d718c,egs52_update_near_d430_0d718c,Instruction destination near addresses d430;d600;d602;d604;d606;d608,structural
+0d73e6,egs52_compute_from_near_f634_0d73e6,Instruction source near addresses f634;d60e;f61e;d7aa;d577;f63e;d524;f636;d430;d42e,structural
+0d74a6,egs52_update_near_d5f6_0d74a6,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe;d4e1,structural
+0d7504,egs52_update_near_d5f6_0d7504,Instruction destination near addresses d5f6;d5f8;d5fa;d5fc;d5fe;d442,structural
+0d7666,egs52_update_near_d490_0d7666,Instruction destination near addresses d490;fd4c,structural
+0d77c8,egs52_update_near_d4dc_0d77c8,Instruction destination near addresses d4dc,structural
+0d7a4c,egs52_update_near_d47e_0d7a4c,Instruction destination near addresses d47e,structural
+0d7ad6,egs52_update_near_d4da_0d7ad6,Instruction destination near addresses d4da,structural
+0d7b3e,egs52_update_near_d4ae_0d7b3e,Instruction destination near addresses d4ae,structural
+0d7b8a,egs52_update_near_d402_0d7b8a,Instruction destination near addresses d402,structural
+0d7be2,egs52_update_near_d3fc_0d7be2,Instruction destination near addresses d3fc;d400,structural
+0d7c4e,egs52_compute_from_near_f626_0d7c4e,Instruction source near addresses f626;d54c,structural
+0d7cb8,egs52_update_near_d600_0d7cb8,Instruction destination near addresses d600;d602;d604;d606;d608,structural
+0d7e30,egs52_compute_from_near_d54a_0d7e30,Instruction source near addresses d54a;d536;d42a;d552,structural
+0d7e88,egs52_compute_from_near_f63a_0d7e88,Instruction source near addresses f63a;d49c;d46a;d546;d532,structural
+0d7efc,egs52_compute_from_near_f63a_0d7efc,Instruction source near addresses f63a;d49c;d46a;d546;d532,structural
+0d7f50,egs52_compute_from_near_d4e1_0d7f50,Instruction source near addresses d4e1;d46e;d4d2;d54a;d536;d552;d546;d532;f63a,structural
+0d7ffa,egs52_compute_from_near_d54a_0d7ffa,Instruction source near addresses d54a;d536;f634;d556;f63a;d49c;d46a;d546;d532,structural
+0d8092,egs52_compute_from_near_d4d2_0d8092,Instruction source near addresses d4d2;d47c;d490;d4e1;d46a;d546;d532;d556,structural
+0d8104,egs52_compute_from_near_d4d2_0d8104,Instruction source near addresses d4d2;d47c;d490;d4b2;d4e1;d46a;d546;d532;d556,structural
+0d817a,egs52_compute_from_near_d4d2_0d817a,Instruction source near addresses d4d2;d47c;d490;d4ac;d4b2;f636;d4e1;d46a;d546;d532;d556,structural
+0d81fe,egs52_compute_from_near_d4d2_0d81fe,Instruction source near addresses d4d2;d4ac;d47c;d4e1;f63a;d4ae;d4df;d492;d490;f634;d46a;d546;d532;d556,structural
+0d82da,egs52_compute_from_near_d4d2_0d82da,Instruction source near addresses d4d2;d4ae;f63a;d46a;d546;d532;d556,structural
+0d8360,egs52_compute_from_near_d4d2_0d8360,Instruction source near addresses d4d2;d47c;d4aa;d4e1;d46e;d54a;d536;d550;d552,structural
+0d83e8,egs52_compute_from_near_f634_0d83e8,Instruction source near addresses f634;d570;fd4a;d47c;d4ac;d4b2;d4df;d492;f636;d4e1;d46a;d546;d532;d550;d536;d4d2;d402;d556,structural
+0d85da,egs52_compute_from_near_f63a_0d85da,Instruction source near addresses f63a;d46e;d4d2;d54a;d536;d550;d552,structural
+0d8636,egs52_compute_from_near_d546_0d8636,Instruction source near addresses d546;d532;f63a,structural
+0d868c,egs52_compute_from_near_d556_0d868c,Instruction source near addresses d556;f626;d532;f63a;d54c,structural
+0d874e,egs52_compute_from_near_d4d2_0d874e,Instruction source near addresses d4d2;d4dc;d47c;d4ac;d492;d4aa;d4e1;d46e;d54a;d536;d550;d552,structural
+0d87cc,egs52_compute_from_near_d4d2_0d87cc,Instruction source near addresses d4d2;d4da;d4ac;d47c;d4aa;d4e1;d46e;d54a;d536;d550;d552,structural
+0d8846,egs52_compute_from_near_f63a_0d8846,Instruction source near addresses f63a;d4d2;d46e;d54a;d536;d552;f626;d532;d54c,structural
+0d892a,egs52_compute_from_near_f636_0d892a,Instruction source near addresses f636;d4d2;d47c;d4ac;d4b2;d4df;d4bc;d4e1;d46a;d546;d532;d54a;d536;f634;f63a;d46e;d552;f626;d54c,structural
+0d8ac8,egs52_compute_from_near_d4d2_0d8ac8,Instruction source near addresses d4d2;d4da;d4ac;d47c;d4aa;f63a;d46e;d54a;d536;d550;d552,structural
+0d8b4a,egs52_update_near_d47e_0d8b4a,Instruction destination near addresses d47e;d579;d477;d46e;d54a;d536;d475;d546;d532;d46a;d476;d46c;d548;d534;d552,structural
+0d8cf8,egs52_update_near_d4ae_0d8cf8,Instruction destination near addresses d4ae,structural
+0d8d26,egs52_compute_from_near_d4d2_0d8d26,Instruction source near addresses d4d2;d4ac;d490;d4b2;d4e1;d46a;d546;d532;d552,structural
+0d8d94,egs52_compute_from_near_d4d2_0d8d94,Instruction source near addresses d4d2;d4ac;d490;f63a;d46c;d548;d534;f626;d577;d54a;d536;d54c,structural
+0d8ea2,egs52_compute_from_near_d4d2_0d8ea2,Instruction source near addresses d4d2;d4ae;d4df;d4bc;d4e1;d46a;d546;d532;f634;d552,structural
+0d8f58,egs52_compute_from_near_f63a_0d8f58,Instruction source near addresses f63a;d4d2;d46e;d54a;d536;d546;d556,structural
+0d8fc8,egs52_compute_from_near_d579_0d8fc8,Instruction source near addresses d579;f634;d570;fd4a;d47c;d4ac;d4b2;d4df;d492;f636;d4e1;d46a;d546;d532;d4d2;d402;d552,structural
+0d9176,egs52_compute_from_near_d4dc_0d9176,Instruction source near addresses d4dc;d4da;d4d2;d492;d4ac;d4e1;d46e;d54a;d536,structural
+0d91f8,egs52_compute_from_near_d4d2_0d91f8,Instruction source near addresses d4d2;d4da;d4ac;d4e1;d46e;d54a;d536;d546,structural
+0d9264,egs52_compute_from_near_d4dc_0d9264,Instruction source near addresses d4dc;d4bc;d492;f638;fd48;d4d0;d4d2;d4aa,structural
+0d92e2,egs52_update_near_d540_0d92e2,Instruction destination near addresses d540;d53e;d4ee;d3ec;d3f0;d3f2,structural
+0d9430,egs52_update_near_d5b0_0d9430,Instruction destination near addresses d5b0;d5b1;d432;d4f2;d4c0;d49a;d498;d522;fd4c;d580;d57e;d3ee;d556;d56c;d566;d56a,structural
+0d9802,egs52_update_near_d550_0d9802,Instruction destination near addresses fd48;d550;d5f6;d5f8;d5fa;d5fc;d5fe;d5b0;d400;d556;d56c;fd4a;fd4c;d56a;d566,structural
+0d9ac6,egs52_update_near_d550_0d9ac6,Instruction destination near addresses fd48;d550;d5b1;d5b0;d556;d56c;d402;d56a;d566,structural
+0d9be4,egs52_update_near_d5a6_0d9be4,Instruction destination near addresses d5a6;d5f6;d5f8;d5fa;d5fc;d5fe;d5b0;d556;d56c;fd48;d566;d567;d56a,structural
+0d9dcc,egs52_update_near_d5b0_0d9dcc,Instruction destination near addresses fd48;d5b0;d556;d56c;fd4a;fd4e;d590;d577;d442,structural
+0d9e3a,egs52_update_near_d442_0d9e3a,Instruction destination near addresses d442;d5b0;d590,structural
+0d9f0c,egs52_update_near_d453_0d9f0c,Instruction destination near addresses d453;d556;d56c;d56a;fd4a;d5a6;d590;d5b0;d5b1;fd48;d5f6;d5f8;d5fa;d5fc;d5fe;d566;d567;d437;d498;d49a;d580;d57e;d4b2,structural
+0da226,egs52_update_near_d56a_0da226,Instruction destination near addresses d56a;fd48;d5b0;d5b1;d556;d56c;d566,structural
+0da300,egs52_update_near_d56a_0da300,Instruction destination near addresses d56a;fd48;d5b0;d5b1;d556;d56c;d566,structural
+0da370,egs52_update_near_d5f6_0da370,Instruction destination near addresses d5f6;d5fa;d5fc;d5fe;d5f8,structural
+0da518,egs52_compute_from_near_d688_0da518,Instruction source near addresses d688;f652;d65e;d689;d649;d690,structural
+0da5f2,egs52_call_0df36e_0da5f2,Direct call targets 0df36e,structural
+0da630,egs52_update_near_d688_0da630,Instruction destination near addresses d688;d689,structural
+0da902,egs52_update_near_d6b0_0da902,Instruction destination near addresses d6b0;d6b2;d6ae,structural
+0da9b8,egs52_update_near_d67a_0da9b8,Instruction destination near addresses d67a;d6ee;d684;d6ec;d65c;d6a4;d692;d694;d6a0,structural
+0daa28,egs52_update_near_d433_0daa28,Instruction destination near addresses d433;fd2c;d706;d6a4,structural
+0daaea,egs52_update_near_d65c_0daaea,Instruction destination near addresses d65c;d682;fd2a;d668;d66a;d704;d684;d6ec;d680;d66c;d66e;d69a;d670;d672,structural
+0dae20,egs52_update_near_d65c_0dae20,Instruction destination near addresses d65c;d682;fd2a;d668;d6ea;d6f1;d6b4;d68e;d704;d684;d6ec;d680;d66c;d66e;d69a;d670;d672;d6f8;d6fa;d678;d66a,structural
+0db2b4,egs52_update_near_d692_0db2b4,Instruction destination near addresses d692;d6ac;d706;d670;d672;fd2a;d684;d6ec;d68a;d68c;d6f8,structural
+0db40a,egs52_update_near_d67e_0db40a,Instruction destination near addresses d67e;d674;d676;fd2c,structural
+0db50a,egs52_update_near_d6ba_0db50a,Instruction destination near addresses d6ba;d6a2;d6bc;d6e4;d6a0,structural
+0db768,egs52_update_near_d67c_0db768,Instruction destination near addresses d67c;d674;d676;d67a;fd2c;d670;d672;d67d;d698;d704;d668;fd2a,structural
+0dbbbc,egs52_update_near_d68a_0dbbbc,Instruction destination near addresses d68a;d68c;d69a;d69c;d692;d670;d672;d666,structural
+0dbe10,egs52_update_near_d6b4_0dbe10,Instruction destination near addresses d6b4;d68e;d678;d6f8;d686,structural
+0dbf7e,egs52_update_near_d666_0dbf7e,Instruction destination near addresses d666;d6f8;d706;d697;d668;d704;d670;d672;d684;d6ec;d692;fd2c,structural
+0dc336,egs52_update_near_d690_0dc336,Instruction destination near addresses d690;d6b6;d670;d680;d66c;d66e;d696;d660;d684;d6ec,structural
+0dccd0,egs52_update_near_d690_0dccd0,Instruction destination near addresses d690;d6b6;d670;d680;d66c;d66e;d696;d6de;d660;d684;d6ec,structural
+0dd674,egs52_update_near_d708_0dd674,Instruction destination near addresses fd2c;d708;d6e6;d6e8,structural
+0dd7fa,egs52_update_near_d6b6_0dd7fa,Instruction destination near addresses d6b6;d6b8;d6e2;d6e0;d69e;d6f6;d664;d662;d694;d6dc;d68e;d660;d6a6;d6aa;d6f0;d6ee;d600;d602;d604;d606;d608;d702;d6fe;d700;d6dd;d6fc;d6be;d692;d65e;d6f4;d6f2;d6a8;d704;d706;d666,structural
+0de02a,egs52_compute_from_near_d454_0de02a,Instruction source near addresses d454;d613;fd2e;d4c2;fd4a,structural
+0de05c,egs52_update_near_d437_0de05c,Instruction destination near addresses fd4a;d437;d577;d567;d5b1;d566;d5b0,structural
+0de0d0,egs52_update_near_d437_0de0d0,Instruction destination near addresses fd4a;d437;d577;d567;d5b1;d566;d5b0,structural
+0de11a,egs52_update_near_d5a6_0de11a,Instruction destination near addresses fd4a;d5a6,structural
+0de1ee,egs52_update_near_fd4c_0de1ee,Instruction destination near addresses fd4c,structural
+0de208,egs52_update_near_d57c_0de208,Instruction destination near addresses fd44;d57c;d577;fd3a;d454;d579,structural
+0de4f0,egs52_update_near_d47b_0de4f0,Instruction destination near addresses fd44;d47b;d43e;d5be;d45c;d50a;d408;d440;fd48;fd3a;d577;d454;d579;d594;fd3c;d453;d451;fd4a;d437;d436;d5b2;d424;d5ac;d5ae,structural
+0dedbc,egs52_update_near_d5a6_0dedbc,Instruction destination near addresses d5a6;d5ac;d5be;d5bc;d5c8;d5b8;d5c4;d592;d596;d59e,structural
+0def12,egs52_update_near_d4ac_0def12,Instruction destination near addresses d4ac;d522;fd4c;fd34;d57e,structural
+0e0054,egs52_update_near_d780_0e0054,Instruction destination near addresses d780;d750;d754;d752;d7ae;d71a;d7ac;d7c9;d7c8,structural
+0e03a8,egs52_update_near_d77c_0e03a8,Instruction destination near addresses d77c,structural
+0e04da,egs52_update_near_d73c_0e04da,Instruction destination near addresses d73c;d73e;d77a;d71c;d738;d73a;fd2e,structural
+0e0742,egs52_update_near_d777_0e0742,Instruction destination near addresses d777;fd32;d792;d782;d613;fd30;d7d7;d740;d748;d74a;d7c4;d7c6;d775,structural
+0e0d52,egs52_update_near_d71b_0e0d52,Instruction destination near addresses d71b;d72c;d742;d7d0;d72a;d728,structural
+0e0e7c,egs52_update_near_d762_0e0e7c,Instruction destination near addresses d762;d764;d766;d79e;d768;d76a;d771;d76c;d760;d75e;d60c,structural
+0e120a,egs52_update_near_d74e_0e120a,Instruction destination near addresses d74e;d74c;d79c,structural
+0e12f8,egs52_update_near_d79a_0e12f8,Instruction destination near addresses d79a;d71e;d70e;d70a,structural
+0e13ea,egs52_update_near_d7ba_0e13ea,Instruction destination near addresses d7ba;d72e,structural
+0e14a0,egs52_update_near_d75b_0e14a0,Instruction destination near addresses d75b;d756;d75a;d78e;fd2e;fd30;d7b4;d758;d770;d724,structural
+0e1852,egs52_update_near_d722_0e1852,Instruction destination near addresses d722;d79f;d7a2;d7a4;d7b8;d7b6,structural
+0e1a52,egs52_update_near_d732_0e1a52,Instruction destination near addresses d732;d730;d7ca;d77e;fd2e,structural
+0e1c9a,egs52_update_near_d744_0e1c9a,Instruction destination near addresses d744;d794;d734;fd32,structural
+0e1dfe,egs52_update_near_d720_0e1dfe,Instruction destination near addresses d720;fd2e;d718;d714;d7b0;d716;d7b2;d75a;d756;d78e;fd30,structural
+0e1ffc,egs52_update_near_d7b6_0e1ffc,Instruction destination near addresses d7b6;d7be;d7c0;d7bc;d7b0;d7b2;d7c6;d7c4;d7ba;d75c;d7cc;d796;d70c;d798;fd2e;d76f;fd32;d775;d774;d772;d7d2;d7d4;d786;d78c;d736;d726;d734;d79c;d79a;d7a0;d75d;d78a;d784;d776;d788;d746;fd30;d7b9;d76e;d773;d778;fd26,structural
+0e2f7c,egs52_update_near_d59e_0e2f7c,Instruction destination near addresses d59e;fd38;d439;fd5a,structural
+0e2fdc,egs52_update_near_d5a5_0e2fdc,Instruction destination near addresses fd28;d5a5;d530;d531;d433;d57a,structural
+0e32e6,egs52_call_092248_0e32e6,Direct call targets 092248,structural
+0e3436,egs52_compute_from_near_d508_0e3436,Instruction source near addresses d508;d50e;d512;d516;d51a;fd60,structural
+0e3494,egs52_compute_from_near_fd26_0e3494,Instruction source near addresses fd26;f61e;f672;d508;fd60;d524;fd62,structural
+0e34dc,egs52_update_near_d596_0e34dc,Instruction destination near addresses d596,structural
+0e352c,egs52_compute_from_near_f672_0e352c,Instruction source near addresses f672;d569;fd60;fd62;fd3a,structural
+0e357c,egs52_update_near_fd38_0e357c,Instruction destination near addresses fd38,structural
+0e35c4,egs52_update_near_d47a_0e35c4,Instruction destination near addresses fd54;fd3a;fd60;d47a,structural
+0e3620,egs52_update_near_d450_0e3620,Instruction destination near addresses d450;d44d,structural
+0e3672,egs52_update_near_d212_0e3672,Instruction destination near addresses fd04;fd05;fd08;fd09;fd07;fd06;fd0a;fd0b;fd0c;fd0d;fd0f;fd0e;fd16;fd18;d212;d213;fd1a;fd1c;fd1e;fd24;fd62;d7da;fd54;d433;fd5c;fd58;d598;fd60;d472;d450;d44d;d7ab;fd5a;d464;d5a3;d3ea;d4de;fd56,structural
+0e3ecc,egs52_update_near_d7da_0e3ecc,Instruction destination near addresses d7da;d56f;d433;fd60;d570;d56e;d574;d572;d7a8;d7a6,structural
+0e403c,egs52_update_near_fd54_0e403c,Instruction destination near addresses fd54,structural
+0e40a0,egs52_update_near_d614_0e40a0,Instruction destination near addresses fd56;d614;d57b;d7da;d615;d433;fd62;fd5c;d5af;d5c6;d613;d611;d5c2;d610;d3ba;d616,structural
+0e46f4,egs52_update_near_d60e_0e46f4,Instruction destination near addresses d60e;d7aa;fd5a;d5c8;fd58;d38c;fd56,structural
+0e4958,egs52_update_near_d5ca_0e4958,Instruction destination near addresses d5ca;d5cc;fd60;fd54;d5bc;d392;fd5a;d390;d38e,structural
+0e4b56,egs52_update_near_d7da_0e4b56,Instruction destination near addresses d7da;d5cd;d433;fd60;d3d5,structural
+0e4c42,egs52_update_near_d506_0e4c42,Instruction destination near addresses d506;d7da;d508;d433;fd60;d50c;fd56;d5aa,structural
+0e4db0,egs52_update_near_d462_0e4db0,Instruction destination near addresses d462;d4e2,structural
+0e4e30,egs52_update_near_d433_0e4e30,Instruction destination near addresses d433;d514;d510;d51c;d518;fd60;fd62;fd64;d50e;d512;d516;d51a;d45a;d4fa;fd50;fd52;d4f8;d52a;d52c;d502;d504;d500;d60a;d7ce;d470;fd58;fd56,structural
+0e586e,egs52_update_near_d524_0e586e,Instruction destination near addresses d524,structural
+0e58be,egs52_update_near_d4e8_0e58be,Instruction destination near addresses fd62;d4e8;d4f0;d4e6;d4ec;d433;d524,structural
+0e5ae0,egs52_update_near_d4e4_0e5ae0,Instruction destination near addresses d4e4;d41c;d414,structural
+0e5df0,egs52_update_near_d526_0e5df0,Instruction destination near addresses d526;d460,structural
+0e5e30,egs52_update_near_d443_0e5e30,Instruction destination near addresses d443,structural
+0e5eb4,egs52_update_near_d482_0e5eb4,Instruction destination near addresses d482;d433;d48c;d4be;d4b4;d4d4;fd60;d4a8;d4a4;fd62;d496;d4c8;d4c2;d48a;d404;d53a;d4a6;d538;d4a2;d4a0;d49e;fd5a;d52e;d4df;d478;d4c4;d4ce;d4d0;d4d2;d3fa;d3fe;d484;d4b6;d44c;d4d6;d4ba;d4c6,structural
+0e69be,egs52_update_near_d486_0e69be,Instruction destination near addresses d486;fd12;fd5a,structural
+0e6a3e,egs52_register_arithmetic_0e6a3e,Register-level instruction sequence; higher-level role unresolved,structural
+0e6a6a,egs52_update_near_d5c0_0e6a6a,Instruction destination near addresses d5c0;fd12;fd20,structural
+0e6a92,egs52_update_near_d23f_0e6a92,Instruction destination near addresses d23f;fd14;fd22;fd10;d243;d244;d29b;d29c;d29d;d29f;d2a0;fd20;d273;d274;d279;d27a;d257;d258;d259;d25d;d25e;fd12;d452;fd15;d444;d277;d278;d23d;d23e;d240;d241;d242;d29e;d2a1;d2a2,structural
+0e7216,egs52_update_near_d60f_0e7216,Instruction destination near addresses fd42;d60f;d44f;fd36;d43a,structural
+0e735e,egs52_compute_from_near_d50e_0e735e,Instruction source near addresses d50e;d512;d516;d51a,structural
+0e7388,egs52_update_near_d569_0e7388,Instruction destination near addresses d569;d5b6,structural
+0e7468,egs52_update_near_d45e_0e7468,Instruction destination near addresses d45e;d406;d458;d449;d4ea;d4fc;d59a;d5fa;d5fc;d5fe;d5f6;d5f8;d456;d44b;d5ba;d59c;fd68;fd66;d568;d564;d433;d44e;d5a9;d448;fd3a,structural

@@ -605,6 +605,14 @@ void Kwp2000_server::process_read_data_local_ident(uint8_t* args, uint16_t arg_l
             DATA_DRIVING_DYNAMICS r = gearbox->get_driving_dynamics();
             make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_DRIVING_DYNAMIC, reinterpret_cast<const uint8_t*>(&r), sizeof(r));
         }
+    } else if (args[0] == RLI_DOWNSHIFT_OBSERVER) {
+        if (nullptr == gearbox) {
+            make_diag_neg_msg(SID_READ_DATA_LOCAL_IDENT, NRC_CONDITIONS_NOT_CORRECT_REQ_SEQ_ERROR);
+        } else {
+            const auto r = gearbox->get_downshift_observation();
+            make_diag_pos_msg(SID_READ_DATA_LOCAL_IDENT, RLI_DOWNSHIFT_OBSERVER,
+                reinterpret_cast<const uint8_t*>(&r), sizeof(r));
+        }
     } else if (args[0] == RLI_SHIFT_TRACE) {
         // Header only. The samples are pulled with ReadMemoryByAddress from
         // `buffer_addr`, at most 255 bytes per response and paced by the host, so

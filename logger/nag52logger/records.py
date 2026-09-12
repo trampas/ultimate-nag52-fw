@@ -325,10 +325,44 @@ _add(Record("tcm_config", RLI_TCM_CONFIG, "Vehicle / TCU configuration (TCM_CORE
     Field("jeep_chrysler", "?", ""),
 ], group="once"))
 
+# Must match models/downshift_observer.h. These are observations, not parallel
+# evaluations of every veto: only the first reached blocker is recorded.
+DOWNSHIFT_STATES = (
+    "unavailable", "shifting", "target_pending", "ratio_mismatch", "no_request",
+    "upshift_priority", "hunting_inhibit", "cannot_finish", "no_reserve",
+    "rpm_veto", "accepted", "no_profile",
+)
+
+
+def _post_downshift_observer(d: Dict[str, Any]) -> None:
+    raw = d.pop("history")
+    if d["version"] != 1 or d["capacity"] != 16 or d["count"] > 16:
+        d["_error"] = "unsupported downshift observer layout"
+        return
+    events = []
+    for i in range(d["count"]):
+        t_ms, state, actual, target, flags = struct.unpack_from("<IBBBB", raw, i * 8)
+        if state >= len(DOWNSHIFT_STATES):
+            d["_error"] = "unknown downshift observer state"
+            return
+        events.append({"seq": (d["seq"] - d["count"] + i) & 0xffffffff,
+                       "t_ms": t_ms, "state": DOWNSHIFT_STATES[state],
+                       "actual": actual, "target": target,
+                       "manual": bool(flags & 1), "kickdown": bool(flags & 2)})
+    d["transitions"] = events
+
+
+_add(Record("downshift_observer", 0x34, "Downshift decision time and transition history", [
+    Field("version", "B"), Field("count", "B"), Field("capacity", "B"), Field("reserved", "B"),
+    Field("t_ms", "I", "ms"), Field("seq", "I"),
+] + [Field(state + "_ms", "I", "ms") for state in DOWNSHIFT_STATES] + [
+    Field("history", "128s"),
+], group="slow", post=_post_downshift_observer))
+
 # Default polling sets
 DEFAULT_FAST = ["tcu_time", "sensors", "can", "pressures", "solenoids",
                 "shift_live", "shift_algo", "clutch_speeds", "tcc"]
-DEFAULT_SLOW = ["sys_usage"]
+DEFAULT_SLOW = ["sys_usage", "downshift_observer"]
 DEFAULT_ONCE = ["fw_header", "tcm_config"]
 
 

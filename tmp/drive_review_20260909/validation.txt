@@ -1,0 +1,5 @@
+PASS: 88 reconstructed attempts = 82 forward + 6 garage.
+PASS: all 81 textual forward requests match exactly one reconstructed shift; one additional 3->2 has trace evidence but no request line (159.338 s).
+PASS: five individual shifts exceed 2500 ms: two 2->3, three 3->2.
+PASS: phase dwell sums equal duration for all 88 rows, with no overlapping shifts.
+PASS: all report links resolve to existing local artifacts/source.

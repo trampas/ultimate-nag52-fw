@@ -1,0 +1,414 @@
+--- c166.sinc.upstream
++++ c166.sinc
+@@ -1,3 +1,4 @@
++# EGS52 corrections (see tools/patch_c166_module.py)
+ define endian=$(ENDIAN);
+ 
+ define alignment=2;
+@@ -16,7 +17,7 @@
+ 	[ RL0 RH0 RL1 RH1 RL2 RH2 RL3 RH3 RL4 RH4 RL5 RH5 RL6 RH6 RL7 RH7 ];
+ 
+ define register offset=0xFE00 size=2 [ DPP0 DPP1 DPP2 DPP3 CSP _ MDH MDL ];
+-define register offset=0xFE10 size=2 [ CP ];
++define register offset=0xFE10 size=2 [ CP SP ];
+ define register offset=0xFF0E size=2 [ MDC ];
+ define register offset=0xFF10 size=2 [ PSW ];
+ define register offset=0x58 size=2 [ ExtpValue ];
+@@ -84,14 +85,14 @@
+ }
+ 
+ macro setPreFlagsAshr(a, b) {
+-	$(PSW_C) = (b != 0) && ((a & (1 << (b-1))) > 1);
+-	$(PSW_V) = (b != 0) && ((a s>> b) << b) != a;
++	$(PSW_C) = (b != 0) && ((a & (1 << (b-1))) != 0);
++	$(PSW_V) = (b > 1) && ((a & ((1 << (b-1)) - 1)) != 0);
+ 	$(PSW_E) = 0;
+ }
+ 
+ macro setPreFlagsShr(a, b) {
+-	$(PSW_C) = (b != 0) && ((a & (1 << (b-1))) > 1);
+-	$(PSW_V) = (b != 0) && ((a >> b) << b) != a;
++	$(PSW_C) = (b != 0) && ((a & (1 << (b-1))) != 0);
++	$(PSW_V) = (b > 1) && ((a & ((1 << (b-1)) - 1)) != 0);
+ 	$(PSW_E) = 0;
+ }
+ 
+@@ -120,15 +121,15 @@
+ }
+ 
+ macro Push(a) {
+-	r0 = r0 - 2;
+-	local sp_push:3 = segment(0:2, r0);
++	SP = SP - 2;
++	local sp_push:3 = zext(SP);
+ 	*:2 sp_push = a;
+ }
+ 
+ macro Pop(a) {
+-	local sp_pop:3 = segment(0:2, r0);
++	local sp_pop:3 = zext(SP);
+ 	a = *:2 sp_pop;
+-	r0 = r0 + 2;
++	SP = SP + 2;
+ }
+ 
+ macro ReturnIntra() {
+@@ -178,6 +179,8 @@
+ 	bit_z  = (8,11)	    dec
+ 	bit_q  = (12,15)	dec
+ 	mask8 = (8,15)
++	mask_low = (0,7)
++	data_high = (8,15)
+ 	rel_32 = (0,7)	signed
+ ;
+ 
+@@ -189,23 +192,47 @@
+ attach variables [ rbn rbm reg_low_b ] [ RL0 RH0 RL1 RH1 RL2 RH2 RL3 RH3 RL4 RH4 RL5 RH5 RL6 RH6 RL7 RH7 ];
+ attach variables [ rwi ] [ r0 r1 r2 r3 ];
+ 
++# EGS52 dynamic memory-address semantics. Included by patch_c166_module.py.
++# DPP selection follows the SUM's top two bits; EXTP/EXTS use runtime values.
++AddressMode: is ExtsEn=0 & ExtpEn=0 { export 0:1; }
++AddressMode: is ExtsEn=1 { export 1:1; }
++AddressMode: is ExtsEn=0 & ExtpEn=1 { export 2:1; }
++
++macro egs52Address(result, offset, mode) {
++    local off:2 = offset;
++    local selectedPage:2 = DPP0;
++    if (mode == 1) goto <segment_override>;
++    if (mode == 2) goto <page_override>;
++    if ((off & 0xc000) == 0) goto <combine_page>;
++    selectedPage = DPP1;
++    if ((off & 0xc000) == 0x4000) goto <combine_page>;
++    selectedPage = DPP2;
++    if ((off & 0xc000) == 0x8000) goto <combine_page>;
++    selectedPage = DPP3;
++    goto <combine_page>;
++  <page_override>
++    selectedPage = ExtpValue;
++  <combine_page>
++    result = (zext(selectedPage & 0x3ff) << 14) | zext(off & 0x3fff);
++    goto <done>;
++  <segment_override>
++    result = (zext(ExtsValue) << 16) | zext(off);
++  <done>
++}
++
+ DataImmW: "#"^data16  is data16 { export *[const]:2 data16; }
+ DataImmB: "#"^data16  is data16 { export *[const]:1 data16; }
+ 
+ # r0 (stack pointer) - direct access (rwi & rwi=0: define first, then constrain)
+-IndexImmW: [rwi] is rwi & rwi=0 & idx_imm=1 & idx_mode=0 { export *:2 rwi; }
+-IndexImmW: [rwi^"+"] is rwi & rwi=0 & idx_imm=1 & idx_mode=1 { export *:2 rwi; rwi = rwi + 2; }
+ # Other registers - use segment
+-IndexImmW: [rwi] is idx_imm=1 & idx_mode=0 & rwi { local addr:3 = segment(0:2, rwi); export *:2 addr; }
+-IndexImmW: [rwi^"+"] is idx_imm=1 & idx_mode=1 & rwi { local addr:3 = segment(0:2, rwi); export *:2 addr; rwi = rwi + 2; }
++IndexImmW: [rwi] is idx_imm=1 & idx_mode=0 & rwi & AddressMode { local addr:3; egs52Address(addr, rwi, AddressMode); export *:2 addr; }
++IndexImmW: [rwi^"+"] is idx_imm=1 & idx_mode=1 & rwi & AddressMode { local addr:3; egs52Address(addr, rwi, AddressMode); export *:2 addr; rwi = rwi + 2; }
+ IndexImmW: "#"^data3 is idx_imm=0 & data3 { export *[const]:2 data3; }
+ 
+ # r0 (stack pointer) - direct access for bytes (rwi & rwi=0: define first, then constrain)
+-IndexImmB: [rwi] is rwi & rwi=0 & idx_imm=1 & idx_mode=0 { export *:1 rwi; }
+-IndexImmB: [rwi^"+"] is rwi & rwi=0 & idx_imm=1 & idx_mode=1 { export *:1 rwi; rwi = rwi + 1; }
+ # Other registers - use segment for bytes
+-IndexImmB: [rwi] is idx_imm=1 & idx_mode=0 & rwi { local addr:3 = segment(0:2, rwi); export *:1 addr; }
+-IndexImmB: [rwi^"+"] is idx_imm=1 & idx_mode=1 & rwi { local addr:3 = segment(0:2, rwi); export *:1 addr; rwi = rwi + 1; }
++IndexImmB: [rwi] is idx_imm=1 & idx_mode=0 & rwi & AddressMode { local addr:3; egs52Address(addr, rwi, AddressMode); export *:1 addr; }
++IndexImmB: [rwi^"+"] is idx_imm=1 & idx_mode=1 & rwi & AddressMode { local addr:3; egs52Address(addr, rwi, AddressMode); export *:1 addr; rwi = rwi + 1; }
+ IndexImmB: "#"^data3 is idx_imm=0 & data3 { export *[const]:1 data3; }
+ 
+ 
+@@ -243,18 +270,18 @@
+ BitoffAddrZ: z_2 is z=0xf & z_2 { export z_2; }
+ 
+ 
+-SetAtomic: "#"^range is irang2 [ range = irang2 + 1; Counter = range; globalset(inst_start, Counter); ] { local tmp:1 = range:1; export tmp; }
+-SetExtr: SetAtomic is SetAtomic [ ExtrEn = 1; globalset(inst_start, ExtrEn); ] { local NOP:1 = 0; }
+-SetExtpInd: rwm, SetAtomic is rwm & SetAtomic [ ExtpEn = 1; globalset(inst_start, ExtpEn); Extp=0; globalset(inst_start, Extp); ] { local NOP:1 = 0; }
+-SetExtp: page, SetAtomic is rwm=0 & SetAtomic; page [ ExtpEn = 1; globalset(inst_start, ExtpEn); Extp=page; globalset(inst_start, Extp); ] { local NOP:1 = 0; }
+-SetExtsInd: rwm, SetAtomic is rwm & SetAtomic [ ExtsEn = 1; globalset(inst_start, ExtsEn); Exts=0; globalset(inst_start, Exts); ] { local NOP:1 = 0; }
+-SetExts: seg, SetAtomic is rwm = 0 & SetAtomic; seg [ ExtsEn = 1; globalset(inst_start, ExtsEn); Exts=seg; globalset(inst_start, Exts); ] { local NOP:1 = 0; }
+-ExtCountDec: is Counter=0 [ ExtrEn=0; globalset(inst_start, ExtrEn); ExtpEn=0; globalset(inst_start, ExtpEn); ExtsEn=0; globalset(inst_start, ExtsEn); Extp=0; globalset(inst_start, Extp); Exts=0; globalset(inst_start, Exts); ] { local NOP:1 = 0; }
+-ExtCountDec: is Counter=1 [ Counter=0; globalset(inst_next, Counter); ExtrEn=0; globalset(inst_next, ExtrEn); ExtpEn=0; globalset(inst_next, ExtpEn); ExtsEn=0; globalset(inst_next, ExtsEn); Extp=0; globalset(inst_next, Extp); Exts=0; globalset(inst_next, Exts); ] { local NOP:1 = 0; }
+-ExtCountDec: is Counter!=0 & Counter!=1 [ Counter = Counter - 1; globalset(inst_start, Counter);] { local NOP:1 = 0; }
+-
+-LongMemAddrW: mem is mem { local tmp:3 = GetPagedOffset(mem:2); export *:2tmp; }
+-LongMemAddrB: mem is mem { local tmp:3 = GetPagedOffset(mem:2); export *:1tmp; }
++SetAtomic: "#"^range is irang2 [ range = irang2 + 1; Counter = range; globalset(inst_next, Counter); ] { local tmp:1 = range:1; export tmp; }
++SetExtr: SetAtomic is SetAtomic [ ExtrEn = 1; globalset(inst_next, ExtrEn); ] { local NOP:1 = 0; }
++SetExtpInd: rwm, SetAtomic is rwm & SetAtomic [ ExtpEn = 1; globalset(inst_next, ExtpEn); Extp=0; globalset(inst_next, Extp); ] { export rwm; }
++SetExtp: page, SetAtomic is rwm=0 & SetAtomic; page [ ExtpEn = 1; globalset(inst_next, ExtpEn); Extp=page; globalset(inst_next, Extp); ] { local value:2 = page; export value; }
++SetExtsInd: rwm, SetAtomic is rwm & SetAtomic [ ExtsEn = 1; globalset(inst_next, ExtsEn); Exts=0; globalset(inst_next, Exts); ] { export rwm; }
++SetExts: seg, SetAtomic is rwm = 0 & SetAtomic; seg [ ExtsEn = 1; globalset(inst_next, ExtsEn); Exts=seg; globalset(inst_next, Exts); ] { local value:2 = seg; export value; }
++ExtCountDec: is Counter=0 [ ExtrEn=0; globalset(inst_next, ExtrEn); ExtpEn=0; globalset(inst_next, ExtpEn); ExtsEn=0; globalset(inst_next, ExtsEn); Extp=0; globalset(inst_next, Extp); Exts=0; globalset(inst_next, Exts); ] { local NOP:1 = 0; }
++ExtCountDec: is Counter=1 [ Counter=0; globalset(inst_next, Counter); ] { local NOP:1 = 0; }
++ExtCountDec: is Counter!=0 & Counter!=1 [ Counter = Counter - 1; globalset(inst_next, Counter);] { local NOP:1 = 0; }
++
++LongMemAddrW: mem is mem & AddressMode { local tmp:3; egs52Address(tmp, mem:2, AddressMode); export *:2tmp; }
++LongMemAddrB: mem is mem & AddressMode { local tmp:3; egs52Address(tmp, mem:2, AddressMode); export *:1tmp; }
+ 
+ # special cases: ZEROS, ONES - export constants directly
+ LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xff1c & mem [ memoff = 0 + mem; ] { export 0:2; }
+@@ -271,34 +298,22 @@
+ # Register-indirect accesses go through c166_reg_offset_addr so EXTP/EXTS overrides
+ # and DPP-paged translation are honoured (segment(0, reg) ignored both).
+ # Direct r0 forms preserve stack analysis when no override is active.
+-RwnIndW: [rwn] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { export *:2 rwn; }
+-RwnIndWP: [rwn+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { local addr:2 = rwn; rwn=rwn+2; export *:2 addr; }
+-RwmIndW: [rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { export *:2 rwm; }
+-RwmIndWP: [rwm+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { local addr:2 = rwm; rwm=rwm+2; export *:2 addr; }
+-RwmIndWM: [-rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { rwm=rwm-2; export *:2 rwm; }
+-RwmIndWOff: [rwm+DataImmW] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0; DataImmW { local off:2 = DataImmW + rwm; export *[ram]:2 off; }
+-
+-RwnIndW: [rwn] is rwn { local addr:3 = c166_reg_offset_addr(rwn, 0:2); export *:2 addr; }
+-RwnIndWP: [rwn+] is rwn { local addr:3 = c166_reg_offset_addr(rwn, 0:2); export *:2 addr; rwn=rwn+2; }
+-RwmIndW: [rwm] is rwm { local addr:3 = c166_reg_offset_addr(rwm, 0:2); export *:2 addr; }
+-RwmIndWP: [rwm+] is rwm { local addr:3 = c166_reg_offset_addr(rwm, 0:2); export *:2 addr; rwm=rwm+2; }
+-RwmIndWM: [-rwm] is rwm { rwm=rwm-2; local addr:3 = c166_reg_offset_addr(rwm, 0:2); export *:2 addr; }
+-RwmIndWOff: [rwm+DataImmW] is rwm; DataImmW { local addr:3 = c166_reg_offset_addr(rwm, DataImmW); export *[ram]:2 addr; }
++
++RwnIndW: [rwn] is rwn & AddressMode { local addr:3; local sum:2 = rwn + 0:2; egs52Address(addr, sum, AddressMode); export *:2 addr; }
++RwnIndWP: [rwn+] is rwn & AddressMode { local addr:3; local sum:2 = rwn + 0:2; egs52Address(addr, sum, AddressMode); export *:2 addr; rwn=rwn+2; }
++RwmIndW: [rwm] is rwm & AddressMode { local addr:3; local sum:2 = rwm + 0:2; egs52Address(addr, sum, AddressMode); export *:2 addr; }
++RwmIndWP: [rwm+] is rwm & AddressMode { local addr:3; local sum:2 = rwm + 0:2; egs52Address(addr, sum, AddressMode); export *:2 addr; rwm=rwm+2; }
++RwmIndWM: [-rwm] is rwm & AddressMode { rwm=rwm-2; local addr:3; local sum:2 = rwm + 0:2; egs52Address(addr, sum, AddressMode); export *:2 addr; }
++RwmIndWOff: [rwm+DataImmW] is rwm; DataImmW & AddressMode { local addr:3; local sum:2 = rwm + DataImmW; egs52Address(addr, sum, AddressMode); export *[ram]:2 addr; }
+ 
+ # Byte variants use same address injector.
+-RwnIndB: [rwn] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { export *:1 rwn; }
+-RwnIndBP: [rwn+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { local addr:2 = rwn; rwn=rwn+1; export *:1 addr; }
+-RwmIndB: [rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { export *:1 rwm; }
+-RwmIndBP: [rwm+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { local addr:2 = rwm; rwm=rwm+1; export *:1 addr; }
+-RwmIndBM: [-rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { rwm=rwm-1; export *:1 rwm; }
+-RwmIndBOff: [rwm+DataImmW] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0; DataImmW { local off:2 = DataImmW + rwm; export *[ram]:1 off; }
+-
+-RwnIndB: [rwn] is rwn { local addr:3 = c166_reg_offset_addr(rwn, 0:2); export *:1 addr; }
+-RwnIndBP: [rwn+] is rwn { local addr:3 = c166_reg_offset_addr(rwn, 0:2); export *:1 addr; rwn=rwn+1; }
+-RwmIndB: [rwm] is rwm { local addr:3 = c166_reg_offset_addr(rwm, 0:2); export *:1 addr; }
+-RwmIndBP: [rwm+] is rwm { local addr:3 = c166_reg_offset_addr(rwm, 0:2); export *:1 addr; rwm=rwm+1; }
+-RwmIndBM: [-rwm] is rwm { rwm=rwm-1; local addr:3 = c166_reg_offset_addr(rwm, 0:2); export *:1 addr; }
+-RwmIndBOff: [rwm+DataImmW] is rwm; DataImmW { local addr:3 = c166_reg_offset_addr(rwm, DataImmW); export *[ram]:1 addr; }
++
++RwnIndB: [rwn] is rwn & AddressMode { local addr:3; local sum:2 = rwn + 0:2; egs52Address(addr, sum, AddressMode); export *:1 addr; }
++RwnIndBP: [rwn+] is rwn & AddressMode { local addr:3; local sum:2 = rwn + 0:2; egs52Address(addr, sum, AddressMode); export *:1 addr; rwn=rwn+1; }
++RwmIndB: [rwm] is rwm & AddressMode { local addr:3; local sum:2 = rwm + 0:2; egs52Address(addr, sum, AddressMode); export *:1 addr; }
++RwmIndBP: [rwm+] is rwm & AddressMode { local addr:3; local sum:2 = rwm + 0:2; egs52Address(addr, sum, AddressMode); export *:1 addr; rwm=rwm+1; }
++RwmIndBM: [-rwm] is rwm & AddressMode { rwm=rwm-1; local addr:3; local sum:2 = rwm + 0:2; egs52Address(addr, sum, AddressMode); export *:1 addr; }
++RwmIndBOff: [rwm+DataImmW] is rwm; DataImmW & AddressMode { local addr:3; local sum:2 = rwm + DataImmW; egs52Address(addr, sum, AddressMode); export *[ram]:1 addr; }
+ 
+ RWnRWmEqual: is rwn=rwm { local NOP:1 = 0; }
+ 
+@@ -820,7 +835,7 @@
+ 
+ macro Ashr(a, b) {
+ 	local tmpA = a;
+-	local tmpB = b;
++	local tmpB = b & 0xf;
+ 	setPreFlagsAshr(tmpA, tmpB);
+ 	local result = tmpA s>> tmpB;
+ 	a = result;
+@@ -841,7 +856,7 @@
+ 
+ macro Rol(a, b){
+ 	local tmpA = a;
+-	local tmpB = b;
++	local tmpB = b & 0xf;
+ 	$(PSW_C) = tmpB != 0 && (tmpA >> (16 - tmpB)) & 1;
+ 	$(PSW_V) = 0;
+ 	$(PSW_E) = 0;
+@@ -864,8 +879,9 @@
+ 
+ macro Ror(a, b) {
+ 	local tmpA = a;
+-	local tmpB = b;
++	local tmpB = b & 0xf;
+ 	setPreFlagsShr(tmpA, tmpB);
++	$(PSW_V) = 0;
+     local result = (tmpA >> tmpB) | (tmpA << (16 - tmpB));
+     a = result;
+ 	setPostFlags(result);
+@@ -885,7 +901,7 @@
+ 
+ macro Shl(a, b) {
+ 	local tmpA = a;
+-	local tmpB = b;
++	local tmpB = b & 0xf;
+ 	$(PSW_C) = tmpB != 0 && (tmpA >> (16 - tmpB)) & 1;
+ 	$(PSW_V) = 0;
+ 	$(PSW_E) = 0;
+@@ -908,7 +924,7 @@
+ 
+ macro Shr(a, b) {
+ 	local tmpA = a;
+-	local tmpB = b;
++	local tmpB = b & 0xf;
+ 	setPreFlagsShr(tmpA, tmpB);
+ 	local result = tmpA >> tmpB;
+ 	a = result;
+@@ -1194,10 +1210,7 @@
+ 
+ # MOV Rwn, [Rwm] where Rwn==Rwm - Switch table load pattern (same register for dest and ptr)
+ # Uses c166_switch_load pcodeop - injector checks if followed by jmpi and emits segment() if so
+-:mov rwn, [rwm] is ExtCountDec & op=0xA8 & rwn & rwm & RWnRWmEqual {
+-	local val:2 = c166_switch_load(rwn);
+-	rwn = val;
+-}
++
+ 
+ # MOV Rwn, [Rwm]
+ :mov rwn, RwmIndW is op=0xA8 & rwn & RwmIndW & ExtCountDec {
+@@ -1416,7 +1429,7 @@
+ define pcodeop __atomic;
+ 
+ # ATOMIC #irang2
+-:atomic SetAtomic is ExtCountDec & op=0xD1 & irang_mode=0 & SetAtomic {
++:atomic SetAtomic is op=0xD1 & irang_mode=0 & SetAtomic {
+ 	__atomic(SetAtomic:1);
+ }
+ 
+@@ -1438,12 +1451,12 @@
+ # ------
+ 
+ # BFLDL bitoffQ, #mask8, #data8
+-:bfldl BitoffAddr, "#"^mask8, DataImmB is ExtCountDec & op=0x0A & BitoffAddr; DataImmB & mask8 {
++:bfldl BitoffAddr, "#"^mask_low, "#"^data_high is ExtCountDec & op=0x0A & BitoffAddr; mask_low & data_high {
+ 	$(PSW_E) = 0;
+ 	$(PSW_V) = 0;
+ 	$(PSW_C) = 0;
+ 	local tmp = BitoffAddr;
+-	tmp = (tmp & ~zext(mask8:1)) | zext(DataImmB);
++	tmp = (tmp & ~zext(mask_low:1)) | zext(data_high:1);
+ 	BitoffAddr = tmp;
+ 	setPostFlags(tmp);
+ }
+@@ -1775,39 +1788,39 @@
+ # ------
+ 
+ # EXTR #irang2
+-:extr SetExtr is ExtCountDec & op=0xD1 & irang_mode=2 & SetExtr { local NOP:1 = 0; }
++:extr SetExtr is op=0xD1 & irang_mode=2 & SetExtr { local NOP:1 = 0; }
+ 
+ # ------
+ 
+ # EXTP Rwm, #irang2
+-:extp SetExtpInd is ExtCountDec & op=0xDC & irang_mode=1 & SetExtpInd { local NOP:1 = 0; }
++:extp SetExtpInd is op=0xDC & irang_mode=1 & SetExtpInd { ExtpValue = SetExtpInd; }
+ 
+ # EXTP #page, #irang2
+-:extp SetExtp is ExtCountDec & (op=0xD7 & irang_mode=1) ...& SetExtp { local NOP:1 = 0; }
++:extp SetExtp is (op=0xD7 & irang_mode=1) ...& SetExtp { ExtpValue = SetExtp; }
+ 
+ # ------
+ 
+ # EXTPR Rwm, #irang2
+-:extpr SetExtpInd is ExtCountDec & op=0xDC & irang_mode=3 & SetExtpInd & SetExtr { local NOP:1 = 0; }
++:extpr SetExtpInd is op=0xDC & irang_mode=3 & SetExtpInd & SetExtr { ExtpValue = SetExtpInd; }
+ 
+ # EXTPR #page, #irang2
+-:extpr SetExtp is ExtCountDec & (op=0xD7 & irang_mode=3 & SetExtr) ... & SetExtp { local NOP:1 = 0; }
++:extpr SetExtp is (op=0xD7 & irang_mode=3 & SetExtr) ... & SetExtp { ExtpValue = SetExtp; }
+ 
+ # ------
+ 
+ # EXTS Rwm, #irang2
+-:exts SetExtsInd is ExtCountDec & op=0xDC & irang_mode=0 & SetExtsInd { local NOP:1 = 0; }
++:exts SetExtsInd is op=0xDC & irang_mode=0 & SetExtsInd { ExtsValue = SetExtsInd:1; }
+ 
+ # EXTPR #page, #irang2
+-:exts SetExts is ExtCountDec & (op=0xD7 & irang_mode=0) ... & SetExts { local NOP:1 = 0; }
++:exts SetExts is (op=0xD7 & irang_mode=0) ... & SetExts { ExtsValue = SetExts:1; }
+ 
+ # ------
+ 
+ # EXTSR Rwm, #irang2
+-:extsr SetExtsInd is ExtCountDec & op=0xDC & irang_mode=2 & SetExtsInd & SetExtr { local NOP:1 = 0; }
++:extsr SetExtsInd is op=0xDC & irang_mode=2 & SetExtsInd & SetExtr { ExtsValue = SetExtsInd:1; }
+ 
+ # EXTSR #page, #irang2
+-:extsr SetExts is ExtCountDec & (op=0xD7 & irang_mode=2 & SetExtr) ... & SetExts { local NOP:1 = 0; }
++:extsr SetExts is (op=0xD7 & irang_mode=2 & SetExtr) ... & SetExts { ExtsValue = SetExts:1; }
+ 
+ 
+ # ------
+@@ -1847,3 +1860,81 @@
+ :trap trapAddr is ExtCountDec & op=0x9B & trapAddr {
+ 	call trapAddr;
+ }
++
++RwnIndW: [rwn] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { export *:2 rwn; }
++RwnIndWP: [rwn+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { local addr:2 = rwn; rwn=rwn+2; export *:2 addr; }
++RwmIndW: [rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { export *:2 rwm; }
++RwmIndWP: [rwm+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { local addr:2 = rwm; rwm=rwm+2; export *:2 addr; }
++RwmIndWM: [-rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { rwm=rwm-2; export *:2 rwm; }
++RwmIndWOff: [rwm+DataImmW] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0; DataImmW { local off:2 = DataImmW + rwm; export *[ram]:2 off; }
++RwnIndB: [rwn] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { export *:1 rwn; }
++RwnIndBP: [rwn+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwn & rwn=0 { local addr:2 = rwn; rwn=rwn+1; export *:1 addr; }
++RwmIndB: [rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { export *:1 rwm; }
++RwmIndBP: [rwm+] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { local addr:2 = rwm; rwm=rwm+1; export *:1 addr; }
++RwmIndBM: [-rwm] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0 { rwm=rwm-1; export *:1 rwm; }
++RwmIndBOff: [rwm+DataImmW] is Counter=0 & ExtpEn=0 & ExtsEn=0 & rwm & rwm=0; DataImmW { local off:2 = DataImmW + rwm; export *[ram]:1 off; }
++
++ShortMemAddrW: regoff is ExtrEn=0 & reg=0x0 & reg [ regoff=0xfe00; ] { export DPP0; }
++LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xfe00 & mem [ memoff=0xfe00; ] { export DPP0; }
++ShortMemAddrW: regoff is ExtrEn=0 & reg=0x1 & reg [ regoff=0xfe02; ] { export DPP1; }
++LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xfe02 & mem [ memoff=0xfe02; ] { export DPP1; }
++ShortMemAddrW: regoff is ExtrEn=0 & reg=0x2 & reg [ regoff=0xfe04; ] { export DPP2; }
++LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xfe04 & mem [ memoff=0xfe04; ] { export DPP2; }
++ShortMemAddrW: regoff is ExtrEn=0 & reg=0x3 & reg [ regoff=0xfe06; ] { export DPP3; }
++LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xfe06 & mem [ memoff=0xfe06; ] { export DPP3; }
++ShortMemAddrW: regoff is ExtrEn=0 & reg=0x4 & reg [ regoff=0xfe08; ] { export CSP; }
++LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xfe08 & mem [ memoff=0xfe08; ] { export CSP; }
++ShortMemAddrW: regoff is ExtrEn=0 & reg=0x9 & reg [ regoff=0xfe12; ] { export SP; }
++LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xfe12 & mem [ memoff=0xfe12; ] { export SP; }
++ShortMemAddrW: regoff is ExtrEn=0 & reg=0x88 & reg [ regoff=0xff10; ] { export PSW; }
++LongMemAddrW: memoff is ExtsEn=0 & ExtpEn=0 & mem=0xff10 & mem [ memoff=0xff10; ] { export PSW; }
++BitoffAddr: regoff is ExtrEn=0 & reg=0x88 & bitoff [ regoff=0xff10; ] { export PSW; }
++BitoffAddrZ: regoff is ExtrEn=0 & z=0x8 & z_2=0x8 [ regoff=0xff10; ] { export PSW; }
++
++# C166 manual p35: explicit PSW destinations suppress normal flag updates.
++# Expose the architectural control write to the decompiler as an observable
++# operation. This userop reports the written mask and resulting bits; it does not
++# compute flags or replace instruction execution.
++define pcodeop __write_psw_bits;
++
++:bclr BitoffAddr^"."^bit_q_0407 is ExtCountDec & op0003=0xe & ExtrEn=0 & reg=0x88 & BitoffAddr & bit_q_0407 {
++    PSW = PSW & ~(1 << bit_q_0407);
++    local written:2 = 1 << bit_q_0407;
++    __write_psw_bits(written, PSW & written);
++}
++:bset BitoffAddr^"."^bit_q_0407 is ExtCountDec & op0003=0xf & ExtrEn=0 & reg=0x88 & BitoffAddr & bit_q_0407 {
++    PSW = PSW | (1 << bit_q_0407);
++    local written:2 = 1 << bit_q_0407;
++    __write_psw_bits(written, PSW & written);
++}
++:bmov BitoffAddrZ^"."^bit_z, BitoffAddr^"."^bit_q is ExtCountDec & ExtrEn=0 & op=0x4a & BitoffAddr; z=0x8 & z_2=0x8 & BitoffAddrZ & bit_z & bit_q {
++    local value:2 = (BitoffAddr >> bit_q) & 1;
++    SetBitValue(PSW, bit_z, value);
++    local written:2 = 1 << bit_z;
++    __write_psw_bits(written, PSW & written);
++}
++:bmovn BitoffAddrZ^"."^bit_z, BitoffAddr^"."^bit_q is ExtCountDec & ExtrEn=0 & op=0x3a & BitoffAddr; z=0x8 & z_2=0x8 & BitoffAddrZ & bit_z & bit_q {
++    local value:2 = ((BitoffAddr >> bit_q) & 1) ^ 1;
++    SetBitValue(PSW, bit_z, value);
++    local written:2 = 1 << bit_z;
++    __write_psw_bits(written, PSW & written);
++}
++:bfldh BitoffAddr, "#"^mask8, DataImmB is ExtCountDec & op=0x1a & ExtrEn=0 & reg=0x88 & BitoffAddr; DataImmB & mask8 {
++    PSW = (PSW & ~(zext(mask8:1) << 8)) | (zext(DataImmB) << 8);
++    local written:2 = (zext(mask8:1) | zext(DataImmB)) << 8;
++    __write_psw_bits(written, PSW & written);
++}
++:bfldl BitoffAddr, "#"^mask_low, "#"^data_high is ExtCountDec & op=0x0a & ExtrEn=0 & reg=0x88 & BitoffAddr; mask_low & data_high {
++    PSW = (PSW & ~zext(mask_low:1)) | zext(data_high:1);
++    local written:2 = zext(mask_low:1) | zext(data_high:1);
++    __write_psw_bits(written, PSW & written);
++}
++:mov LongMemAddrW, ShortMemAddrW is ExtCountDec & op=0xf6 & ShortMemAddrW; ExtsEn=0 & ExtpEn=0 & mem=0xff10 & LongMemAddrW {
++    PSW = ShortMemAddrW;
++    __write_psw_bits(0xffff:2, PSW);
++}
++:mov ShortMemAddrW, DataImmW is ExtCountDec & op=0xe6 & ExtrEn=0 & reg=0x88 & ShortMemAddrW; DataImmW {
++    PSW = DataImmW;
++    __write_psw_bits(0xffff:2, PSW);
++}
++

@@ -1,0 +1,7464 @@
+[
+  {
+    "file": "boot_20260908.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 88,
+      "snapshot": 1,
+      "cycle": 1120,
+      "accel": 200,
+      "end": 1
+    },
+    "records": {
+      "sensors": 1120,
+      "can": 1120,
+      "pressures": 1120,
+      "solenoids": 1120,
+      "shift_live": 1120,
+      "shift_algo": 1120,
+      "clutch_speeds": 1120,
+      "tcc": 1120,
+      "sys_usage": 59
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "89a87af-dirty",
+        "sha256": "bbcfc4a001d7611cd37621a5beded523c5cd415c8e8376c112069601a1293902",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-08T04:56:58-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52,
+      "max": 62
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": {
+      "min": 0.2987700000000011,
+      "median": 0.2999799999999979,
+      "max": 0.5028900000000001
+    },
+    "accel_span_s": 59.904140000000005,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "boot_20260908b.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 88,
+      "snapshot": 1,
+      "cycle": 837,
+      "accel": 149,
+      "end": 1
+    },
+    "records": {
+      "sensors": 837,
+      "can": 837,
+      "pressures": 837,
+      "solenoids": 837,
+      "shift_live": 837,
+      "shift_algo": 837,
+      "clutch_speeds": 837,
+      "tcc": 837,
+      "sys_usage": 44
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "89a87af-dirty",
+        "sha256": "8ffdbaa1ae3fe9c3aecafca085f8c18a0ef04bf50932054f9567d43a0db123cd",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-08T06:59:22-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52.0,
+      "max": 62
+    },
+    "moving_cycles_output_gt_150": 100,
+    "moving_ranges": {
+      "atf": {
+        "min": 0,
+        "median": 0.0,
+        "max": 0
+      },
+      "output_rpm": {
+        "min": 10689,
+        "median": 10689.0,
+        "max": 10689
+      },
+      "torque": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      }
+    },
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": {
+      "min": 0.29898000000000025,
+      "median": 0.3000499999999998,
+      "max": 0.50991
+    },
+    "accel_span_s": 44.62016,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "boot_check_1.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 361,
+      "end": 1
+    },
+    "records": {
+      "sensors": 361,
+      "can": 361,
+      "pressures": 361,
+      "solenoids": 361,
+      "shift_live": 361,
+      "shift_algo": 361,
+      "clutch_speeds": 361,
+      "tcc": 361,
+      "sys_usage": 19
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "5813b7b-dirty",
+        "sha256": "1244955486c070f649477dac74943537e109ab615c80819b02ddeb3a427cb20e",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": null,
+        "calibration_names": [
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T08:15:40-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52.0,
+      "max": 64
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "boot_check_2.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 364,
+      "end": 1
+    },
+    "records": {
+      "sensors": 364,
+      "can": 364,
+      "pressures": 364,
+      "solenoids": 364,
+      "shift_live": 364,
+      "shift_algo": 364,
+      "clutch_speeds": 364,
+      "tcc": 364,
+      "sys_usage": 19
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "5813b7b-dirty",
+        "sha256": "1244955486c070f649477dac74943537e109ab615c80819b02ddeb3a427cb20e",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": null,
+        "calibration_names": [
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T08:16:00-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52,
+      "max": 64
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "boot_d488336.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 455,
+      "accel": 83,
+      "end": 1
+    },
+    "records": {
+      "sensors": 455,
+      "can": 455,
+      "pressures": 455,
+      "solenoids": 455,
+      "shift_live": 455,
+      "shift_algo": 455,
+      "clutch_speeds": 455,
+      "tcc": 455,
+      "sys_usage": 24
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "d488336-dirty",
+        "sha256": "1b0d13adc98e7b6369c9223f670d74cae60bd6f4ac0dbd481c6a40c3506e1c57",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-09T04:57:39-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52.0,
+      "max": 62
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": {
+      "min": 0.2990700000000004,
+      "median": 0.2999550000000013,
+      "max": 0.508
+    },
+    "accel_span_s": 24.80811,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "boot_ea733f5.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 836,
+      "accel": 149,
+      "end": 1
+    },
+    "records": {
+      "sensors": 836,
+      "can": 836,
+      "pressures": 836,
+      "solenoids": 836,
+      "shift_live": 836,
+      "shift_algo": 836,
+      "clutch_speeds": 836,
+      "tcc": 836,
+      "sys_usage": 43
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "ea733f5-dirty",
+        "sha256": "2944eaa5c82b17cd3a2247f2ad774dde61a2cf403d2267f378ca011a8ef8814d",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-08T09:35:23-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52,
+      "max": 62
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": {
+      "min": 0.2993799999999993,
+      "median": 0.29994499999999946,
+      "max": 0.50554
+    },
+    "accel_span_s": 44.60636,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "boot_redline.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 364,
+      "end": 1
+    },
+    "records": {
+      "sensors": 364,
+      "can": 364,
+      "pressures": 364,
+      "solenoids": 364,
+      "shift_live": 364,
+      "shift_algo": 364,
+      "clutch_speeds": 364,
+      "tcc": 364,
+      "sys_usage": 19
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "5813b7b-dirty",
+        "sha256": "c3cd1de970ed3e16beafc434e391cc0c5539ff7dc131de4193f7eed7adc3a676",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T08:58:38-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52,
+      "max": 62
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260907_054611.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 378,
+      "snapshot": 1,
+      "cycle": 13532,
+      "end": 1
+    },
+    "records": {
+      "sensors": 13532,
+      "can": 13532,
+      "pressures": 13532,
+      "solenoids": 13532,
+      "shift_live": 13532,
+      "shift_algo": 13532,
+      "clutch_speeds": 13532,
+      "tcc": 13532,
+      "sys_usage": 711
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "2409592",
+        "sha256": "3c95e27fe6e6f5da12edeb795b40f8ee711a4ddbed6f3afbec9730aee5ce3f3f",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": null,
+        "calibration_names": [
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T05:46:11-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52,
+      "max": 66
+    },
+    "moving_cycles_output_gt_150": 10659,
+    "moving_ranges": {
+      "atf": {
+        "min": 29,
+        "median": 44,
+        "max": 55
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1878,
+        "max": 2146
+      },
+      "engine_rpm": {
+        "min": 581,
+        "median": 1753,
+        "max": 3436
+      },
+      "pedal": {
+        "min": 0,
+        "median": 74,
+        "max": 124
+      },
+      "torque": {
+        "min": -84.0,
+        "median": -54.0,
+        "max": -48.0
+      }
+    },
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260907_080656.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 1921,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-07T08:06:56-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "waiting_for_tcu": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260907_081257.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 37,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-07T08:12:57-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "waiting_for_tcu": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260907_082955.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 278,
+      "snapshot": 1,
+      "cycle": 6384,
+      "end": 1
+    },
+    "records": {
+      "sensors": 6384,
+      "can": 6384,
+      "pressures": 6384,
+      "solenoids": 6384,
+      "shift_live": 6384,
+      "shift_algo": 6384,
+      "clutch_speeds": 6384,
+      "tcc": 6384,
+      "sys_usage": 335
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "5813b7b-dirty",
+        "sha256": "1244955486c070f649477dac74943537e109ab615c80819b02ddeb3a427cb20e",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": null,
+        "calibration_names": [
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T08:29:55-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52,
+      "max": 64
+    },
+    "moving_cycles_output_gt_150": 5201,
+    "moving_ranges": {
+      "atf": {
+        "min": 60,
+        "median": 69,
+        "max": 76
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1470,
+        "max": 2443
+      },
+      "engine_rpm": {
+        "min": 576,
+        "median": 1718,
+        "max": 5154
+      },
+      "pedal": {
+        "min": 0,
+        "median": 67,
+        "max": 250
+      },
+      "torque": {
+        "min": 0.0,
+        "median": 120.0,
+        "max": 396.0
+      }
+    },
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260907_085935.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 288,
+      "snapshot": 1,
+      "cycle": 5725,
+      "end": 1
+    },
+    "records": {
+      "sensors": 5725,
+      "can": 5725,
+      "pressures": 5725,
+      "solenoids": 5725,
+      "shift_live": 5725,
+      "shift_algo": 5725,
+      "clutch_speeds": 5725,
+      "tcc": 5725,
+      "sys_usage": 301
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "5813b7b-dirty",
+        "sha256": "c3cd1de970ed3e16beafc434e391cc0c5539ff7dc131de4193f7eed7adc3a676",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T08:59:35-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 54.0,
+      "max": 68
+    },
+    "moving_cycles_output_gt_150": 5180,
+    "moving_ranges": {
+      "atf": {
+        "min": 64,
+        "median": 78.0,
+        "max": 83
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1497.5,
+        "max": 2724
+      },
+      "engine_rpm": {
+        "min": 568,
+        "median": 1737.5,
+        "max": 4141
+      },
+      "pedal": {
+        "min": 0,
+        "median": 65.0,
+        "max": 250
+      },
+      "torque": {
+        "min": 0.0,
+        "median": 118.5,
+        "max": 408.0
+      }
+    },
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260907_104051.jsonl",
+    "types": {
+      "header": 1,
+      "event": 3,
+      "log": 324,
+      "snapshot": 1,
+      "cycle": 5964,
+      "accel": 1061,
+      "end": 1
+    },
+    "records": {
+      "sensors": 5964,
+      "can": 5964,
+      "pressures": 5964,
+      "solenoids": 5964,
+      "shift_live": 5964,
+      "shift_algo": 5964,
+      "clutch_speeds": 5964,
+      "tcc": 5964,
+      "sys_usage": 314
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "3a90ac9-dirty",
+        "sha256": "4e8494902adc60bd241b70656bbeb8c2be444d145b9c0e97e245ce8561902e3e",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T10:40:51-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52,
+      "max": 66
+    },
+    "moving_cycles_output_gt_150": 5358,
+    "moving_ranges": {
+      "atf": {
+        "min": 55,
+        "median": 69.0,
+        "max": 78
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1407.5,
+        "max": 2717
+      },
+      "engine_rpm": {
+        "min": 572,
+        "median": 1672.0,
+        "max": 3597
+      },
+      "pedal": {
+        "min": 0,
+        "median": 58.0,
+        "max": 250
+      },
+      "torque": {
+        "min": 0.0,
+        "median": 111.0,
+        "max": 408.0
+      }
+    },
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": {
+      "min": 0.2986500000000021,
+      "median": 0.29997000000000185,
+      "max": 0.5020899999999999
+    },
+    "accel_span_s": 318.20397,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260907_122003.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 376,
+      "snapshot": 1,
+      "cycle": 5684,
+      "accel": 1044,
+      "shift_trace": 53,
+      "end": 1
+    },
+    "records": {
+      "sensors": 5684,
+      "can": 5684,
+      "pressures": 5684,
+      "solenoids": 5684,
+      "shift_live": 5684,
+      "shift_algo": 5684,
+      "clutch_speeds": 5684,
+      "tcc": 5684,
+      "sys_usage": 306
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "bfc7440-dirty",
+        "sha256": "9a6639391181949f62c4d14216c51a62f408cd0152c5dc6be0abb6adfa0c8c0c",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T12:20:03-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 54,
+      "max": 708
+    },
+    "moving_cycles_output_gt_150": 5161,
+    "moving_ranges": {
+      "atf": {
+        "min": 54,
+        "median": 69,
+        "max": 77
+      },
+      "output_rpm": {
+        "min": 152,
+        "median": 1458,
+        "max": 2588
+      },
+      "engine_rpm": {
+        "min": 535,
+        "median": 1697,
+        "max": 3061
+      },
+      "pedal": {
+        "min": 0,
+        "median": 78,
+        "max": 250
+      },
+      "torque": {
+        "min": -54.0,
+        "median": 93.0,
+        "max": 336.0
+      }
+    },
+    "trace_versions": {
+      "legacy/unstated": 53
+    },
+    "shifts": {
+      "N/P>2": 1,
+      "2>1": 4,
+      "1>2": 4,
+      "2>3": 6,
+      "3>4": 10,
+      "4>3": 10,
+      "3>2": 6,
+      "4>5": 6,
+      "5>4": 6
+    },
+    "unique_traces": 53,
+    "complete_trace_windows": 53,
+    "own_trace_samples": 3151,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {
+      "medium": 27,
+      "light": 11,
+      "coast": 13,
+      "high": 1
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19.0,
+      "max": 267698
+    },
+    "accel_dt_s": {
+      "min": 0.29853999999997427,
+      "median": 0.2999500000000239,
+      "max": 0.50352
+    },
+    "accel_span_s": 313.10598,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260908_045906.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 255,
+      "snapshot": 1,
+      "cycle": 11006,
+      "accel": 1988,
+      "shift_trace": 39,
+      "end": 1
+    },
+    "records": {
+      "sensors": 11006,
+      "can": 11006,
+      "pressures": 11006,
+      "solenoids": 11006,
+      "shift_live": 11006,
+      "shift_algo": 11006,
+      "clutch_speeds": 11006,
+      "tcc": 11006,
+      "sys_usage": 584
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "89a87af-dirty",
+        "sha256": "bbcfc4a001d7611cd37621a5beded523c5cd415c8e8376c112069601a1293902",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-08T04:59:06-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 54,
+      "max": 976
+    },
+    "moving_cycles_output_gt_150": 9659,
+    "moving_ranges": {
+      "atf": {
+        "min": 28,
+        "median": 41,
+        "max": 50
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1724,
+        "max": 2205
+      },
+      "engine_rpm": {
+        "min": 573,
+        "median": 1719,
+        "max": 3594
+      },
+      "pedal": {
+        "min": 0,
+        "median": 72,
+        "max": 250
+      },
+      "torque": {
+        "min": -60.0,
+        "median": 78.0,
+        "max": 291.0
+      }
+    },
+    "trace_versions": {
+      "legacy/unstated": 39
+    },
+    "shifts": {
+      "N/P>2": 1,
+      "2>1": 4,
+      "1>2": 3,
+      "2>3": 5,
+      "3>4": 7,
+      "4>3": 6,
+      "3>2": 5,
+      "4>5": 4,
+      "5>4": 4
+    },
+    "unique_traces": 39,
+    "complete_trace_windows": 34,
+    "own_trace_samples": 2287,
+    "annotated_traces": 38,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {
+      "coast": 16,
+      "medium": 14,
+      "high": 2,
+      "light": 5
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19,
+      "max": 21
+    },
+    "accel_dt_s": {
+      "min": 0.29865999999998394,
+      "median": 0.29995999999999867,
+      "max": 0.5132399999999999
+    },
+    "accel_span_s": 596.31861,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260908_070104.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 361,
+      "snapshot": 1,
+      "cycle": 12722,
+      "accel": 2304,
+      "shift_trace": 65,
+      "end": 1
+    },
+    "records": {
+      "sensors": 12722,
+      "can": 12722,
+      "pressures": 12722,
+      "solenoids": 12722,
+      "shift_live": 12722,
+      "shift_algo": 12722,
+      "clutch_speeds": 12722,
+      "tcc": 12722,
+      "sys_usage": 679
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "89a87af-dirty",
+        "sha256": "8ffdbaa1ae3fe9c3aecafca085f8c18a0ef04bf50932054f9567d43a0db123cd",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-08T07:01:04-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52,
+      "max": 672
+    },
+    "moving_cycles_output_gt_150": 10087,
+    "moving_ranges": {
+      "atf": {
+        "min": 41,
+        "median": 58,
+        "max": 63
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1648,
+        "max": 2342
+      },
+      "engine_rpm": {
+        "min": 572,
+        "median": 1683,
+        "max": 3241
+      },
+      "pedal": {
+        "min": 0,
+        "median": 64,
+        "max": 201
+      },
+      "torque": {
+        "min": -54.0,
+        "median": 63.0,
+        "max": 309.0
+      }
+    },
+    "trace_versions": {
+      "legacy/unstated": 65
+    },
+    "shifts": {
+      "N/P>R2": 1,
+      "N/P>2": 1,
+      "2>1": 9,
+      "1>2": 8,
+      "2>3": 7,
+      "3>4": 10,
+      "4>3": 10,
+      "3>2": 7,
+      "4>5": 6,
+      "5>4": 6
+    },
+    "unique_traces": 65,
+    "complete_trace_windows": 52,
+    "own_trace_samples": 3212,
+    "annotated_traces": 63,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {
+      "coast": 26,
+      "medium": 24,
+      "light": 8
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19,
+      "max": 21
+    },
+    "accel_dt_s": {
+      "min": 0.29868000000000006,
+      "median": 0.2999499999999955,
+      "max": 0.50951
+    },
+    "accel_span_s": 691.11188,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260908_093707.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 307,
+      "snapshot": 1,
+      "cycle": 5465,
+      "accel": 1002,
+      "shift_trace": 49,
+      "end": 1
+    },
+    "records": {
+      "sensors": 5465,
+      "can": 5465,
+      "pressures": 5465,
+      "solenoids": 5465,
+      "shift_live": 5465,
+      "shift_algo": 5465,
+      "clutch_speeds": 5465,
+      "tcc": 5465,
+      "sys_usage": 290
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "ea733f5-dirty",
+        "sha256": "2944eaa5c82b17cd3a2247f2ad774dde61a2cf403d2267f378ca011a8ef8814d",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-08T09:37:07-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52.0,
+      "max": 736
+    },
+    "moving_cycles_output_gt_150": 5048,
+    "moving_ranges": {
+      "atf": {
+        "min": 48,
+        "median": 62.0,
+        "max": 68
+      },
+      "output_rpm": {
+        "min": 152,
+        "median": 1485.0,
+        "max": 2304
+      },
+      "engine_rpm": {
+        "min": 578,
+        "median": 1789.0,
+        "max": 4320
+      },
+      "pedal": {
+        "min": 0,
+        "median": 70.0,
+        "max": 250
+      },
+      "torque": {
+        "min": -81.0,
+        "median": 75.0,
+        "max": 336.0
+      }
+    },
+    "trace_versions": {
+      "legacy/unstated": 49
+    },
+    "shifts": {
+      "N/P>R2": 1,
+      "N/P>2": 2,
+      "2>1": 5,
+      "1>2": 4,
+      "2>3": 7,
+      "3>4": 8,
+      "4>3": 8,
+      "3>2": 7,
+      "4>5": 3,
+      "5>4": 3,
+      "N/P>1": 1
+    },
+    "unique_traces": 49,
+    "complete_trace_windows": 49,
+    "own_trace_samples": 3427,
+    "annotated_traces": 45,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {
+      "medium": 20,
+      "light": 8,
+      "coast": 14,
+      "high": 3
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19.0,
+      "max": 49
+    },
+    "accel_dt_s": {
+      "min": 0.29698999999999387,
+      "median": 0.29995999999999867,
+      "max": 0.50268
+    },
+    "accel_span_s": 300.50517,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_045820.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 25,
+      "accel": 6,
+      "end": 1
+    },
+    "records": {
+      "sensors": 25,
+      "can": 25,
+      "pressures": 25,
+      "solenoids": 25,
+      "shift_live": 25,
+      "shift_algo": 25,
+      "clutch_speeds": 25,
+      "tcc": 25,
+      "sys_usage": 2
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "d488336-dirty",
+        "sha256": "1b0d13adc98e7b6369c9223f670d74cae60bd6f4ac0dbd481c6a40c3506e1c57",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-09T04:58:20-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52.0,
+      "max": 58
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": {
+      "min": 0.29982,
+      "median": 0.30000000000000004,
+      "max": 0.51024
+    },
+    "accel_span_s": 1.71051,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_045937.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 105,
+      "snapshot": 1,
+      "cycle": 1446,
+      "accel": 265,
+      "shift_trace": 5,
+      "end": 1
+    },
+    "records": {
+      "sensors": 1446,
+      "can": 1446,
+      "pressures": 1446,
+      "solenoids": 1446,
+      "shift_live": 1446,
+      "shift_algo": 1446,
+      "clutch_speeds": 1446,
+      "tcc": 1446,
+      "sys_usage": 78
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "d488336-dirty",
+        "sha256": "1b0d13adc98e7b6369c9223f670d74cae60bd6f4ac0dbd481c6a40c3506e1c57",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-09T04:59:37-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52,
+      "max": 778
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {
+      "legacy/unstated": 5
+    },
+    "shifts": {
+      "N/P>R2": 5
+    },
+    "unique_traces": 5,
+    "complete_trace_windows": 5,
+    "own_trace_samples": 962,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": {
+      "min": 12,
+      "median": 19,
+      "max": 28
+    },
+    "accel_dt_s": {
+      "min": 0.29907999999998935,
+      "median": 0.2999300000000007,
+      "max": 0.50431
+    },
+    "accel_span_s": 79.40585,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_051027.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 282,
+      "snapshot": 1,
+      "cycle": 13045,
+      "accel": 2357,
+      "shift_trace": 50,
+      "end": 1
+    },
+    "records": {
+      "sensors": 13045,
+      "can": 13045,
+      "pressures": 13045,
+      "solenoids": 13045,
+      "shift_live": 13045,
+      "shift_algo": 13045,
+      "clutch_speeds": 13045,
+      "tcc": 13045,
+      "sys_usage": 695
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "d488336-dirty",
+        "sha256": "1b0d13adc98e7b6369c9223f670d74cae60bd6f4ac0dbd481c6a40c3506e1c57",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-09T05:10:27-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 54.0,
+      "max": 584
+    },
+    "moving_cycles_output_gt_150": 12156,
+    "moving_ranges": {
+      "atf": {
+        "min": 28,
+        "median": 46.0,
+        "max": 58
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1893.0,
+        "max": 2258
+      },
+      "engine_rpm": {
+        "min": 567,
+        "median": 1803.0,
+        "max": 2889
+      },
+      "pedal": {
+        "min": 0,
+        "median": 72.0,
+        "max": 125
+      },
+      "torque": {
+        "min": -60.0,
+        "median": 81.0,
+        "max": 219.0
+      }
+    },
+    "trace_versions": {
+      "legacy/unstated": 50
+    },
+    "shifts": {
+      "N/P>2": 1,
+      "2>1": 7,
+      "1>2": 5,
+      "2>3": 7,
+      "3>4": 7,
+      "4>3": 7,
+      "3>2": 7,
+      "4>5": 4,
+      "5>4": 4,
+      "N/P>R1": 1
+    },
+    "unique_traces": 50,
+    "complete_trace_windows": 50,
+    "own_trace_samples": 3384,
+    "annotated_traces": 48,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {
+      "light": 12,
+      "medium": 18,
+      "coast": 18
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19.0,
+      "max": 21
+    },
+    "accel_dt_s": {
+      "min": 0.2983499999999992,
+      "median": 0.2999500000000239,
+      "max": 0.51109
+    },
+    "accel_span_s": 707.01547,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064023.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 93,
+      "snapshot": 1,
+      "cycle": 397,
+      "accel": 74,
+      "shift_trace": 2,
+      "end": 1
+    },
+    "records": {
+      "sensors": 397,
+      "can": 397,
+      "pressures": 397,
+      "solenoids": 397,
+      "shift_live": 397,
+      "shift_algo": 397,
+      "clutch_speeds": 397,
+      "tcc": 397,
+      "sys_usage": 21
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "d488336-dirty",
+        "sha256": "1b0d13adc98e7b6369c9223f670d74cae60bd6f4ac0dbd481c6a40c3506e1c57",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-09T06:40:23-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52.0,
+      "max": 466
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {
+      "legacy/unstated": 2
+    },
+    "shifts": {
+      "N/P>2": 1,
+      "N/P>R2": 1
+    },
+    "unique_traces": 2,
+    "complete_trace_windows": 2,
+    "own_trace_samples": 179,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19,
+      "max": 26
+    },
+    "accel_dt_s": {
+      "min": 0.2994400000000006,
+      "median": 0.2999799999999997,
+      "max": 0.51015
+    },
+    "accel_span_s": 22.11028,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064057.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:40:57-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064446.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:44:46-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064455.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:44:55-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064457.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:44:57-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064505.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:45:05-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064522.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:45:22-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064548.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:45:48-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064549.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:45:49-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064553.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:45:53-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_064637.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-09T06:46:37-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_065118.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 502,
+      "snapshot": 1,
+      "cycle": 16735,
+      "accel": 3034,
+      "shift_trace": 76,
+      "end": 1
+    },
+    "records": {
+      "sensors": 16735,
+      "can": 16735,
+      "pressures": 16735,
+      "solenoids": 16735,
+      "shift_live": 16735,
+      "shift_algo": 16735,
+      "clutch_speeds": 16735,
+      "tcc": 16735,
+      "sys_usage": 893
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "d488336-dirty",
+        "sha256": "1b0d13adc98e7b6369c9223f670d74cae60bd6f4ac0dbd481c6a40c3506e1c57",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-09T06:51:18-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 54.0,
+      "max": 1052
+    },
+    "moving_cycles_output_gt_150": 13366,
+    "moving_ranges": {
+      "atf": {
+        "min": 69,
+        "median": 81.0,
+        "max": 83
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 2007.0,
+        "max": 2336
+      },
+      "engine_rpm": {
+        "min": 547,
+        "median": 1722.0,
+        "max": 3936
+      },
+      "pedal": {
+        "min": 0,
+        "median": 64.0,
+        "max": 250
+      },
+      "torque": {
+        "min": -51.0,
+        "median": 60.0,
+        "max": 312.0
+      }
+    },
+    "trace_versions": {
+      "legacy/unstated": 76
+    },
+    "shifts": {
+      "N/P>R2": 1,
+      "N/P>2": 1,
+      "2>1": 8,
+      "1>2": 7,
+      "2>3": 9,
+      "3>2": 8,
+      "3>4": 10,
+      "4>5": 11,
+      "5>4": 11,
+      "4>3": 10
+    },
+    "unique_traces": 76,
+    "complete_trace_windows": 76,
+    "own_trace_samples": 4862,
+    "annotated_traces": 74,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {
+      "light": 11,
+      "medium": 31,
+      "coast": 28,
+      "high": 4
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19.0,
+      "max": 21
+    },
+    "accel_dt_s": {
+      "min": 0.2003700000000208,
+      "median": 0.2999600000000555,
+      "max": 0.50329
+    },
+    "accel_span_s": 910.3100000000001,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260909_175106.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 466,
+      "snapshot": 1,
+      "cycle": 17815,
+      "accel": 3216,
+      "shift_trace": 86,
+      "end": 1
+    },
+    "records": {
+      "sensors": 17815,
+      "can": 17815,
+      "pressures": 17815,
+      "solenoids": 17815,
+      "shift_live": 17815,
+      "shift_algo": 17815,
+      "clutch_speeds": 17815,
+      "tcc": 17815,
+      "sys_usage": 940
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "8152244-dirty",
+        "sha256": "8401c631b6401c5f4cce2858e8c396022644585adfc130445c4a5bae358aa384",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-09T17:51:06-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52.0,
+      "max": 738
+    },
+    "moving_cycles_output_gt_150": 11052,
+    "moving_ranges": {
+      "atf": {
+        "min": 34,
+        "median": 59.0,
+        "max": 74
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1929.0,
+        "max": 2456
+      },
+      "engine_rpm": {
+        "min": 570,
+        "median": 1726.0,
+        "max": 4204
+      },
+      "pedal": {
+        "min": 0,
+        "median": 61.0,
+        "max": 250
+      },
+      "torque": {
+        "min": -60.0,
+        "median": 60.0,
+        "max": 333.0
+      }
+    },
+    "trace_versions": {
+      "legacy/unstated": 86
+    },
+    "shifts": {
+      "N/P>R2": 2,
+      "N/P>2": 2,
+      "2>1": 9,
+      "1>2": 8,
+      "2>3": 10,
+      "3>4": 12,
+      "4>3": 11,
+      "3>2": 10,
+      "4>5": 10,
+      "5>4": 10,
+      "N/P>R1": 2
+    },
+    "unique_traces": 86,
+    "complete_trace_windows": 86,
+    "own_trace_samples": 5947,
+    "annotated_traces": 80,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {
+      "light": 6,
+      "medium": 32,
+      "coast": 31,
+      "high": 11
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19,
+      "max": 48
+    },
+    "accel_dt_s": {
+      "min": 0.29865000000006603,
+      "median": 0.2999499999999671,
+      "max": 0.50015
+    },
+    "accel_span_s": 964.7064799999999,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260910_045439.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 287,
+      "snapshot": 1,
+      "cycle": 13329,
+      "accel": 2405,
+      "shift_trace": 51,
+      "end": 1
+    },
+    "records": {
+      "sensors": 13329,
+      "can": 13329,
+      "pressures": 13329,
+      "solenoids": 13329,
+      "shift_live": 13329,
+      "shift_algo": 13329,
+      "clutch_speeds": 13329,
+      "tcc": 13329,
+      "sys_usage": 704
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "shift_id",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "request_wire_nm",
+        "engine_drag_nm",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target",
+        "raw_kickdown",
+        "kickdown_demand",
+        "request_gross"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "65c991f-dirty",
+        "sha256": "3546021defaba5103a7312374855a63304ea924e17955a18ade03d77467da693",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-10T04:54:39-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52.0,
+      "max": 700
+    },
+    "moving_cycles_output_gt_150": 11688,
+    "moving_ranges": {
+      "atf": {
+        "min": 33,
+        "median": 48.0,
+        "max": 59
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1944.0,
+        "max": 2470
+      },
+      "engine_rpm": {
+        "min": 574,
+        "median": 1755.0,
+        "max": 3757
+      },
+      "pedal": {
+        "min": 0,
+        "median": 69.0,
+        "max": 250
+      },
+      "torque": {
+        "min": -60.0,
+        "median": 75.0,
+        "max": 303.0
+      }
+    },
+    "trace_versions": {
+      "4": 51
+    },
+    "shifts": {
+      "N/P>R2": 1,
+      "N/P>2": 1,
+      "2>1": 6,
+      "1>2": 5,
+      "2>3": 7,
+      "3>4": 7,
+      "4>3": 7,
+      "3>2": 7,
+      "4>5": 5,
+      "5>4": 5
+    },
+    "unique_traces": 51,
+    "complete_trace_windows": 51,
+    "own_trace_samples": 3310,
+    "annotated_traces": 49,
+    "forward_traces_v4plus": 49,
+    "shift_start_pedal_bins": {
+      "light": 9,
+      "medium": 17,
+      "coast": 21,
+      "high": 2
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19,
+      "max": 21
+    },
+    "accel_dt_s": {
+      "min": 0.2981600000000526,
+      "median": 0.2999500000000239,
+      "max": 0.5075000000000001
+    },
+    "accel_span_s": 721.41208,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260910_073933.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-10T07:39:33-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260910_073936.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-10T07:39:36-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "nag52_20260910_073946.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 316,
+      "snapshot": 1,
+      "cycle": 12409,
+      "accel": 2239,
+      "shift_trace": 47,
+      "end": 1
+    },
+    "records": {
+      "sensors": 12409,
+      "can": 12409,
+      "pressures": 12409,
+      "solenoids": 12409,
+      "shift_live": 12409,
+      "shift_algo": 12409,
+      "clutch_speeds": 12409,
+      "tcc": 12409,
+      "sys_usage": 653
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ],
+      "trace_samples": [
+        "t_ms",
+        "shift_id",
+        "input_rpm",
+        "output_rpm",
+        "engine_rpm",
+        "input_torque",
+        "p_on",
+        "p_off",
+        "spc",
+        "mpc",
+        "phase",
+        "subphase_shift",
+        "subphase_mod",
+        "pedal",
+        "trq_req_amount",
+        "engine_torque",
+        "request_wire_nm",
+        "engine_drag_nm",
+        "seq",
+        "shifting",
+        "circuits",
+        "gear_actual",
+        "gear_target",
+        "raw_kickdown",
+        "kickdown_demand",
+        "request_gross"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "65c991f-dirty",
+        "sha256": "3546021defaba5103a7312374855a63304ea924e17955a18ade03d77467da693",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-10T07:39:46-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 50,
+      "median": 52.0,
+      "max": 710
+    },
+    "moving_cycles_output_gt_150": 10393,
+    "moving_ranges": {
+      "atf": {
+        "min": 53,
+        "median": 62,
+        "max": 66
+      },
+      "output_rpm": {
+        "min": 151,
+        "median": 1871,
+        "max": 2219
+      },
+      "engine_rpm": {
+        "min": 567,
+        "median": 1641,
+        "max": 2948
+      },
+      "pedal": {
+        "min": 0,
+        "median": 62,
+        "max": 199
+      },
+      "torque": {
+        "min": -51.0,
+        "median": 60.0,
+        "max": 315.0
+      }
+    },
+    "trace_versions": {
+      "4": 47
+    },
+    "shifts": {
+      "N/P>R2": 1,
+      "N/P>2": 1,
+      "2>1": 6,
+      "1>2": 5,
+      "2>3": 5,
+      "3>4": 7,
+      "4>3": 7,
+      "3>2": 5,
+      "4>5": 5,
+      "5>4": 5
+    },
+    "unique_traces": 47,
+    "complete_trace_windows": 47,
+    "own_trace_samples": 2799,
+    "annotated_traces": 45,
+    "forward_traces_v4plus": 45,
+    "shift_start_pedal_bins": {
+      "coast": 19,
+      "light": 9,
+      "medium": 16,
+      "high": 1
+    },
+    "trace_dt_ms": {
+      "min": 18,
+      "median": 19.0,
+      "max": 21
+    },
+    "accel_dt_s": {
+      "min": 0.2005699999999706,
+      "median": 0.29995999999999867,
+      "max": 0.51128
+    },
+    "accel_span_s": 671.5146599999999,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "postfix_boot.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 457,
+      "end": 1
+    },
+    "records": {
+      "sensors": 457,
+      "can": 457,
+      "pressures": 457,
+      "solenoids": 457,
+      "shift_live": 457,
+      "shift_algo": 457,
+      "clutch_speeds": 457,
+      "tcc": 457,
+      "sys_usage": 24
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "3a90ac9-dirty",
+        "sha256": "285140ef4a1007829dc825326b693af742132beeafd1519da1956a78fa6186e3",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T10:33:19-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52.0,
+      "max": 60
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "postfix_boot2.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 87,
+      "snapshot": 1,
+      "cycle": 363,
+      "end": 1
+    },
+    "records": {
+      "sensors": 363,
+      "can": 363,
+      "pressures": 363,
+      "solenoids": 363,
+      "shift_live": 363,
+      "shift_algo": 363,
+      "clutch_speeds": 363,
+      "tcc": 363,
+      "sys_usage": 19
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "3a90ac9-dirty",
+        "sha256": "4e8494902adc60bd241b70656bbeb8c2be444d145b9c0e97e245ce8561902e3e",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T10:35:45-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52.0,
+      "max": 60
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "postfix_boot3.jsonl",
+    "types": {
+      "header": 1,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-07T10:55:09-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {},
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "postfix_boot4.jsonl",
+    "types": {
+      "header": 1,
+      "event": 4,
+      "log": 95,
+      "snapshot": 1,
+      "cycle": 348,
+      "accel": 73,
+      "end": 1
+    },
+    "records": {
+      "sensors": 348,
+      "can": 348,
+      "pressures": 348,
+      "solenoids": 348,
+      "shift_live": 348,
+      "shift_algo": 348,
+      "clutch_speeds": 348,
+      "tcc": 348,
+      "sys_usage": 21
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "bfc7440-dirty",
+        "sha256": "9a6639391181949f62c4d14216c51a62f408cd0152c5dc6be0abb6adfa0c8c0c",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": true,
+        "calibration_names": [
+          "0215451432.119",
+          "0215451432.52",
+          "0215451432.STDP",
+          "0215451432.SM00"
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T12:17:46-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": "auto"
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52,
+      "max": 554
+    },
+    "moving_cycles_output_gt_150": 106,
+    "moving_ranges": {
+      "atf": {
+        "min": 0,
+        "median": 0.0,
+        "max": 0
+      },
+      "output_rpm": {
+        "min": 28730,
+        "median": 28730.0,
+        "max": 28730
+      },
+      "torque": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      }
+    },
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": {
+      "min": 0.29868000000000006,
+      "median": 0.2999799999999997,
+      "max": 0.51087
+    },
+    "accel_span_s": 21.812140000000003,
+    "events": {
+      "port_open": 1,
+      "accel_start": 1,
+      "connected": 1,
+      "shift_trace_ready": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "postflash_boot.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 13154,
+      "end": 1
+    },
+    "records": {},
+    "fields": {},
+    "snapshots": [],
+    "headers": [
+      {
+        "started": "2026-09-07T08:05:22-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": null,
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "waiting_for_tcu": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  },
+  {
+    "file": "postflash_boot2.jsonl",
+    "types": {
+      "header": 1,
+      "event": 2,
+      "log": 239,
+      "snapshot": 1,
+      "cycle": 554,
+      "end": 1
+    },
+    "records": {
+      "sensors": 554,
+      "can": 554,
+      "pressures": 554,
+      "solenoids": 554,
+      "shift_live": 554,
+      "shift_algo": 554,
+      "clutch_speeds": 554,
+      "tcc": 554,
+      "sys_usage": 29
+    },
+    "fields": {
+      "sensors": [
+        "n2_rpm",
+        "n3_rpm",
+        "input_rpm",
+        "gear_ratio",
+        "target_ratio",
+        "v_batt",
+        "atf_temp",
+        "parking_lock",
+        "output_rpm"
+      ],
+      "can": [
+        "pedal_pos",
+        "min_torque",
+        "max_torque",
+        "static_torque",
+        "driver_torque",
+        "left_rear_rpm",
+        "right_rear_rpm",
+        "profile_input",
+        "shifter_position",
+        "paddle_position",
+        "engine_rpm",
+        "fuel_rate",
+        "torque_req_amount",
+        "torque_req_ctrl_type",
+        "torque_req_bounds",
+        "e_iat_temp",
+        "e_oil_temp",
+        "e_coolant_temp"
+      ],
+      "pressures": [
+        "ss_flag",
+        "shift_req_pressure",
+        "modulating_req_pressure",
+        "working_pressure",
+        "inlet_pressure",
+        "corrected_spc_pressure",
+        "corrected_mpc_pressure",
+        "tcc_pressure",
+        "on_clutch_pressure",
+        "off_clutch_pressure",
+        "overlap_mod",
+        "overlap_shift",
+        "shift_circuits"
+      ],
+      "solenoids": [
+        "spc_pwm",
+        "mpc_pwm",
+        "tcc_pwm",
+        "y3_pwm",
+        "y4_pwm",
+        "y5_pwm",
+        "spc_current",
+        "mpc_current",
+        "tcc_current",
+        "targ_spc_current",
+        "targ_mpc_current",
+        "adjustment_spc",
+        "adjustment_mpc",
+        "y3_current",
+        "y4_current",
+        "y5_current"
+      ],
+      "shift_live": [
+        "spc_pressure",
+        "mpc_pressure",
+        "tcc_pressure",
+        "ss_pos",
+        "input_rpm",
+        "engine_rpm",
+        "output_rpm",
+        "engine_torque",
+        "input_torque",
+        "req_engine_torque",
+        "atf_temp",
+        "profile",
+        "target_gear",
+        "actual_gear"
+      ],
+      "shift_algo": [
+        "active",
+        "shift_phase",
+        "subphase_shift",
+        "subphase_mod",
+        "sync_rpm",
+        "pid_torque",
+        "adder_torque",
+        "p_on",
+        "p_off",
+        "s_off",
+        "s_on",
+        "s_turbine",
+        "s_targ"
+      ],
+      "clutch_speeds": [
+        "k1",
+        "k2",
+        "k3",
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "tcc": [
+        "current_pressure",
+        "target_pressure",
+        "slip_now",
+        "slip_filtered",
+        "slip_target",
+        "pedal_now",
+        "pedal_filtered",
+        "target_state",
+        "current_state",
+        "can_request_bits",
+        "engine_output_joule",
+        "tcc_absorbed_joule",
+        "load_percent"
+      ],
+      "sys_usage": [
+        "core1_load",
+        "core2_load",
+        "free_ram",
+        "total_ram",
+        "free_psram",
+        "total_psram",
+        "num_tasks"
+      ]
+    },
+    "snapshots": [
+      {
+        "firmware": "5813b7b-dirty",
+        "sha256": "235f76433edd6d2f0cf40fa75158d9b29229e1f930706688e2ad0c8855cf1dfc",
+        "records": [
+          "fw_header",
+          "tcm_config"
+        ],
+        "calibration_crc_ok": null,
+        "calibration_names": [
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    ],
+    "headers": [
+      {
+        "started": "2026-09-07T08:11:38-04:00",
+        "fast": [
+          "tcu_time",
+          "sensors",
+          "can",
+          "pressures",
+          "solenoids",
+          "shift_live",
+          "shift_algo",
+          "clutch_speeds",
+          "tcc"
+        ],
+        "slow": [
+          "sys_usage"
+        ],
+        "accel": null
+      }
+    ],
+    "cycle_dt_ms": {
+      "min": 52,
+      "median": 52,
+      "max": 62
+    },
+    "moving_cycles_output_gt_150": 0,
+    "moving_ranges": {},
+    "trace_versions": {},
+    "shifts": {},
+    "unique_traces": 0,
+    "complete_trace_windows": 0,
+    "own_trace_samples": 0,
+    "annotated_traces": 0,
+    "forward_traces_v4plus": 0,
+    "shift_start_pedal_bins": {},
+    "trace_dt_ms": null,
+    "accel_dt_s": null,
+    "accel_span_s": 0,
+    "events": {
+      "port_open": 1,
+      "connected": 1
+    },
+    "record_errors": 0,
+    "malformed_lines": 0
+  }
+]

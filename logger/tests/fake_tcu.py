@@ -211,33 +211,44 @@ class FakeTcu:
 
 
 def build_trace(n_samples: int = 60, capacity: int = 512, seq: int = 0,
-                events=((10, 40, 2, 3, 1),), addr: int = 0x3F800100):
+                events=((10, 40, 2, 3, 1),), addr: int = 0x3F800100, version=4):
     """
     Build a (header, ring) pair matching src/shift_trace.h, for tests.
 
     `events` entries are (seq_start, seq_end, gear_from, gear_to, done).
     """
     import struct as _s
-    SAMPLE = "<IHHHhHHHHBBBBBBhh"
+    SAMPLE = "<IIHHHhHHHHBBBBBBhhhh" if version >= 4 else "<IHHHhHHHHBBBBBBhh"
     ring = b""
     for i in range(capacity):
         shifting = any(a <= i <= b for a, b, _, _, _ in events)
-        ring += _s.pack(SAMPLE, 1000 + i * 20, 2000 - i, 900, 2100, 150,
+        identity = [1] if version >= 4 else []
+        extra = [120, 54] if version >= 4 else []
+        ring += _s.pack(SAMPLE, 1000 + i * 20, *identity, 2000 - i, 900, 2100, 150,
                         3000 + i, 4000 - i, 5000, 6000, 2, 1, 0,
-                        (1 if shifting else 0), 100, 0x23, 120, 200)
+                        (1 if shifting else 0), 100, 0x23, 120, 200, *extra)
     # Version must track shift_trace.TRACE_VERSION / SHIFT_TRACE_VERSION; the
     # decoder rejects a mismatch outright, because a field's meaning can change
     # without the layout changing.
-    hdr = _s.pack("<IBBHIIIB3x", 0x43415254, 3, _s.calcsize(SAMPLE), capacity,
+    hdr = _s.pack("<IBBHIIIB3x", 0x43415254, version, _s.calcsize(SAMPLE), capacity,
                   addr, seq or n_samples, 0, len(events))
-    for a, b, gf, gt, done in events:
-        # ShiftTraceEvent = header + ShiftQuality (16 B) + ShiftStamp (16 B) = 44 B.
+    for ident, (a, b, gf, gt, done) in enumerate(events, 1):
+        if version >= 4:
+            hdr += _s.pack("<IHh", ident, 900, 65)
+        # ShiftTraceEvent = header + ShiftQuality (16 B) + ShiftStamp
+        # (v4:16 B, v5:20 B) -> v4 event 52 B, v5 event 56 B.
         # quality: response, duration, jerk mm/s^3, hole, energy, lockup, osc, valid
         hdr += _s.pack("<IIBBBB" + "HHHHIHBB", a, b, gf, gt, done, 72,
                        420, 1100, 38500, 66, 8100, 9400, 1, 1 if done else 0)
-        # stamp: features, arm, blend_pct, flags, adapt_reason, _pad,
-        #        target_time_ms, spc_offset, prefill_offset, spc_delta, prefill_delta
-        hdr += _s.pack("<BBBBBBHhhhh", 0x05, 1, 40, 0x80, 16, 0,
-                       600, -30, 1, -10, 0)
-    hdr += b"\x00" * (44 * (4 - len(events)))
+        # stamp: features, arm, blend_pct, flags, adapt_reason, algorithm,
+        #        target_time_ms, spc_offset, prefill_offset,
+        #        shift_time_offset, spc_delta, prefill_delta, shift_time_delta
+        if version >= 5:
+            hdr += _s.pack("<BBBBBBHhhhhhh", 0x05, 1, 40, 0x80, 16, 1,
+                           600, -30, 1, -20, -10, 0, -25)
+        else:
+            hdr += _s.pack("<BBBBBBHhhhh", 0x05, 1, 40, 0x80, 16, 1,
+                           600, -30, 1, -10, 0)
+    pad_event = 56 if version >= 5 else (52 if version >= 4 else 44)
+    hdr += b"\x00" * (pad_event * (4 - len(events)))
     return hdr, ring

@@ -1,0 +1,13 @@
+{
+  "change": 6,
+  "speed_kph": 30,
+  "torque_nm": -20,
+  "pedal": 0,
+  "tipin_s": 1.25,
+  "torque_after_nm": 140,
+  "pedal_after": 150,
+  "atf_c": 60,
+  "time_ms": 700,
+  "shift_at_s": 1,
+  "seconds": 6
+}

@@ -1,0 +1,261 @@
+#!/usr/bin/env python3
+"""Run recovered EGS51 release pressure phases against the shared physical plant.
+
+This is an explicit host schedule, not the complete OEM controller. Optional
+raw-ROM differential checks validate the recovered C on the plant trajectory.
+"""
+from __future__ import annotations
+import argparse
+import csv
+import ctypes as c
+import hashlib
+import json
+import math
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tmp/egs51/tests'))
+from verify_model import ROM, State, base, state, word, check_memory
+from run import report_html, source_digest, parse_assignment
+
+DEFAULTS = dict(speed_kph=50, torque_nm=120, mass_kg=1800, grade_percent=0,
+                dt_ms=1, seconds=6, tick_ms=20, pressure_tau_s=.04, fill_s=.12,
+                capacity_scale=1, temperature_raw=60, demand_factor_raw=10,
+                torque_raw_per_nm=1, speed_raw_per_rpm=1, mbar_per_pressure_raw=1)
+CALLS = {'cal_select': (1,0x20bc), 'shift_clutch_context': (1,0x61cf),
+         'shift_setup': (1,0x2bb2), 'release_entry': (1,0x97ec),
+         'release_apply': (1,0x4bc9), 'release_modulate': (1,0x4fc0),
+         'release_transfer': (1,0x96bb), 'release_match': (1,0x9a6b),
+         'shift_finish': (1,0x9934), 'torque_context': (0,0xcf5b), 'timers_tick': (0,0xe48d)}
+PERSISTENT_IM = list(range(0x44,0x58))+list(range(0xa9,0xba))+[0x21,0x95,0x96,0x98,0x99]
+
+
+def validate(p):
+    if set(p) != set(DEFAULTS): raise ValueError('unknown scenario keys: '+str(set(p)-set(DEFAULTS)))
+    for key,v in p.items():
+        if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v):
+            raise ValueError(f'{key} must be a finite number')
+    for key in set(p)-{'grade_percent','temperature_raw'}:
+        if p[key]<=0: raise ValueError(f'{key} must be positive')
+    if not .1<=p['dt_ms']<=5 or not 1<=p['tick_ms']<=100 or not .02<=p['seconds']<=30:
+        raise ValueError('dt_ms: 0.1..5; tick_ms: 1..100; seconds: 0.02..30')
+    for interval in (p['tick_ms'],20):
+        if abs(interval/p['dt_ms']-round(interval/p['dt_ms']))>1e-8:
+            raise ValueError('plant timestep must divide tick_ms and 20 ms')
+    for k in ('temperature_raw','demand_factor_raw'):
+        if int(p[k])!=p[k] or not 0<=p[k]<=255: raise ValueError(k+' must be a byte')
+    if p['speed_kph']>150 or p['torque_nm']>500 or abs(p['grade_percent'])>30:
+        raise ValueError('scenario outside supported speed/torque/grade domain')
+
+
+def build(folder):
+    reconstructed=ROOT/'tmp/egs51/reconstructed'
+    subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Werror','-pedantic','-shared','-fPIC',
+                    *map(str,sorted(reconstructed.glob('egs51_*.c'))),'-o',str(folder/'egs51.so')],check=True)
+    subprocess.run(['c++','-std=c++17','-O2','-Wall','-Wextra','-Werror','-shared','-fPIC',
+                    str(ROOT/'sim/plant_bridge.cpp'),'-o',str(folder/'plant.so')],check=True)
+    return c.CDLL(str(folder/'egs51.so')),c.CDLL(str(folder/'plant.so'))
+
+
+def simulate(p, native, plant, destination, compare_rom=False):
+    validate(p)
+    cpu=base(); cpu.x[0x17b]=0x20; cpu.x[0x17c]=0x22
+    s=state(cpu)  # Independent persistent state; oracle results are never copied back.
+    counts={}
+    def call(name):
+        fn=getattr(native,'egs51_'+name); fn.argtypes=[c.POINTER(State)]
+        fn.restype=c.c_uint8 if name=='cal_select' else None
+        value=fn(c.byref(s))
+        if name=='cal_select' and value: raise RuntimeError('invalid OEM calibration coding')
+        if compare_rom:
+            bank,entry=CALLS[name]
+            cpu.put(0x88,(cpu.direct(0x88)&~16)|(16 if bank else 0))
+            cpu.run(entry)
+            check_memory(cpu,s,PERSISTENT_IM,range(1024))
+            if name=='cal_select' and cpu.r(7)!=value: raise AssertionError('calibration return mismatch')
+        counts[name]=counts.get(name,0)+1
+    def setword(space,a,v):
+        v=int(round(v))
+        if not -32768<=v<=65535: raise ValueError(f'input exceeds raw word domain at {a:x}: {v}')
+        word(getattr(s,space),a,v&65535)
+        if compare_rom: word(getattr(cpu,space),a,v&65535)
+    def setbyte(space,a,v):
+        getattr(s,space)[a]=int(v)
+        if compare_rom: getattr(cpu,space)[a]=int(v)
+    def w(space,a): return getattr(s,space)[a]*256+getattr(s,space)[a+1]
+    def rw(a): return ROM[65536+a]*256+ROM[65536+a+1]
+    call('cal_select')
+    # Bounded fixture: forced ordinary 4->3 release shift, zero adaptation,
+    # no skip demand, torque intervention or supervisory selection.
+    for a,v in ((0xb6,3),(0xb9,3),(0xb3,3),(0xa9,3),(0xac,7)):
+        setbyte('im',a,v)
+    setbyte('x',0x76,p['temperature_raw']); setbyte('x',0x202,p['demand_factor_raw'])
+    setword('x',0x329,9000)
+    old_ratio,new_ratio=rw(0x1048)/1000,rw(0x1046)/1000
+    scale=p['speed_raw_per_rpm']; torque_scale=p['torque_raw_per_nm']; pressure_scale=p['mbar_per_pressure_raw']
+    def inputs(engine,turbine,output):
+        # 4->3 B2/K3 kinematics, as in NAG52 ClutchSpeedModel. Sensor
+        # words are still supplied by this limited adapter. The recovered C6C6
+        # producer is not called here, so quantization/filtering are omitted.
+        # X2EF is wheel-derived (BFD5), not engine RPM. Leave it at the
+        # fixture default; it is not used by the exercised pressure paths.
+        on=(new_ratio*output-turbine)/(new_ratio-old_ratio)
+        off=turbine-on
+        for a,v in ((0x22f,turbine),(0x2ac,output),
+                    (0x1ea,on),(0x357,on),(0x2bb,off)):
+            raw=v*scale
+            if a in (0x1ea,0x357,0x2bb) and not -32768<=round(raw)<=32767:
+                raise ValueError('signed clutch speed exceeds supported raw domain')
+            setword('x',a,raw)
+        if p['torque_nm']*torque_scale>32767:
+            raise ValueError('positive torque exceeds signed raw domain')
+        # CF5B proves X1FD is signed torque. Unity context scaling is an
+        # explicit fixture assumption; raw units per Nm remain configurable.
+        setbyte('x',0x397,100)
+        setword('x',0x2c5,p['torque_nm']*torque_scale)
+        call('torque_context')
+    out=p['speed_kph']/3.6*3.07/(1.975/(2*math.pi))*30/math.pi
+    inputs(out*old_ratio,out*old_ratio,out)
+    call('shift_clutch_context'); call('shift_setup')
+    # Same equivalent torque-capacity law as NAG52, seeded from this ROM's
+    # mechanical coefficients; not an independently measured clutch capacity.
+    on_spring=w('im',0x4a)*pressure_scale; off_spring=w('im',0x4c)*pressure_scale
+    gain=ROM[65536+0xffd0]
+    off_gain=gain/w('im',0x54)/torque_scale/pressure_scale
+    on_gain=gain/w('im',0x52)/torque_scale/pressure_scale
+    hold=off_spring+p['torque_nm']*1.8/off_gain
+    array=c.c_double*14
+    plant.plant_create.argtypes=[c.POINTER(c.c_double)]; plant.plant_create.restype=c.c_void_p
+    plant.plant_destroy.argtypes=[c.c_void_p]; plant.plant_destroy.restype=None
+    plant.plant_step.argtypes=[c.c_void_p]+[c.c_double]*4; plant.plant_step.restype=None
+    plant.plant_read.argtypes=[c.c_void_p,c.POINTER(c.c_double)]; plant.plant_read.restype=None
+    model=plant.plant_create(array(p['mass_kg'],p['grade_percent'],p['capacity_scale'],
+        p['pressure_tau_s'],p['fill_s'],old_ratio,new_ratio,off_spring,on_spring,
+        off_gain,on_gain,p['speed_kph']/3.6,p['torque_nm'],hold))
+    if not model: raise RuntimeError('invalid physical plant parameters')
+    values=array(); rows=[]; accels=[]; phases=[]; emergency=False; complete=False; domain=False
+    end_s=-1.0
+    cmd_off=hold;cmd_on=0; dt=p['dt_ms']/1000; tick=round(p['tick_ms']/p['dt_ms']); lag=round(20/p['dt_ms'])
+    start=time.perf_counter()
+    try:
+        # Establish steady acceleration before measuring shift jerk. This
+        # warmup holds the old clutch and is outside the recorded shift window.
+        for _ in range(round(1/dt)):
+            plant.plant_step(model,dt,p['torque_nm'],hold,0)
+        plant.plant_read(model,values)
+        initial_old_slip=values[1]-old_ratio*values[2]
+        initial_engine_rpm=values[0]
+        for step in range(round(p['seconds']/dt)):
+            plant.plant_read(model,values)
+            if values[0]>6000 or values[1]>6000 or values[3]<0:
+                domain=True; break
+            if step%tick==0:
+                inputs(*values[:3]); call('shift_setup')
+                phase=s.im[0xaa]
+                if phase not in phases: phases.append(phase)
+                if phase and not w('im',0xb7): emergency=True
+                if phase==0: call('release_entry')
+                elif phase==1: call('release_apply');call('release_modulate')
+                elif phase in (2,3,4): call({2:'release_transfer',3:'release_match',4:'shift_finish'}[phase])
+                else: raise RuntimeError(f'unsupported OEM phase {phase}')
+                # Invert the recovered overlap mixer. I46 is clutch pressure,
+                # I48 is its SPC conversion. The plant consumes clutch pressure.
+                hydr=w('x',0x3ce); idx=6
+                on_raw=w('im',0x46); mpc=w('im',0x44)
+                spring=rw(hydr+0x27+2*idx); spring=spring if spring<32768 else spring-65536
+                on_multi=rw(hydr+7+2*idx); off_multi=rw(hydr+0x17+2*idx)
+                cmd_on=on_raw*pressure_scale
+                cmd_off=max(0,(mpc-spring-on_raw*on_multi/1000)*1000/off_multi)*pressure_scale
+                if not s.im[0x95]&7:
+                    if s.im[0xaa]==0 and s.im[0xb6]: cmd_off=hold;cmd_on=0
+                    else: cmd_off=0;cmd_on=max(cmd_on,on_spring+p['torque_nm']*1.8/on_gain)
+                complete=s.im[0xb6]==0
+                if complete: end_s=step*dt
+                call('timers_tick')
+            plant.plant_step(model,dt,p['torque_nm'],cmd_off,cmd_on)
+            plant.plant_read(model,values)
+            accels.append(values[4]); jerk20=(values[4]-accels[-lag-1])/.02 if len(accels)>lag else 0
+            rows.append(dict(zip(['engine_rpm','input_rpm','output_rpm','speed_m_s','accel_m_s2','jerk_m_s3',
+                                  'engine_torque_nm','converter_torque_nm','off_pressure_mbar','on_pressure_mbar',
+                                  'off_capacity_nm','on_capacity_nm','off_torque_nm','on_torque_nm'],values)))
+            rows[-1].update(t_s=(step+1)*dt,phase=s.im[0xaa],apply_substate=s.im[0xb4],mod_substate=s.im[0xb5],
+                circuit_bits=s.im[0x95]&7,mpc_raw=w('im',0x44),clutch_raw=w('im',0x46),spc_raw=w('im',0x48),
+                off_command_mbar=cmd_off,on_command_mbar=cmd_on,jerk_20ms_m_s3=jerk20,
+                on_slip_rpm=values[1]-new_ratio*values[2],emergency_timer=w('im',0xb7))
+            # Stop at the recovered pressure schedule's boundary. No invented
+            # steady-gear scheduler or forced speed synchronization afterwards.
+            if complete: break
+    finally: plant.plant_destroy(model)
+    if not rows: raise ValueError('scenario starts outside the supported physical domain')
+    with destination.open('w') as f:
+        writer=csv.DictWriter(f,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
+    final_window=[row for row in rows if row['t_s']>=rows[-1]['t_s']-.1]
+    final_sync_held=rows[-1]['t_s']-rows[0]['t_s']>=.1 and all(abs(row['on_slip_rpm'])<40 for row in final_window)
+    result=dict(initial_old_ratio_slip_rpm=initial_old_slip,initial_engine_rpm=initial_engine_rpm,
+        warmup_old_gear_synchronized=abs(initial_old_slip)<40,final_sync_held_100ms=final_sync_held,
+        model='equivalent-two-path-v1',controller_completed=False,controller_timed_out=not complete and not domain,
+        controller_end_s=end_s,final_sync=abs(rows[-1]['on_slip_rpm'])<40,
+        domain_exit=domain,pressure_schedule_completed=complete,emergency_timer_expired=emergency,
+        peak_abs_jerk_20ms_m_s3=max(abs(r['jerk_20ms_m_s3']) for r in rows),
+        peak_abs_jerk_m_s3=max(abs(r['jerk_m_s3']) for r in rows),simulated_s=rows[-1]['t_s'],
+        wall_s=time.perf_counter()-start,phases=phases,native_calls=counts,
+        rom_calls_checked=sum(counts.values()) if compare_rom else 0)
+    result['scope_outcome']='pressure schedule finished' if complete else 'pressure schedule unfinished'
+    if emergency: result['scope_outcome']+='; emergency timer expired'
+    if abs(initial_old_slip)>=40: result['scope_outcome']+='; pre-shift old gear already slipping'
+    if domain: result['scope_outcome']+='; physical model domain exit'
+    if not final_sync_held: result['scope_outcome']+='; no final 100 ms synchronization'
+    return {'parameters':{**p,'shift_at_s':0},'result':result,
+            'calibration':dict(coding=[0x20,0x22],old_ratio=old_ratio,new_ratio=new_ratio,
+                off_spring_mbar=off_spring,on_spring_mbar=on_spring,off_nm_per_mbar=off_gain,on_nm_per_mbar=on_gain)}
+
+
+def main():
+    ap=argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--scenario',type=Path)
+    ap.add_argument('--compare-rom',action='store_true')
+    ap.add_argument('--set',action='append',default=[],metavar='KEY=VALUE')
+    ap.add_argument('--convergence',action='store_true',help='also run half and quarter plant steps')
+    ap.add_argument('--output',type=Path,default=ROOT/'sim/results/egs51_43')
+    args=ap.parse_args(); p=dict(DEFAULTS)
+    if args.scenario: p.update(json.loads(args.scenario.read_text()))
+    p.update(dict(parse_assignment(v) for v in args.set))
+    validate(p)
+    output=args.output.resolve();output.mkdir(parents=True,exist_ok=True)
+    paths=sorted(set((ROOT/'src/egs51').glob('*.[ch]')) |
+                 set((ROOT/'tmp/egs51/reconstructed').glob('*.[ch]')) |
+                 {ROOT/'sim/plant.h',ROOT/'sim/plant_bridge.cpp',Path(__file__).resolve(),ROOT/'sim/run.py'} |
+                 set((ROOT/'tmp/egs51/tests').glob('*.py')) |
+                 {ROOT/'src/shifting_algo/egs51_handoff_math.h'})
+    digest=source_digest(paths)
+    with tempfile.TemporaryDirectory(prefix='egs51-plant-') as td:
+        native,plant=build(Path(td))
+        runs=[]
+        for i,factor in enumerate((1,2,4) if args.convergence else (1,)):
+            variant={**p,'dt_ms':p['dt_ms']/factor}
+            csv_name=f'run_{i:02d}.csv'
+            data=simulate(variant,native,plant,output/csv_name,args.compare_rom)
+            runs.append(dict(name=f"EGS51 4→3, dt={variant['dt_ms']:g} ms",csv=csv_name,**data))
+        binaries={n:hashlib.sha256((Path(td)/n).read_bytes()).hexdigest() for n in ('egs51.so','plant.so')}
+    if source_digest(paths)!=digest: raise RuntimeError('sources changed during execution; rerun')
+    (output/'summary.json').write_text(json.dumps(dict(source_sha256=digest,binaries_sha256=binaries,
+        rom_sha256=hashlib.sha256(ROM).hexdigest(),model_calibrated=False,full_oem_controller=False,
+        assumptions=['forced mode 3; no supervisor, adaptation learning, torque request or TCC schedule',
+                     'tick_ms and raw SI conversions are scenario assumptions, not recovered scheduler timing',
+                     'clutch speeds use NAG52 kinematics; unprovided OEM feedback terms remain zero',
+                     'clutch capacity seeded from controller calibration; not independent physical validation',
+                     'one second old-gear warmup precedes recorded shift; steady hold after circuit release is a host boundary condition'],runs=runs),indent=2)+'\n')
+    report_html(runs,output,title='EGS51 release pressure schedule',description=
+        'Recovered native C drives the shared plant. Forced 4→3; host timer period and raw unit mappings are assumptions. '
+        'This is not the complete OEM controller. See summary.json for omissions and ROM comparison coverage.')
+    for run in runs:
+        print(run['name']);print(json.dumps(run['result'],indent=2))
+    print(output/'comparison.html')
+
+
+if __name__=='__main__':
+    main()

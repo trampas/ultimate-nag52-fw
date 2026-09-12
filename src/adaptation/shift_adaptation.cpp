@@ -19,6 +19,7 @@ ShiftAdaptationSystem::ShiftAdaptationSystem()
     this->applying_torque_offset = new StoredMap(NVS_KEY_MAP_NAME_ADAPT_APPLYING_TRQ, 8*1, adpt_map_x, adpt_map_y, 8, 1, GEAR_ADAPT_MAP);
     this->freeing_torque_offset = new StoredMap(NVS_KEY_MAP_NAME_ADAPT_FREEING_TRQ, 8*1, adpt_map_x, adpt_map_y, 8, 1, GEAR_ADAPT_MAP);
     this->spc_offset_map = new StoredMap(NVS_KEY_MAP_NAME_ADAPT_SPC_OFFSET, 8*1, adpt_map_x, adpt_map_y, 8, 1, GEAR_ADAPT_MAP);
+    this->shift_time_offset_map = new StoredMap(NVS_KEY_MAP_NAME_ADAPT_SHIFT_TIME, 8*1, adpt_map_x, adpt_map_y, 8, 1, GEAR_ADAPT_MAP);
 }
 
 esp_err_t ShiftAdaptationSystem::save(void) {
@@ -33,6 +34,9 @@ esp_err_t ShiftAdaptationSystem::save(void) {
     }
     if (nullptr != this->spc_offset_map) {
         this->spc_offset_map->save_to_eeprom();
+    }
+    if (nullptr != this->shift_time_offset_map) {
+        this->shift_time_offset_map->save_to_eeprom();
     }
     return ESP_OK;
 }
@@ -65,6 +69,14 @@ int16_t ShiftAdaptationSystem::get_applying_torque_offset(uint8_t shift_idx) {
     int16_t ret = 0;
     if (nullptr != this->applying_torque_offset) {
         ret = this->applying_torque_offset->get_current_data()[shift_idx];
+    }
+    return ret;
+}
+
+int16_t ShiftAdaptationSystem::get_shift_time_offset(uint8_t shift_idx) {
+    int16_t ret = 0;
+    if (nullptr != this->shift_time_offset_map) {
+        ret = this->shift_time_offset_map->get_current_data()[shift_idx];
     }
     return ret;
 }
@@ -117,6 +129,19 @@ void ShiftAdaptationSystem::offset_applying_trq(uint8_t shift_idx, int16_t offse
     }
 }
 
+int16_t ShiftAdaptationSystem::offset_shift_time(uint8_t shift_idx, int16_t offset) {
+    if (nullptr != this->shift_time_offset_map) {
+        int16_t* ptr = this->shift_time_offset_map->get_current_data();
+        const int16_t before = ptr[shift_idx];
+        const int32_t lim = MAX(0, (int32_t)ADP_CURRENT_SETTINGS.quality_time_max_offset_ms);
+        ptr[shift_idx] = clamp_i16((int32_t)ptr[shift_idx] + offset, lim);
+        const int16_t applied = ptr[shift_idx] - before;
+        ESP_LOGI("ADAPT", "Shift time offset by %d to %d", applied, ptr[shift_idx]);
+        return applied;
+    }
+    return 0;
+}
+
 esp_err_t ShiftAdaptationSystem::reset() {
     if (nullptr != this->prefill_time_map) {
         this->prefill_time_map->reset_from_flash();
@@ -129,6 +154,9 @@ esp_err_t ShiftAdaptationSystem::reset() {
     }
     if (nullptr != this->applying_torque_offset) {
         this->applying_torque_offset->reset_from_flash();
+    }
+    if (nullptr != this->shift_time_offset_map) {
+        this->shift_time_offset_map->reset_from_flash();
     }
     return ESP_OK;
 }

@@ -98,3 +98,16 @@ Expected loop for diagram edits:
 4. Re-export and re-inspect until clean.
 
 If export is blocked by environment permissions, document the blocker and do not claim visual QA passed.
+
+## Control change notes
+
+- [2026-09-09 kickdown changes and validation](kickdown_changes_20260909.md)
+- [Transmission and vehicle simulation feasibility](simulation_feasibility.md)
+
+## EGS51 reverse engineering
+
+Index and artifact list: [722.6 / EGS51 / NAG52 documentation index](7226_egs51_nag52_developer_guide.md).
+
+OEM behavior and the pressure control chain are in the
+[primer](7226_egs51_primer.md); NAG52 comparison is in the
+[behavior and parity guide](nag52_behavior_and_parity.md).

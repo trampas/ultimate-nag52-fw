@@ -1,0 +1,58 @@
+<!-- Compiler support routines identified by original instruction sequences.
+     These are inline p-code descriptions of register ABI effects, not guessed
+     C parameter lists. Divide-by-zero remains outside the valid domain. -->
+<callfixup name="egs52_mul32_registers">
+ <pcode><body><![CDATA[
+  local lhs:4 = (zext(r5) << 16) | zext(r4);
+  local rhs:4 = (zext(r11) << 16) | zext(r10);
+  local result:4 = lhs * rhs;
+  r4 = result:2;
+  result = result >> 16;
+  r5 = result:2;
+ ]]></body></pcode>
+</callfixup>
+<callfixup name="egs52_udiv32_registers">
+ <pcode><body><![CDATA[
+  local lhs:4 = (zext(r5) << 16) | zext(r4);
+  local rhs:4 = (zext(r11) << 16) | zext(r10);
+  local result:4 = lhs / rhs;
+  r4 = result:2;
+  result = result >> 16;
+  r5 = result:2;
+ ]]></body></pcode>
+</callfixup>
+<callfixup name="egs52_sdiv32_registers">
+ <pcode><body><![CDATA[
+  local lhs:4 = (zext(r5) << 16) | zext(r4);
+  local rhs:4 = (zext(r11) << 16) | zext(r10);
+  local result:4 = lhs s/ rhs;
+  r4 = result:2;
+  result = result >> 16;
+  r5 = result:2;
+ ]]></body></pcode>
+</callfixup>
+<callfixup name="egs52_read_far_u32_registers">
+ <pcode><body><![CDATA[
+  local address:3 = (zext(r5) << 16) | zext(r4);
+  r10 = *:2 address;
+  local carryout:1 = carry(r4, 2:2);
+  r4 = r4 + 2;
+  r5 = r5 + zext(carryout);
+  address = (zext(r5) << 16) | zext(r4);
+  r11 = *:2 address;
+ ]]></body></pcode>
+</callfixup>
+<callfixup name="egs52_near_to_far_registers">
+ <pcode><body><![CDATA[
+  local page:2 = DPP0;
+  if ((r4 & 0xc000) == 0) goto <combine>;
+  page = DPP1;
+  if ((r4 & 0xc000) == 0x4000) goto <combine>;
+  page = DPP2;
+  if ((r4 & 0xc000) == 0x8000) goto <combine>;
+  page = DPP3;
+ <combine>
+  r4 = (r4 & 0x3fff) | ((page & 3) << 14);
+  r5 = page >> 2;
+ ]]></body></pcode>
+</callfixup>

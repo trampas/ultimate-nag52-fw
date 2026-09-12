@@ -33,6 +33,10 @@ const DRAM_ATTR CanTorqueData TORQUE_NDEF = {
 
 class EgsBaseCan {
     public:
+        // Optional torque-boundary diagnostics (Nm); unavailable is INT16_MAX.
+        virtual int16_t get_torque_request_wire() const { return INT16_MAX; }
+        virtual int16_t get_engine_drag_torque(uint32_t) { return INT16_MAX; }
+    public:
         EgsBaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud, Shifter* shifter);
 
         bool bus_ok() const;

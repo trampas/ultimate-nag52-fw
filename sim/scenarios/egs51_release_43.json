@@ -1,0 +1,14 @@
+{
+  "speed_kph": 50,
+  "torque_nm": 120,
+  "mass_kg": 1800,
+  "grade_percent": 0,
+  "dt_ms": 1,
+  "seconds": 6,
+  "tick_ms": 20,
+  "temperature_raw": 60,
+  "demand_factor_raw": 10,
+  "torque_raw_per_nm": 1,
+  "speed_raw_per_rpm": 1,
+  "mbar_per_pressure_raw": 1
+}

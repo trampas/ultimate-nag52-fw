@@ -1,0 +1,51 @@
+address,return,parameters,evidence
+0df1c6,s16,u8:weight:r12;s16:next:r13;s16:old:r14,Instruction-tested register inputs
+0df1f8,u16,u8:weight:r12;u16:next:r13;u16:old:r14,Instruction-tested register inputs
+0df222,u16,u8:weight:r12;u16:a:r13;u16:b:r14,Instruction-tested register inputs
+0df250,s16,u8:weight:r12;s16:a:r13;s16:b:r14,Instruction-tested register inputs
+0df27e,u16,u16:old:r12;u16:target:r13;u16:divisor:r14,Instruction-tested register inputs
+0df2b0,u16,u16:value:r12,Instruction-tested register input
+0df2ec,u16,u16:value_low:r12;u16:value_high:r13,32-bit input exposed as its two original register words
+0df36e,u16,u16:x:r12;u16:y:r13,Instruction-tested register inputs
+0df3a4,u16,p16:values:r12,Five near word inputs
+0df3f8,u16,p16:values:r12,Five near word inputs
+0df44c,u16,u16:count:r12;p16:axis:r13;p16:values:r14;u16:input:r15,Instruction-tested near curve ABI
+0df506,u16,u16:nx:r12;u16:ny:r13;p16:xs:r14;p16:ys:r15;p16:cells:stack0;u16:x:stack2;u16:y:stack4,Instruction-tested register and R0 stack inputs
+0df72e,s16,u16:nx:r12;u16:ny:r13;ps16:xs:r14;ps16:ys:r15;ps16:cells:stack0;s16:x:stack2;s16:y:stack4,Instruction-tested register and R0 stack inputs
+0df894,u8,u8:count:r12;p8:axis:r13;p8:values:r14;u8:input:r15,Instruction-tested near curve ABI
+0df980,u8,u8:nx:r12;u8:ny:r13;p8:xs:r14;p8:ys:r15;p8:cells:stack0;u8:x:stack2;u8:y:stack4,Instruction-tested register and R0 stack inputs
+0dfc18,s16,u8:count:r12;ps16:axis:r13;ps16:values:r14;s16:input:r15,Instruction-tested near curve ABI
+0dfcd6,void,p16:state:r12,Three writable state words
+0dfce4,s16,p16:state:r12;ps16:gains:r13;s16:error:r14,Integral term is a RAM side effect rather than an argument
+09223a,u16,s16:value:r12,Instruction-tested register input
+092248,p8,p8:destination:r12;p8:source:r13;u16:count:r14,Original near pointers; native model receives RAM separately
+09efaa,u16,u16:offset:r12;u16:segment:r13;u16:count:r14;u16:crc:r15,Native callback models the original EXTS loads
+0d2008,void,,Instruction-tested RAM clamp and flag input
+0d2938,void,u8:weight:r12;u8:reference:r13;u16:base:r14,Instruction-tested byte argument and RAM write effects
+0d7b70,void,u16:value:r12;u8:weight:r13,Quotient stored in D4AE; R4 is not an output
+0d7bc0,void,,Instruction-tested implicit RAM inputs and D402 output
+0d7e64,u16,u16:input:r12,Instruction-tested wrapping offset and unsigned limits
+0de014,u8,u16:input:r12,Instruction-tested negation and signed comparison
+0e0000,void,,Instruction-tested scaled difference and conditional filter
+09f858,u8,,Instruction-tested status initialization and zero return
+09f7d8,u8,u8:index:r12,Instruction-tested status bit 4 query
+09f7ec,u8,u8:index:r12,Instruction-tested status bit 3 query
+09f800,u8,u8:index:r12,Instruction-tested status bit 2 query
+09f814,u8,u8:index:r12,Instruction-tested status bit 7 query
+09f828,u8,u8:index:r12,Instruction-tested indexed bitmap query
+094980,void,u16:mask:r12;u16:client:r13,Observed operating-mask entry registers and indexed client store
+094194,u16,,Forwarder returns full R4 from getter 0a097e
+0a097e,u16,,Single word load of C34E into R4 followed by RETS
+09792e,void,,Atomic PSW interrupt enable and RETS
+097938,u8,,Save PSW IEN bit into RL4 and clear it atomically
+094188,void,u8:value:r12,Byte argument forwarded to 0a08ee
+093f04,u8,p8:destination:r12,All exits set RL4; caller 0966ca compares RL4; R12 receives two bytes from C044 indexed by C043
+0a59c2,u8,u16:arg0:r12;u16:arg1:r13,Writes F3E6/F3E8 and request byte 65; invokes far callback at 080208; exits set RL4 to FDEE bit2
+0a5a0e,u8,u16:arg0:r12;u16:arg1:r13;u16:arg2:r14;u16:arg3:r15,Writes four words at F3E6 and request byte 53; invokes far callback at 08020C; exits set RL4 to FDEE bit1
+0e31ae,void,,Implicit RAM inputs and scaled byte/word stores; both callers discard result before subsequent calls
+0a7d38,u16,u16:requested:r12,Instruction-tested PSW replacement and previous priority returned in R4
+0d30f2,u16,u16:low:r12;u16:high:r13;s16:x0:r14;s16:x1:r15;s16:input:stack0,Original-instruction comparison of signed interpolation; fifth operand at entry R0
+0a626c,u16,u8:index:r12,Every byte index/limit pair checked against original instructions; reads word in EE00/EF00 record arrays
+0d728e,u8,u8:mode:r12,Common exit writes RL4 at 0d73dc; sole caller 0d4c1c stores RL4 to D5B1; byte mode copied from RL6
+098164,u8,,Bit inversion from FD02 into PSW bit6 and RL4; every initial PSW word instruction-tested
+09eee4,u8,u16:word0:r12;u16:word1:r13;u16:word2:r14;u16:word3:stack0,Instruction-tested C32A status gates and four-word request staging at C332; fourth word on R0 stack

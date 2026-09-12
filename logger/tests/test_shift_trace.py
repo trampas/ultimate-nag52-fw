@@ -22,8 +22,8 @@ from fake_tcu import FakeTcu, build_trace  # noqa: E402
 class LayoutTests(unittest.TestCase):
     def test_struct_sizes_match_the_firmware_header(self):
         # src/shift_trace.h pins these with static_asserts.
-        self.assertEqual(ST.SAMPLE_SIZE, 30)
-        self.assertEqual(ST.EVENT_SIZE, 44)   # grew by ShiftStamp at trace version 2
+        self.assertEqual(ST.SAMPLE_SIZE, 38)
+        self.assertEqual(ST.EVENT_SIZE, 56)   # grew by shift-time adaptation metadata in v5
         self.assertEqual(ST.HEADER_SIZE, 24)
 
     def test_chunk_size_leaves_headroom_in_the_bridge_fifo(self):
@@ -31,7 +31,7 @@ class LayoutTests(unittest.TestCase):
         # That must stay well under the CP2102N's 576 byte receive buffer - a full
         # 255 byte read would be 518 bytes, 90 % of it.
         per_request = ST.MAX_CHUNK // ST.SAMPLE_SIZE
-        self.assertEqual(per_request, 4)
+        self.assertEqual(per_request, 3)
         frame = 2 * (1 + per_request * ST.SAMPLE_SIZE) + 6
         self.assertLess(frame, 576 * 0.6, "frame %d bytes is too close to the FIFO" % frame)
 
@@ -53,7 +53,7 @@ class ReadoutTests(unittest.TestCase):
         try:
             h = ST.read_header(cl)
             self.assertEqual(h["capacity"], 512)
-            self.assertEqual(h["sample_size"], 30)
+            self.assertEqual(h["sample_size"], 38)
             self.assertEqual(h["seq"], 100)
             self.assertEqual(len(h["events"]), 1)
             ev = h["events"][0]
@@ -75,6 +75,41 @@ class ReadoutTests(unittest.TestCase):
             self.assertEqual(s[5]["p_on"], 3005)
             self.assertEqual(s[0]["gear_actual"], "2")
             self.assertEqual(s[0]["gear_target"], "3")
+        finally:
+            rd.stop()
+
+    def test_version3_remains_readable_without_invented_metadata(self):
+        cl, rd, _ = self._client(seq=100, version=3)
+        try:
+            h = ST.read_header(cl)
+            self.assertEqual(h["sample_size"], 30)
+            samples = ST.read_samples(cl, h, 0, 2)
+            self.assertEqual(samples[0]["trq_req_amount"], 120)
+            self.assertNotIn("shift_id", samples[0])
+            self.assertNotIn("request_wire_nm", samples[0])
+            self.assertNotIn("algorithm", h["events"][0]["stamp"])
+        finally:
+            rd.stop()
+
+    def test_version4_carries_identity_and_torque_convention_evidence(self):
+        cl, rd, _ = self._client(seq=100)
+        try:
+            h = ST.read_header(cl)
+            self.assertEqual(h["events"][0]["shift_id"], 1)
+            self.assertEqual(h["events"][0]["atf_temp_start"], 65)
+            sample = ST.read_samples(cl, h, 0, 1)[0]
+            self.assertEqual(sample["shift_id"], 1)
+            self.assertEqual(sample["request_wire_nm"], 120)
+            self.assertEqual(sample["engine_drag_nm"], 54)
+        finally:
+            rd.stop()
+
+    def test_version5_carries_shift_time_adaptation_metadata(self):
+        cl, rd, _ = self._client(seq=100, version=5)
+        try:
+            st = ST.read_header(cl)["events"][0]["stamp"]
+            self.assertEqual(st["shift_time_offset"], -20)
+            self.assertEqual(st["shift_time_delta"], -25)
         finally:
             rd.stop()
 
@@ -167,7 +202,7 @@ class ReadoutTests(unittest.TestCase):
             import struct as _s
             ring = bytearray(tcu.trace_ring)
             v = list(_s.unpack_from(ST.SAMPLE_FMT, ring, 0))
-            v[15] = 32767                            # INT16_MAX = no request
+            v[ST.SAMPLE_FIELDS.index("trq_req_amount")] = 32767                            # INT16_MAX = no request
             _s.pack_into(ST.SAMPLE_FMT, ring, 0, *v)
             tcu.trace_ring = bytes(ring)
             s = ST.read_samples(cl, ST.read_header(cl), 0, 2)

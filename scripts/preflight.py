@@ -142,7 +142,7 @@ def check_torque_request(log):
                 if et <= 0 and ped > PEDAL_DEMANDING:
                     out.append(Finding("ERROR", "torque_request",
                                        "%s: engine torque %d Nm with pedal at %d/250 - "
-                                       "the reduction became a fuel cut" % (label, et, ped)))
+                                       "net torque undershoot; fuel-cut causality is not established" % (label, et, ped)))
                     break
     return out
 
@@ -162,19 +162,19 @@ def check_garage_engagement(log):
         if "aborted" in m:
             out.append(Finding("ERROR", "garage",
                                "t=%.2f: garage shift aborted - the engagement was thrown away "
-                               "and re-attempted, slamming the clutch again" % l["t"]))
+                               "(legacy logs do not distinguish selector cancellation)" % l["t"]))
     # Time from each "Garage shift" to its resolution.
     opens = [l for l in starts if (l.get("msg") or "").strip() == "Garage shift"]
-    closes = [l for l in starts if "completed OK" in (l.get("msg") or "") or "aborted" in (l.get("msg") or "")]
+    closes = [l for l in starts if "completed OK" in (l.get("msg") or "") or "aborted" in (l.get("msg") or "") or "cancelled" in (l.get("msg") or "")]
     for o in opens:
         nxt = [c for c in closes if c["t"] >= o["t"]]
         if not nxt:
             continue
         ms = (nxt[0]["t"] - o["t"]) * 1000.0
-        if ms > GARAGE_MAX_MS:
+        if ms > GARAGE_MAX_MS and "cancelled" not in (nxt[0].get("msg") or ""):
             out.append(Finding("ERROR", "garage",
-                               "t=%.2f: engagement took %.0f ms (limit %d) - it did not take "
-                               "first time" % (o["t"], ms, GARAGE_MAX_MS)))
+                               "t=%.2f: engagement took %.0f ms (limit %d) - it did not complete "
+                               "within the duration limit" % (o["t"], ms, GARAGE_MAX_MS)))
     # Re-entry: a second "Garage shift" opening hard on the heels of the last one.
     for a, b in zip(opens, opens[1:]):
         if b["t"] - a["t"] < 5.0 and any(c for c in closes if a["t"] <= c["t"] <= b["t"] and "aborted" in (c.get("msg") or "")):
@@ -186,14 +186,11 @@ def check_garage_engagement(log):
 
 
 def check_garage_sync_gate(log):
-    """The engagement completion gate must be satisfiable at a standstill.
+    """Flag completion samples for inspection without inventing rejection.
 
-    input_rpm is turbine speed and does not reach zero at a standstill in gear -
-    the converter drags it to 100-300 rpm (CLAUDE.md). Any completion test that
-    needs a smaller number than that cannot pass while the car is stopped, which
-    is precisely when a garage shift happens. This replays the substage-8 check
-    from the trace and reports engagements that were rejected while the measured
-    slip was in fact within the threshold used to declare sync.
+    Phase 8 identifies a completion check, not its result. The older fixed
+    20-rpm exit test and the corrected entry-matched gate share that phase ID.
+    Without an explicit retry/result, the trace cannot tell them apart.
     """
     out = []
     for sh in log.shift_traces:
@@ -215,10 +212,10 @@ def check_garage_sync_gate(log):
             if delta >= 20 and delta < thr:
                 rejected.append((s["t_ms"], delta, thr, ped))
         for t_ms, delta, thr, ped in rejected:
-            out.append(Finding("ERROR", "garage_sync",
-                               "%s->%s t_ms=%d: completion rejected at %d rpm slip with pedal "
-                               "%d/250, but sync was declared at up to %d rpm - the exit gate is "
-                               "stricter than the entry gate" % (gf, gt, t_ms, delta, ped, thr)))
+            out.append(Finding("WARN", "garage_sync",
+                               "%s->%s t_ms=%d: completion sampled at %d rpm slip with pedal "
+                               "%d/250 (entry threshold %d rpm); phase 8 alone does not establish "
+                               "rejection or which firmware exit threshold was used" % (gf, gt, t_ms, delta, ped, thr)))
     return out
 
 

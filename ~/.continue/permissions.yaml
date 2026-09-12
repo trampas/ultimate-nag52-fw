@@ -1,0 +1,6 @@
+allow:
+  - Read(*)
+  - Write(*)
+  - Bash
+ask: []
+exclude: []

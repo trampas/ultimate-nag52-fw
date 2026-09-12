@@ -7,6 +7,8 @@
 #include "shifter/shifter_trrs.h"
 #include "shifter/shifter_ewm.h"
 #include "egs_calibration/calibration_structs.h"
+#include "egs51_torque.h"
+#include "nvs/module_settings.h"
 
 Egs51Can::Egs51Can(const char *name, uint8_t tx_time_ms, uint32_t baud, Shifter *shifter) : EgsBaseCan(name, tx_time_ms, baud, shifter) 
 {
@@ -429,7 +431,9 @@ void Egs51Can::set_gearbox_ok(bool is_ok) {
 }
 
 void Egs51Can::set_torque_request(TorqueRequestControlType control_type, TorqueRequestBounds limit_type, float amount_nm) {
-    if (control_type == TorqueRequestControlType::None) {
+    const uint8_t wire = Egs51Torque::encode(amount_nm, this->get_engine_drag_torque(100),
+        SBS_CURRENT_SETTINGS.egs51_request_gross);
+    if (control_type == TorqueRequestControlType::None || wire == Egs51Torque::INACTIVE) {
         this->gs218.TORQUE_REQ_EN = false;
         this->gs218.SE = false;
         this->gs218.TORQUE_REQ = 0xFE;
@@ -437,8 +441,20 @@ void Egs51Can::set_torque_request(TorqueRequestControlType control_type, TorqueR
         // Just enable the request
         this->gs218.TORQUE_REQ_EN = true;
         this->gs218.SE = true;
-        this->gs218.TORQUE_REQ = amount_nm/3;
+        this->gs218.TORQUE_REQ = wire;
     }
+}
+
+int16_t Egs51Can::get_torque_request_wire() const {
+    return this->gs218.TORQUE_REQ_EN ? this->gs218.TORQUE_REQ * 3 : INT16_MAX;
+}
+
+int16_t Egs51Can::get_engine_drag_torque(uint32_t expire_time_ms) {
+    MS_310_EGS51 frame;
+    if (this->ms51.get_MS_310(GET_CLOCK_TIME(), expire_time_ms, &frame) && frame.DRG_TORQUE != UINT8_MAX) {
+        return frame.DRG_TORQUE * 3;
+    }
+    return INT16_MAX;
 }
 
 void Egs51Can::set_garage_shift_state(bool enable, bool to_d) {

@@ -21,6 +21,9 @@
 #include "shifter/shifter.h"
 #include "inputcomponents/brakepedal.hpp"
 #include "inputcomponents/kickdownswitch.hpp"
+#include "models/shift_demand.h"
+#include "models/downshift_observer.h"
+#include <atomic>
 #include "driver_dynamics/dynamics.h"
 //#include "runtime_sensors/runtime_sensors.h"
 
@@ -59,6 +62,7 @@ public:
     uint8_t get_targ_curr_gear(void) const { return (((uint8_t)this->target_gear) & 0x0F) << 4 | ((uint8_t)this->actual_gear & 0x0F); }
     /// Driver agility demand and the inputs behind it, for RLI_DRIVING_DYNAMIC.
     DATA_DRIVING_DYNAMICS get_driving_dynamics(void);
+    DownshiftObserver::Snapshot get_downshift_observation();
     uint8_t get_profile_id(void) {
         if (this->current_profile) {
             return this->current_profile->get_profile_id();
@@ -71,6 +75,10 @@ public:
     ShiftAdaptationSystem* shift_adapter = nullptr;
     SpeedSensors speed_sensors;
 private:
+    DownshiftObserver::Recorder downshift_observer;
+    portMUX_TYPE downshift_observer_mutex = portMUX_INITIALIZER_UNLOCKED;
+    void observe_downshift(DownshiftObserver::State state, uint8_t flags = 0);
+
     bool is_stationary() const;
     ShiftReportSegment collect_report_segment(uint64_t start_time);
     void set_torque_request(TorqueRequestControlType ctrl_type, TorqueRequestBounds bounds, float amount);
@@ -111,6 +119,7 @@ private:
     uint16_t last_out_rpm = 0;
     int16_t decel_rpm_s = 0;            // output shaft, for the braking term
     uint8_t agility_demand(void);
+    bool agility_inputs_valid = false;
     void update_agility_score(void);
     // Anti-bog gate on automatic upshifts; see the definition in gearbox.cpp
     bool next_gear_can_pull(GearboxGear next);
@@ -149,6 +158,7 @@ private:
     void quality_adaptation_step(void);
     GearboxGear target_gear = GearboxGear::Park;
     GearboxGear actual_gear = GearboxGear::Park;
+    GearboxGear ladder_target = GearboxGear::SignalNotAvailable;
     GearboxGear last_fwd_gear = GearboxGear::Second;
     bool process_speed_sensors();
     void process_acceleration();
@@ -174,6 +184,12 @@ private:
     bool ask_downshift = false;
     bool manual_shift = false;
     bool shift_req_was_manual = false;
+    bool shift_req_was_kickdown = false;
+    std::atomic<uint32_t> shift_trace_id{0};
+    bool raw_kickdown = false;
+    ShiftDemand::LiftHold lift_hold;
+    GearboxGear kickdown_target(AbstractProfile* profile);
+    bool downshift_has_reserve(AbstractProfile* profile, GearboxGear lower);
     bool is_upshift = false;
     bool fwd_gear_shift = false;
     float tcc_percent = 0.F;
@@ -182,7 +198,10 @@ private:
     bool show_upshift = false;
     bool show_downshift = false;
     bool flaring = false;
-    bool engine_running = false;
+    std::atomic<bool> engine_running{false};
+    bool engine_rpm_valid = false;
+    void update_engine_state(uint16_t rpm);
+    void cancel_garage_shift();
     int gear_disagree_count = 0;
     unsigned long last_tcc_adjust_time = 0;
     int mpc_working = 0;

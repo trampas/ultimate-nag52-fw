@@ -1,0 +1,19 @@
+{
+  "CheckEgs52Processor.java": "341277dcfb62cf54fc347e6d8b81f86cb31d1663f4c1190eebfc869271e617f8",
+  "InspectEgs52.java": "a82165d41d818f5717efb8b59191ec45799b12f54bf3803f8b1050a0995f9242",
+  "LICENSE.C166_MODULE": "48b2f8386400bf233f76ec481a438354fe984e8097afee5135f16b80f6703d92",
+  "PROCESSOR_FIXES.md": "278043f78a7120b5b46673dc6bf84e95d9c7c4babe74ed41a55a39aa899ae69c",
+  "RecoverDecodedEgs52.java": "175547cac4dafe05e7a2b02745287ffb1a1c24c4426522ff045ee2a11efbe7fb",
+  "c166_addressing.sinc": "ecfc3d20f4e9f10bed25c1850c9de9030f06d84fb259644e0190f66259b5de9b",
+  "c166_psw.sinc": "c81311fbb4d2b4b20cf96cde064a66154bf35f720eb505c577b963f41e358ad6",
+  "c166_runtime_fixups.xml": "cdfe60d1f84b65cb8bef0dccd1bc81b06751b816e49fc83ff1aa4292d902b21e",
+  "c_listing_checks.py": "c33b0bd27df75afdd6f3fa0d6d787534ae089b8d9d83a51b6acb3f4a357909dd",
+  "callback_tables.csv": "d88cd405ab590c6bce0c3cbcd90e8c8a7392eaa76172c1d3f3391304e8004b53",
+  "decode_flash.py": "ef7e6c77f3ff7987df5c84b408f5c8d93f93f3e508b216b317021fc032041f41",
+  "jump_tables.csv": "0b0d88480818622fb9798132c72bfe9d01e80065834298c92ece3cedbd9aa076",
+  "native_abi.csv": "e29eadda94b872efa1be57e469e3e224e061da2f4e85668c9ce778eee21914a3",
+  "patch_c166_module.patch": "c73fe05a2f1647491b332af928be2bf18ebce69069c4bf066f404ae73a2c8fb8",
+  "patch_c166_module.py": "c500fb06aecffc26c59aff34a16cad0672491d95b59d65b67f24da814c29778b",
+  "rebuild.py": "0c86edafb4db1688c3db3ed4527ac4ed5cd2cdc799cdc99c06a0e68ddc2e8076",
+  "symbols.csv": "fd3f4c81e029666381653132f288e4af7de9b26819a52b36e136841bd9417e49"
+}

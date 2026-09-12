@@ -265,6 +265,17 @@ typedef struct {
     //
     // Live-editable over KWP so the two can be A/B'd without a reflash.
     bool hold_3_4_in_pn;
+    // Actuator-aware inertia feedback and progressing power-downshift release.
+    // Disable only to obtain an explicitly stamped baseline for comparison.
+    bool feedback_guard;
+    // EGS51 GS218 torque convention: false retains the legacy net encoding.
+    // Enable gross conversion only after confirming the ECU request convention.
+    // The conversion uses fresh CAN drag torque, never the configured constant.
+    bool egs51_request_gross;
+    // Enable committed ladders (Back-to-back adjacent shifts)
+    bool ladder_commit;
+    // Hold Y5+Y4 shift circuits energised while in P/N (EGS52 idle pair)
+    bool hold_y5_y4_in_pn;
 } __attribute__ ((packed)) SBS_MODULE_SETTINGS;
 
 const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
@@ -288,6 +299,10 @@ const SBS_MODULE_SETTINGS SBS_DEFAULT_SETTINGS = {
     .downshift_min_end_rpm = INT16_MIN,      // disabled; 0 is the measured value
     .redline_offset_auto_upshift = 100,
     .hold_3_4_in_pn = false,                 // EGS51 behaviour; true = the 47c7633 hold
+    .feedback_guard = true,
+    .egs51_request_gross = false,
+    .ladder_commit = false,
+    .hold_y5_y4_in_pn = false,
 };
 
 // Pressure manager settings
@@ -422,6 +437,19 @@ typedef struct {
     // Skip shifts on a grade steeper than this once the road load estimator is
     // confident. sin(grade) x 10000; 500 is about 3 degrees.
     uint16_t quality_max_terrain;
+    // Learn and apply a persistent per-shift target-time trim.
+    // This compensates slow plant drift (wear, fuel blend, ambient) by nudging
+    // target overlap time from measured quality outcomes.
+    bool quality_time_adapt;
+    // Time step for harsh and long/slow outcomes. ms
+    int16_t quality_time_step_ms;
+    // Smaller time step for early-bite + torque-hole outcomes. ms
+    int16_t quality_time_early_step_ms;
+    // Clamp on commanded target shift time after applying the learned offset. ms
+    uint16_t quality_time_min_ms;
+    uint16_t quality_time_max_ms;
+    // Clamp on learned per-cell time offset. ms
+    uint16_t quality_time_max_offset_ms;
 } __attribute__ ((packed)) ADP_MODULE_SETTINGS;
 
 const ADP_MODULE_SETTINGS ADP_DEFAULT_SETTINGS = {
@@ -460,6 +488,12 @@ const ADP_MODULE_SETTINGS ADP_DEFAULT_SETTINGS = {
     .quality_prefill_max_cycles = 10,
     .quality_min_output_rpm = 300,
     .quality_max_terrain = 500,
+    .quality_time_adapt = true,
+    .quality_time_step_ms = 25,
+    .quality_time_early_step_ms = 15,
+    .quality_time_min_ms = 100,
+    .quality_time_max_ms = 2500,
+    .quality_time_max_offset_ms = 250,
 };
 
 enum EwmSelectorType: uint8_t {

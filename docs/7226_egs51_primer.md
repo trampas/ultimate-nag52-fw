@@ -54,18 +54,34 @@ Corrected EGS51 analysis indicates the L9341 output word is decoded as:
 - OUT1 -> Y5
 - OUT4 -> TCC-related channel behavior [R2]
 
-The corrected pass replaced an earlier bit-order interpretation that briefly mis-attributed one PWM behavior to Y4. The corrected mapping and engagement behavior are captured in the EGS51 notes and reconstructed C artifact. [R2][R3]
+This mapping is confirmed two ways: the ST L9341 datasheet frame definition (bits 15-12/11-8/7-4/3-0 = channel 4/3/2/1) and the owner's board trace of the four output pins. [E1][R2]
+
+It replaced an earlier bit-order interpretation that briefly mis-attributed one PWM behavior to Y4; the PWM channel is in fact the **TCC**, not Y4. All three shift solenoids are driven peak-and-hold: full duty for three PWM periods, then roughly 25-38 percent selected by a temperature index. [R2][R3]
 
 ## 4. EGS51 P/N and engagement behavior
 
-From corrected EGS51 state-machine reconstruction:
+The engagement state machine (bank1 `5BB6`-`6191`, nine sub-states) has been transcribed
+into C and checked instruction-by-instruction against an execution oracle. What holds: [R2][R3][R7]
 
-- In N/P idle, EGS51 holds Y5 + Y4 together as the hydraulic-neutral pair.
-- On leaving N/P, EGS51 releases both first.
-- Drive engagement then proceeds through Y3/Y5 logic with Y4 normally off.
-- Reverse engagement energizes Y4 where required.
+- In N/P idle (state 8), EGS51 requests **Y5 + Y4 together** as the hydraulic-neutral pair,
+  with pressure targets MPC 0 / clutch 200 / SPC 800 in ROM units.
+- On leaving N/P, EGS51 **releases both** before starting the engagement sequence at state 0.
+- Reverse engagement energizes Y4 on its branch.
 
-This is the key OEM behavior to keep separate from "Y4 only" strategies. [R2][R3]
+**Withdrawn:** an earlier pass concluded that Drive engagement runs through Y3/Y5 with "Y4
+normally off". Instruction-level review shows the full machine **also sets Y4 in states 1, 2,
+4 and 5** under their own conditions. Whether a real-world Drive engagement reaches those
+paths cannot be decided from this routine alone; it depends on the producers of the gear and
+flag inputs (`B3`, `AB`, the `9A`/`94`/`1BD` flag words), which are not yet reconstructed.
+Treat "EGS51 never uses Y4 for D" as **unsupported**, not as established OEM behavior. [R7]
+
+Two further mechanics worth holding:
+
+- **State 0 falls through into state 1 in the same invocation**, so pressure targets can move
+  twice in one cycle.
+- **Timer arithmetic wraps at 8 bits.** Two cold fill times of 150 sum to 44, not 300. This is
+  real `ADD A,R7` behavior and is preserved in the model. The duration of one timer tick is
+  still unestablished, so all EGS51 times are in scheduler cycles, not milliseconds. [R7]
 
 ## 5. Temperature sensor curves and conversion context
 
@@ -143,13 +159,122 @@ If PNG is missing, run the build command after ensuring either:
 
 ### 5.4 EGS51 internal temperature math note
 
-EGS51 notes document a linearized internal relation in ROM-space terms:
+EGS51 linearizes its own ATF input with a straight line, over an 8-sample mean of a paged
+analog input:
 
-T ~= ((mean8 * 177) >> 8 - 52) * 2
+T_raw ~= ((mean8 * 177) >> 8 - 52) * 2
 
-Interpretation caveats are documented in the same EGS51 section and should be treated as calibration-sensitive until re-verified against direct measured points. [R2]
+A straight-line fit (no resistance table anywhere in the ROM) is consistent with a KTY-class
+sensor, which supports section 5.1. [R2]
 
-## 6. Open items and recommended additions
+**The unit of `T_raw` is not settled.** A "+50 offset" hypothesis was raised from the CAN
+substitute path (when the ATF sensor faults, EGS51 falls back to an engine-frame temperature
+byte plus 10, and MB engine temperature bytes are degC+40). It is **not** confirmed:
+
+- the CAN object the substitute is read from has not been identified, only its register
+  window, so the +40 premise is unverified for that specific byte; and
+- an argument offered for it in an earlier pass was arithmetically wrong.
+
+The reconstructed model therefore keeps **raw ROM units throughout and converts nothing**.
+Do not re-base NAG52's temperature axes on this hypothesis. The decisive test is a direct
+measurement: hold a known ATF temperature and compare it against the value the ECU reports.
+Note that this car's own TFT curve reads roughly 7-10 degC high, so the comparison needs an
+independent reference, not the TCU's own number. [R2][R7]
+
+## 6. EGS51 pressure control chain
+
+This is the part of EGS51 that decides how hard it shifts. The chain, end to end, is now
+transcribed and oracle-checked: [R3][R7]
+
+```
+engagement / shift machines
+        |  P_MPC (internal RAM 44:45)        clutch target (46:47)
+        v                                            v
+        |                                  egs51_spc()  bank1 7093
+        |                                            v
+        |                                   P_SPC_SOL (48:49)
+        v                                            v
+   egs51_pressure_demand()  bank1 D76E  <------------+
+        v
+   demand byte  (MPC 0x37, SPC 0x35)
+        v
+   PI current loop  bank0 3EEC/3F5C  ->  SFR D9 = 255-u (MPC), SFR DA = u (SPC)
+```
+
+### 6.1 Clutch pressure to SPC solenoid pressure
+
+```
+SPC = shift_reg_spring_pressure
+    + min(positive_signed16(clutch + 20*term), SPC_MAX) * 1000 / shift_spc_gain[idx]
+```
+
+The gain is a **divisor**, not a multiplier. NAG52 already implements exactly this relation
+in `s_algo.cpp` and `shifting_algo_helpers.cpp`, which is an independent corroboration of the
+reading; an earlier EGS51 pass had it inverted and was wrong by a factor of ~3.3 at gain 1993.
+The signed sum wraps to 16 bits before the positive clamp. [R3][R7][R8]
+
+### 6.2 Line pressure and the demand byte
+
+```
+line   = 1000 * (lp_reg_spring_pressure + P_MPC) / p_multi        (+ shift adder, - shift factor)
+inlet  = lerp(line; input_min..input_max -> output_min..output_max)
+k      = shift_pressure_addr_percent * (output_max - inlet) / 1000
+p_adj  = p + k * positive_signed16(p + inlet_pressure_offset) / 1000   (only when p < inlet)
+demand = PCS_map(p_adj, ATF_raw) * 10 / 45
+```
+
+`p_multi` and the inlet map are also **divisors/limits**, in the same arrangement NAG52 uses
+in `PressureManager::calc_current_linear_sol`. The `*10/45` scaling means the demand byte is
+in units of 4.5 mA. [R3][R7][R8]
+
+### 6.3 Seven more calibration fields located
+
+Matching the constants this routine reads against the TCU's own calibration located seven
+previously unplaced NAG52 hydraulic fields at fixed bank1 addresses, all byte-for-byte: [R2]
+
+| Field | bank1 address | Value |
+|---|---|---:|
+| shift_pressure_addr_percent | 0xFFD3 (u8) | 30 |
+| inlet_pressure_offset | 0xFFD4 | 1000 |
+| extra_pressure_pump_speed_min | 0xFFE3 | 1000 |
+| extra_pressure_pump_speed_max | 0xFFE5 | 4000 |
+| extra_pressure_adder_r1_1 | 0xFFE7 | 1500 |
+| extra_pressure_adder_other_gears | 0xFFE9 | 1000 |
+| shift_pressure_factor_percent | 0xFFEB | 37 |
+
+The shift adder is a lerp from zero to `extra_pressure_adder_*` over
+`extra_pressure_pump_speed_min..max` - structurally identical to NAG52's own
+`extra_p` interpolation over engine speed. [R3][R8]
+
+### 6.4 Current loop
+
+Per channel: a 16-bit integrator biased at 0x8000, `I += Ki*error` saturating, output
+`I - 32768 + Kp*error` saturating, then `min(255, value >> 4)`. Kp = 4 and Ki = 2 come from
+bank0 ROM `0B38`/`0B39`, and the loop period is 1250 counter ticks. **MPC writes `255-u`,
+SPC writes `u`** - only the MPC duty register is inverted. [R3][R7]
+
+## 7. Verifying these claims
+
+Everything above is reproducible from the repository, given the (uncommitted, proprietary)
+ROM image:
+
+```sh
+python3 tmp/egs51/tests/verify_model.py       # C model vs ROM instruction oracle
+python3 tmp/egs51/tools/egs51tool.py verify   # 32 calibration fields vs cal_data.h
+```
+
+The first compiles every reconstructed C file with `-Wall -Wextra -Werror -pedantic` and
+compares results against an 8051 interpreter executing the original ROM bytes, so it is
+independent of Ghidra's decompiler output. The second exits non-zero on any mismatch and
+reports `NO DATA` rather than success when it has nothing to compare.
+
+**Scope limit worth respecting:** the oracle covers the routines in the coverage table of
+[R7] - ramp/interpolation/map primitives, SPC, pressure demand, timing helpers, engagement,
+current control, frame composition, gear map, solenoid select. The newer files (shift
+supervisor, TCC control, analog scan, calibration services) compile clean but are
+**transcribed, not yet oracle-verified**. Do not treat those at the same confidence. [R7]
+
+## 8. Open items and recommended additions
 
 Still worth adding to this primer over time:
 
@@ -165,6 +290,8 @@ Still worth adding to this primer over time:
 - [R1] [TRANSMISSION_NOTES.md](../TRANSMISSION_NOTES.md)
 - [R2] [tmp/egs51/README.md](../tmp/egs51/README.md)
 - [R3] [tmp/egs51/reconstructed/egs51_pressure.c](../tmp/egs51/reconstructed/egs51_pressure.c)
+- [R7] EGS51 executable-model review notes and coverage table: [tmp/egs51/reconstructed/README.md](../tmp/egs51/reconstructed/README.md)
+- [R8] NAG52 pressure manager: [src/pressure_manager.cpp](../src/pressure_manager.cpp), [src/shifting_algo/s_algo.cpp](../src/shifting_algo/s_algo.cpp)
 
 ### External references (local copies)
 

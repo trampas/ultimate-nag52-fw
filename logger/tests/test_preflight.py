@@ -90,7 +90,7 @@ class TestTorqueRequest(Base):
         log = self.load(traces=[self.trace([200, 200, 200, 200, 200, 200, 200],
                                            [300, 250, 200, 100, 20, -40, -81])])
         f = self.errs(PF.check_torque_request(log), "torque_request")
-        self.assertTrue(any("fuel cut" in x.msg for x in f))
+        self.assertTrue(any("net torque undershoot" in x.msg for x in f))
 
     def test_healthy_request_passes(self):
         # What the fix produces: the amount settles at a level and is released.
@@ -121,7 +121,7 @@ class TestGarage(Base):
         log = self.load(logs=[(22.30, "SHIFTER", "Garage shift"),
                               (24.46, "SHIFT", "Garage shift completed OK")])
         f = self.errs(PF.check_garage_engagement(log), "garage")
-        self.assertTrue(any("did not take first time" in x.msg for x in f))
+        self.assertTrue(any("within the duration limit" in x.msg for x in f))
 
     def test_reentry_after_abort_is_an_error(self):
         log = self.load(logs=[(20.57, "SHIFTER", "Garage shift"),
@@ -130,6 +130,13 @@ class TestGarage(Base):
                               (24.46, "SHIFT", "Garage shift completed OK")])
         f = self.errs(PF.check_garage_engagement(log), "garage")
         self.assertTrue(any("re-entered" in x.msg for x in f))
+
+    def test_selector_cancellation_is_not_a_failed_engagement(self):
+        log = self.load(logs=[(20.0, "SHIFT", "Garage shift"),
+                             (23.0, "SHIFT", "Garage shift cancelled by selector"),
+                             (23.1, "SHIFT", "Garage shift"),
+                             (24.1, "SHIFT", "Garage shift completed OK")])
+        self.assertEqual(self.errs(PF.check_garage_engagement(log), "garage"), [])
 
     def test_clean_engagement_passes(self):
         # What the pre-merge firmware did every time: 1020 ms, first attempt.
@@ -150,12 +157,13 @@ class TestGarageSyncGate(Base):
                         for i, (ir, orpm, ped) in enumerate(checks)],
         }
 
-    def test_rejected_sync_at_standstill_is_an_error(self):
+    def test_completion_sample_alone_does_not_prove_rejection(self):
         # Stationary, driver on the pedal: turbine at 96 rpm is a real engagement,
         # but the fixed 20 rpm gate throws it away.
         log = self.load(traces=[self.trace([(96, 0, 79)])])
         f = self.errs(PF.check_garage_sync_gate(log), "garage_sync")
-        self.assertTrue(any("exit gate is stricter" in x.msg for x in f))
+        self.assertEqual(f, [])
+        self.assertTrue(any(x.sev == "WARN" for x in PF.check_garage_sync_gate(log)))
 
     def test_genuine_non_engagement_is_not_flagged(self):
         # Clutch never engaged: turbine near engine speed, delta far above 350.
@@ -220,7 +228,7 @@ class TestRunner(Base):
               "quality": {"duration_ms": 1700, "response_ms": 0},
               "samples": [sample(21507, phase=8, input_rpm=96, output_rpm=0, pedal=79)]}
         log = self.load(traces=[tr, dict(tr, t=25.3)])
-        f = self.errs(PF.run_checks(log), "garage_sync")
+        f = [x for x in PF.run_checks(log) if x.check == "garage_sync" and x.sev == "WARN"]
         self.assertEqual(len(f), 1)
 
     def test_a_check_with_no_data_warns_instead_of_passing(self):

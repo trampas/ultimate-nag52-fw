@@ -141,6 +141,11 @@ protected:
     uint16_t set_p_apply_clutch_with_spring(int p);
 
     short calc_correction_trq(ShiftStyle style, short momentum);
+    float pid_integral = 0;
+    float correction_min = INT16_MIN;
+    float correction_max = INT16_MAX;
+    uint32_t last_step_ms = 0;
+    float step_ms = 20.0f;
     int32_t momentum_pid[3] = { 0,0,0 };
     virtual uint16_t max_p_mod_pressure() = 0;
     virtual bool is_release_shift() = 0;

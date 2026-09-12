@@ -402,6 +402,26 @@ uint16_t CrossoverShift::get_trq_boost_adder() {
     return ret;
 }
 
+void CrossoverShift::update_feedback_limits() {
+    if (!SBS_CURRENT_SETTINGS.feedback_guard || !this->upshifting || sd->input_torque <= 0) {
+        this->correction_min = INT16_MIN;
+        this->correction_max = INT16_MAX;
+        return;
+    }
+    if (sd->output_rpm > 150) {
+        const float sync = sd->output_rpm * MECH_PTR->ratio_table[sid->inf.targ_g] / 1000.0f;
+        const float old_sync = sd->output_rpm * MECH_PTR->ratio_table[sid->inf.curr_g] / 1000.0f;
+        if (sd->input_rpm <= sync + 0.2f * (old_sync - sync)) { this->near_sync = true; }
+    }
+    const int capacity = this->calc_max_trq_on_clutch(sid->SPC_MAX, CoefficientTy::Sliding);
+    const int floor_capacity = this->calc_max_trq_on_clutch(
+        MAX(0, this->p_apply_overlap_begin - centrifugal_force_on_clutch), CoefficientTy::Sliding);
+    const int minimum = MIN(capacity, MAX(floor_capacity, this->near_sync ? (int)abs_input_trq : 0));
+    const int base = (int)abs_input_trq + this->trq_adder;
+    this->correction_min = minimum - base;
+    this->correction_max = capacity - base;
+}
+
 uint8_t CrossoverShift::phase_overlap2() {
     uint8_t ret = STEP_RES_CONTINUE;
     this->trq_at_apply_clutch = pm->calc_max_torque_for_clutch(sid->targ_g, sid->applying, p_apply_clutch, CoefficientTy::Sliding);
@@ -449,6 +469,7 @@ uint8_t CrossoverShift::phase_overlap2() {
         int tmp = this->calc_momentum_overlap_2();
         this->momentum_ctrl = linear_ramp_with_timer(this->momentum_ctrl, tmp, this->timer_shift);
         this->momentum_ctrl_filtered = linear_interp_with_percentage(80, this->momentum_ctrl, this->momentum_ctrl_filtered);
+        this->update_feedback_limits();
         this->correction_trq = this->calc_correction_trq(this->upshifting ? ShiftStyle::Crossover_Up : ShiftStyle::Crossover_Dn, this->momentum_ctrl_filtered);
 
         // NOTE: The off clutch slipping is the condition that ended PHASE_OVERLAP, so it must not
@@ -470,6 +491,7 @@ uint8_t CrossoverShift::phase_overlap2() {
         this->trq_adder = this->get_trq_adder_map_val() + adaptation_adder + this->emergency_trq_val - this->trq_req_compensate_val;
         this->momentum_ctrl = this->calc_momentum_overlap_2();
         this->momentum_ctrl_filtered = linear_interp_with_percentage(80, this->momentum_ctrl, this->momentum_ctrl_filtered);
+        this->update_feedback_limits();
         this->correction_trq = this->calc_correction_trq(this->upshifting ? ShiftStyle::Crossover_Up : ShiftStyle::Crossover_Dn, this->momentum_ctrl_filtered);
         if (sid->ptr_r_clutch_speeds->on_clutch_speed <= this->threshold_rpm) {
             // Next phase
@@ -489,6 +511,7 @@ uint8_t CrossoverShift::phase_overlap2() {
 
         this->momentum_ctrl = linear_ramp_with_timer(this->momentum_ctrl, targ_momentum, this->timer_shift);
         this->momentum_ctrl_filtered = linear_interp_with_percentage(80, this->momentum_ctrl, this->momentum_ctrl_filtered);
+        this->update_feedback_limits();
         this->correction_trq = this->calc_correction_trq(this->upshifting ? ShiftStyle::Crossover_Up : ShiftStyle::Crossover_Dn, this->momentum_ctrl_filtered);
         if (this->timer_shift == 0 || sid->ptr_r_clutch_speeds->on_clutch_speed < CRS_CURRENT_SETTINGS.clutch_stationary_rpm) {
             this->timer_shift = 3;
@@ -511,6 +534,8 @@ uint8_t CrossoverShift::phase_overlap2() {
         this->trq_req_up_ramp = true;
     }
 
+    this->update_feedback_limits();
+    this->correction_trq = MAX(this->correction_min, MIN(this->correction_max, this->correction_trq));
     int torque = MAX(0, (int)abs_input_trq + this->trq_adder + this->correction_trq);
     uint16_t targ = this->set_p_apply_clutch_with_spring(pm->p_clutch_with_coef_signed(sid->targ_g, sid->applying, torque, CoefficientTy::Sliding));
 

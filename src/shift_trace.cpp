@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "nvs/eeprom_config.h"
 #include "egs_calibration/calibration_structs.h"
+#include "nvs/module_settings.h"
 #include <math.h>
 #include <string.h>
 
@@ -21,6 +22,7 @@ static portMUX_TYPE trace_mux = portMUX_INITIALIZER_UNLOCKED;
 // possible; whichever comes second completes the record.
 static ShiftStamp pending_stamp = {};
 static bool pending_valid = false;
+static uint32_t pending_shift_id = 0;
 // Index of the event finalised by the last sample(), until a consumer takes it.
 static int8_t completed_idx = -1;
 
@@ -89,7 +91,7 @@ static struct {
 #define QUALITY_INPUT_INERTIA 0.16f
 
 void ShiftTrace::init(void) {
-    // PSRAM: 13 KB is nothing there, and keeping it out of internal RAM leaves
+    // PSRAM: 19 KB is nothing there, and keeping it out of internal RAM leaves
     // the shift task's headroom alone.
     // TCU_HEAP_ALLOC is already the PSRAM heap on ESP32.
     trace_ring = static_cast<ShiftTraceSample*>(
@@ -104,7 +106,7 @@ void ShiftTrace::init(void) {
     trace_header.version = SHIFT_TRACE_VERSION;
     trace_header.sample_size = (uint8_t)sizeof(ShiftTraceSample);
     trace_header.capacity = (uint16_t)SHIFT_TRACE_CAPACITY;
-    trace_header.buffer_addr = (uint32_t)trace_ring;
+    trace_header.buffer_addr = (uint32_t)(uintptr_t)trace_ring;
     trace_header.seq = 0;
     trace_header.dropped = 0;
     trace_header.n_events = 0;
@@ -124,7 +126,8 @@ const ShiftTraceHeader* ShiftTrace::get_header(void) {
  * enough: a shift's window is ~2.3 s and draining it costs ~72 ms, while the
  * shortest gap between shifts seen on the road is ~1.9 s.
  */
-static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility) {
+static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility,
+                       uint32_t shift_id, const SensorData* sd) {
     portENTER_CRITICAL(&trace_mux);
     if (trace_header.n_events == SHIFT_TRACE_EVENTS) {
         // Oldest event is about to be lost. If the host never read it, its
@@ -140,6 +143,9 @@ static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility) 
         if (completed_idx > 0) { completed_idx -= 1; } else if (0 == completed_idx) { completed_idx = -1; }
     }
     ShiftTraceEvent* e = &trace_header.events[trace_header.n_events];
+    e->shift_id = shift_id;
+    e->output_rpm_start = sd->output_rpm;
+    e->atf_temp_start = sd->atf_temp;
     e->seq_start = seq;
     e->seq_end = seq;
     e->gear_from = from;
@@ -147,7 +153,7 @@ static void push_event(uint32_t seq, uint8_t from, uint8_t to, uint8_t agility) 
     e->done = 0;
     e->agility_score = agility;
     memset(&e->quality, 0, sizeof(ShiftQuality));
-    if (pending_valid) {
+    if (pending_valid && pending_shift_id == shift_id) {
         e->stamp = pending_stamp;
         pending_valid = false;
     } else {
@@ -165,16 +171,17 @@ static ShiftTraceEvent* open_event(void) {
     return (0 == e->done) ? e : nullptr;
 }
 
-void ShiftTrace::annotate(const ShiftStamp* stamp) {
+void ShiftTrace::annotate(const ShiftStamp* stamp, uint32_t shift_id) {
     if (nullptr == trace_ring || nullptr == stamp) { return; }
     portENTER_CRITICAL(&trace_mux);
     ShiftTraceEvent* e = open_event();
-    if (nullptr != e) {
+    if (nullptr != e && e->shift_id == shift_id) {
         uint8_t flags_so_far = e->stamp.flags;     // a flare can already be marked
         e->stamp = *stamp;
         e->stamp.flags |= flags_so_far | SHIFT_STAMP_ANNOTATED;
         pending_valid = false;
     } else {
+        pending_shift_id = shift_id;
         pending_stamp = *stamp;
         pending_stamp.flags |= SHIFT_STAMP_ANNOTATED;
         pending_valid = true;
@@ -182,13 +189,13 @@ void ShiftTrace::annotate(const ShiftStamp* stamp) {
     portEXIT_CRITICAL(&trace_mux);
 }
 
-void ShiftTrace::mark(uint8_t stamp_flags) {
+void ShiftTrace::mark(uint8_t stamp_flags, uint32_t shift_id) {
     if (nullptr == trace_ring) { return; }
     portENTER_CRITICAL(&trace_mux);
     ShiftTraceEvent* e = open_event();
-    if (nullptr != e) {
+    if (nullptr != e && e->shift_id == shift_id) {
         e->stamp.flags |= stamp_flags;
-    } else if (pending_valid) {
+    } else if (pending_valid && pending_shift_id == shift_id) {
         pending_stamp.flags |= stamp_flags;
     }
     portEXIT_CRITICAL(&trace_mux);
@@ -206,7 +213,8 @@ bool ShiftTrace::take_completed(ShiftTraceEvent* out) {
     return got;
 }
 
-void ShiftTrace::record_adaptation(uint8_t reason, int16_t spc_delta, int16_t prefill_delta) {
+void ShiftTrace::record_adaptation(uint8_t reason, int16_t spc_delta, int16_t prefill_delta,
+                                   int16_t shift_time_delta) {
     if (nullptr == trace_ring) { return; }
     portENTER_CRITICAL(&trace_mux);
     if (completed_idx >= 0 && completed_idx < (int8_t)trace_header.n_events) {
@@ -214,7 +222,8 @@ void ShiftTrace::record_adaptation(uint8_t reason, int16_t spc_delta, int16_t pr
         st->adapt_reason = reason;
         st->spc_delta = spc_delta;
         st->prefill_delta = prefill_delta;
-        if (0 != spc_delta || 0 != prefill_delta) {
+        st->shift_time_delta = shift_time_delta;
+        if (0 != spc_delta || 0 != prefill_delta || 0 != shift_time_delta) {
             st->flags |= SHIFT_STAMP_ADAPTED;
         }
     }
@@ -225,12 +234,14 @@ void ShiftTrace::record_adaptation(uint8_t reason, int16_t spc_delta, int16_t pr
 void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                         uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
                         uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque,
-                        uint8_t agility_score, uint16_t apply_capacity_nm) {
+                        uint8_t agility_score, uint16_t apply_capacity_nm, uint32_t shift_id, bool raw_kickdown,
+                        int16_t request_wire_nm, int16_t engine_drag_nm) {
     if (nullptr == trace_ring || nullptr == sd || nullptr == algo) {
         return;
     }
     ShiftTraceSample* s = &trace_ring[trace_header.seq % SHIFT_TRACE_CAPACITY];
     s->t_ms = GET_CLOCK_TIME();
+    s->shift_id = shift_id;
     s->input_rpm = sd->input_rpm;
     s->output_rpm = sd->output_rpm;
     s->engine_rpm = sd->engine_rpm;
@@ -243,10 +254,53 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
     s->subphase_shift = algo->subphase_shift;
     s->subphase_mod = algo->subphase_mod;
     s->flags = (shifting ? 0x01u : 0x00u) | (uint8_t)((circuit_flags & 0x0Fu) << 1);
+    s->flags |= (raw_kickdown ? 0x20u : 0u) | (sd->kickdown_pressed ? 0x40u : 0u) |
+                (SBS_CURRENT_SETTINGS.egs51_request_gross ? 0x80u : 0u);
     s->pedal = (sd->pedal_pos > 250) ? 250u : (uint8_t)sd->pedal_pos;
     s->gear = (uint8_t)((gear_actual & 0x0Fu) << 4 | (gear_target & 0x0Fu));
     s->trq_req_amount = trq_req_amount;
     s->engine_torque = engine_torque;
+    s->request_wire_nm = request_wire_nm;
+    s->engine_drag_nm = engine_drag_nm;
+
+    const bool new_event = shifting && (!was_shifting || trace_header.n_events == 0 ||
+        trace_header.events[trace_header.n_events - 1].shift_id != shift_id);
+    if (was_shifting && (!shifting || new_event) && trace_header.n_events > 0) {
+        ShiftTraceEvent* e = &trace_header.events[trace_header.n_events - 1];
+        if (0 == e->done) {
+            e->seq_end = trace_header.seq;
+            e->done = 1;
+            e->quality.duration_ms = (uint16_t)MIN(65535u, s->t_ms - q.t_start);
+            e->quality.response_ms = q.response_ms;
+            e->quality.peak_jerk = (uint16_t)MIN(65535.0f, q.peak_jerk * 1000.0f);
+            e->quality.torque_hole = (uint16_t)MIN(65535.0f, MAX(0.0f, q.accel_base - q.min_accel));
+            e->quality.slip_energy_j = (uint32_t)MAX(0.0f, q.energy);
+            e->quality.lockup_rate = q.lockup_rate;
+            e->quality.settle_osc = 0;
+            e->quality.valid = 1;
+            q.settling = true;      // keep watching for driveline ringing
+            completed_idx = (int8_t)(trace_header.n_events - 1);
+        }
+    }
+    if (new_event) {
+        push_event(trace_header.seq, gear_actual, gear_target, agility_score, shift_id, sd);
+        // Reset the accumulators and latch the starting conditions.
+        q.t_start = s->t_ms;
+        q.ratio_start = (s->output_rpm > 150) ? ((float)s->input_rpm / (float)s->output_rpm) : 0.0f;
+        q.ratio_target = 0.0f;
+        if (gear_target >= 1 && gear_target <= 7 && MECH_PTR != nullptr) {
+            q.ratio_target = (float)MECH_PTR->ratio_table[gear_target] / 1000.0f;
+        }
+        q.accel_base = q.accel_prev;
+        q.energy = 0.0f;
+        q.peak_jerk = 0.0f;
+        q.min_accel = q.accel_prev;
+        q.response_ms = 0;
+        q.lockup_rate = 0;
+        q.osc = 0;
+        q.slip_prev = -1;
+        q.settling = false;
+    }
 
     // Objective shift quality, accumulated as the shift runs.
     //
@@ -324,43 +378,6 @@ void ShiftTrace::sample(const SensorData* sd, const ShiftAlgoFeedback* algo, boo
         if (accel_ok) { q.accel_prev = accel; }
     }
 
-    // Shift boundaries are detected here rather than hooked into elapse_shift,
-    // so the shift control path is untouched.
-    if (shifting && !was_shifting) {
-        push_event(trace_header.seq, gear_actual, gear_target, agility_score);
-        // Reset the accumulators and latch the starting conditions.
-        q.t_start = s->t_ms;
-        q.ratio_start = (s->output_rpm > 150) ? ((float)s->input_rpm / (float)s->output_rpm) : 0.0f;
-        q.ratio_target = 0.0f;
-        if (gear_target >= 1 && gear_target <= 7 && MECH_PTR != nullptr) {
-            q.ratio_target = (float)MECH_PTR->ratio_table[gear_target] / 1000.0f;
-        }
-        q.accel_base = q.accel_prev;
-        q.energy = 0.0f;
-        q.peak_jerk = 0.0f;
-        q.min_accel = q.accel_prev;
-        q.response_ms = 0;
-        q.lockup_rate = 0;
-        q.osc = 0;
-        q.slip_prev = -1;
-        q.settling = false;
-    } else if (!shifting && was_shifting && trace_header.n_events > 0) {
-        ShiftTraceEvent* e = &trace_header.events[trace_header.n_events - 1];
-        if (0 == e->done) {
-            e->seq_end = trace_header.seq;
-            e->done = 1;
-            e->quality.duration_ms = (uint16_t)MIN(65535u, s->t_ms - q.t_start);
-            e->quality.response_ms = q.response_ms;
-            e->quality.peak_jerk = (uint16_t)MIN(65535.0f, q.peak_jerk * 1000.0f);
-            e->quality.torque_hole = (uint16_t)MIN(65535.0f, MAX(0.0f, q.accel_base - q.min_accel));
-            e->quality.slip_energy_j = (uint32_t)MAX(0.0f, q.energy);
-            e->quality.lockup_rate = q.lockup_rate;
-            e->quality.settle_osc = 0;
-            e->quality.valid = 1;
-            q.settling = true;      // keep watching for driveline ringing
-            completed_idx = (int8_t)(trace_header.n_events - 1);
-        }
-    }
     if (!shifting && !q.settling && trace_header.n_events > 0) {
         ShiftTraceEvent* e = &trace_header.events[trace_header.n_events - 1];
         if (e->quality.valid && e->quality.settle_osc == 0 && q.osc > 0) {

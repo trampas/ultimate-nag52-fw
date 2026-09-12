@@ -1,0 +1,539 @@
+{
+  "raw_sha256": "ebfcce5f29d80ef9d636872ac557a5ced7efc3619f7c842a31d8789f1c7e4099",
+  "decoded_sha256": "bace445d34ce1cff2971eb4f4fe4998b266998e2096c2f9e89dcc41a3d96bf83",
+  "bytes": 524288,
+  "raw_bit_to_cpu_bit": [
+    15,
+    13,
+    11,
+    9,
+    7,
+    5,
+    3,
+    1,
+    14,
+    12,
+    10,
+    8,
+    6,
+    4,
+    2,
+    0
+  ],
+  "cpu_base": "080000",
+  "roundtrip": true,
+  "vectors": [
+    {
+      "vector": "000",
+      "target": "0805d0"
+    },
+    {
+      "vector": "004",
+      "target": "093b04"
+    },
+    {
+      "vector": "008",
+      "target": "0835e6"
+    },
+    {
+      "vector": "00c",
+      "target": "093b0c"
+    },
+    {
+      "vector": "010",
+      "target": "0835f4"
+    },
+    {
+      "vector": "014",
+      "target": "093b14"
+    },
+    {
+      "vector": "018",
+      "target": "083600"
+    },
+    {
+      "vector": "01c",
+      "target": "093b1c"
+    },
+    {
+      "vector": "020",
+      "target": "093b20"
+    },
+    {
+      "vector": "024",
+      "target": "093b24"
+    },
+    {
+      "vector": "028",
+      "target": "08360c"
+    },
+    {
+      "vector": "02c",
+      "target": "093b2c"
+    },
+    {
+      "vector": "030",
+      "target": "093b30"
+    },
+    {
+      "vector": "034",
+      "target": "093b34"
+    },
+    {
+      "vector": "038",
+      "target": "093b38"
+    },
+    {
+      "vector": "03c",
+      "target": "093b3c"
+    },
+    {
+      "vector": "040",
+      "target": "093b40"
+    },
+    {
+      "vector": "044",
+      "target": "093b44"
+    },
+    {
+      "vector": "048",
+      "target": "093b48"
+    },
+    {
+      "vector": "04c",
+      "target": "093b4c"
+    },
+    {
+      "vector": "050",
+      "target": "093b50"
+    },
+    {
+      "vector": "054",
+      "target": "093b54"
+    },
+    {
+      "vector": "058",
+      "target": "093b58"
+    },
+    {
+      "vector": "05c",
+      "target": "093b5c"
+    },
+    {
+      "vector": "060",
+      "target": "093b60"
+    },
+    {
+      "vector": "064",
+      "target": "093b64"
+    },
+    {
+      "vector": "068",
+      "target": "093b68"
+    },
+    {
+      "vector": "06c",
+      "target": "093b6c"
+    },
+    {
+      "vector": "070",
+      "target": "093b70"
+    },
+    {
+      "vector": "074",
+      "target": "093b74"
+    },
+    {
+      "vector": "078",
+      "target": "093b78"
+    },
+    {
+      "vector": "07c",
+      "target": "093b7c"
+    },
+    {
+      "vector": "080",
+      "target": "093b80"
+    },
+    {
+      "vector": "084",
+      "target": "093b84"
+    },
+    {
+      "vector": "088",
+      "target": "093b88"
+    },
+    {
+      "vector": "08c",
+      "target": "093b8c"
+    },
+    {
+      "vector": "090",
+      "target": "093b90"
+    },
+    {
+      "vector": "094",
+      "target": "093b94"
+    },
+    {
+      "vector": "098",
+      "target": "093b98"
+    },
+    {
+      "vector": "09c",
+      "target": "093b9c"
+    },
+    {
+      "vector": "0a0",
+      "target": "093ba0"
+    },
+    {
+      "vector": "0a4",
+      "target": "093ba4"
+    },
+    {
+      "vector": "0a8",
+      "target": "093ba8"
+    },
+    {
+      "vector": "0ac",
+      "target": "0835ae"
+    },
+    {
+      "vector": "0b0",
+      "target": "093bb0"
+    },
+    {
+      "vector": "0b4",
+      "target": "093bb4"
+    },
+    {
+      "vector": "0b8",
+      "target": "093bb8"
+    },
+    {
+      "vector": "0bc",
+      "target": "093bbc"
+    },
+    {
+      "vector": "0c0",
+      "target": "093bc0"
+    },
+    {
+      "vector": "0c4",
+      "target": "093bc4"
+    },
+    {
+      "vector": "0c8",
+      "target": "093bc8"
+    },
+    {
+      "vector": "0cc",
+      "target": "093bcc"
+    },
+    {
+      "vector": "0d0",
+      "target": "093bd0"
+    },
+    {
+      "vector": "0d4",
+      "target": "093bd4"
+    },
+    {
+      "vector": "0d8",
+      "target": "093bd8"
+    },
+    {
+      "vector": "0dc",
+      "target": "093bdc"
+    },
+    {
+      "vector": "0e0",
+      "target": "093be0"
+    },
+    {
+      "vector": "0e4",
+      "target": "093be4"
+    },
+    {
+      "vector": "0e8",
+      "target": "093be8"
+    },
+    {
+      "vector": "0ec",
+      "target": "093bec"
+    },
+    {
+      "vector": "0f0",
+      "target": "093bf0"
+    },
+    {
+      "vector": "0f4",
+      "target": "093bf4"
+    },
+    {
+      "vector": "0f8",
+      "target": "093bf8"
+    },
+    {
+      "vector": "0fc",
+      "target": "093bfc"
+    },
+    {
+      "vector": "100",
+      "target": "093c00"
+    },
+    {
+      "vector": "104",
+      "target": "093c04"
+    },
+    {
+      "vector": "108",
+      "target": "093c08"
+    },
+    {
+      "vector": "10c",
+      "target": "093c0c"
+    },
+    {
+      "vector": "110",
+      "target": "093c10"
+    },
+    {
+      "vector": "114",
+      "target": "093c14"
+    },
+    {
+      "vector": "118",
+      "target": "093c18"
+    },
+    {
+      "vector": "11c",
+      "target": "093c1c"
+    },
+    {
+      "vector": "120",
+      "target": "093c20"
+    },
+    {
+      "vector": "124",
+      "target": "093c24"
+    },
+    {
+      "vector": "128",
+      "target": "093c28"
+    },
+    {
+      "vector": "12c",
+      "target": "093c2c"
+    },
+    {
+      "vector": "130",
+      "target": "093c30"
+    },
+    {
+      "vector": "134",
+      "target": "093c34"
+    },
+    {
+      "vector": "138",
+      "target": "093c38"
+    },
+    {
+      "vector": "13c",
+      "target": "093c3c"
+    },
+    {
+      "vector": "140",
+      "target": "093c40"
+    },
+    {
+      "vector": "144",
+      "target": "093c44"
+    },
+    {
+      "vector": "148",
+      "target": "093c48"
+    },
+    {
+      "vector": "14c",
+      "target": "093c4c"
+    },
+    {
+      "vector": "150",
+      "target": "093c50"
+    },
+    {
+      "vector": "154",
+      "target": "093c54"
+    },
+    {
+      "vector": "158",
+      "target": "093c58"
+    },
+    {
+      "vector": "15c",
+      "target": "093c5c"
+    },
+    {
+      "vector": "160",
+      "target": "093c60"
+    },
+    {
+      "vector": "164",
+      "target": "093c64"
+    },
+    {
+      "vector": "168",
+      "target": "093c68"
+    },
+    {
+      "vector": "16c",
+      "target": "093c6c"
+    },
+    {
+      "vector": "170",
+      "target": "093c70"
+    },
+    {
+      "vector": "174",
+      "target": "093c74"
+    },
+    {
+      "vector": "178",
+      "target": "093c78"
+    },
+    {
+      "vector": "17c",
+      "target": "093c7c"
+    },
+    {
+      "vector": "180",
+      "target": "093c80"
+    },
+    {
+      "vector": "184",
+      "target": "093c84"
+    },
+    {
+      "vector": "188",
+      "target": "083146"
+    },
+    {
+      "vector": "18c",
+      "target": "093c8c"
+    },
+    {
+      "vector": "190",
+      "target": "093c90"
+    },
+    {
+      "vector": "194",
+      "target": "093c94"
+    },
+    {
+      "vector": "198",
+      "target": "093c98"
+    },
+    {
+      "vector": "19c",
+      "target": "093c9c"
+    },
+    {
+      "vector": "1a0",
+      "target": "093ca0"
+    },
+    {
+      "vector": "1a4",
+      "target": "093ca4"
+    },
+    {
+      "vector": "1a8",
+      "target": "093ca8"
+    },
+    {
+      "vector": "1ac",
+      "target": "093cac"
+    },
+    {
+      "vector": "1b0",
+      "target": "093cb0"
+    },
+    {
+      "vector": "1b4",
+      "target": "093cb4"
+    },
+    {
+      "vector": "1b8",
+      "target": "093cb8"
+    },
+    {
+      "vector": "1bc",
+      "target": "093cbc"
+    },
+    {
+      "vector": "1c0",
+      "target": "093cc0"
+    },
+    {
+      "vector": "1c4",
+      "target": "093cc4"
+    },
+    {
+      "vector": "1c8",
+      "target": "093cc8"
+    },
+    {
+      "vector": "1cc",
+      "target": "093ccc"
+    },
+    {
+      "vector": "1d0",
+      "target": "093cd0"
+    },
+    {
+      "vector": "1d4",
+      "target": "093cd4"
+    },
+    {
+      "vector": "1d8",
+      "target": "093cd8"
+    },
+    {
+      "vector": "1dc",
+      "target": "093cdc"
+    },
+    {
+      "vector": "1e0",
+      "target": "093ce0"
+    },
+    {
+      "vector": "1e4",
+      "target": "093ce4"
+    },
+    {
+      "vector": "1e8",
+      "target": "093ce8"
+    },
+    {
+      "vector": "1ec",
+      "target": "093cec"
+    },
+    {
+      "vector": "1f0",
+      "target": "093cf0"
+    },
+    {
+      "vector": "1f4",
+      "target": "093cf4"
+    },
+    {
+      "vector": "1f8",
+      "target": "093cf8"
+    },
+    {
+      "vector": "1fc",
+      "target": "093cfc"
+    }
+  ]
+}

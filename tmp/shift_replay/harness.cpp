@@ -87,6 +87,10 @@ static GearboxGear gear_from_idx(uint8_t idx) {
     return GearboxGear::SignalNotAvailable;
 }
 
+#ifdef NEW_ALGO
+#include "../../sim/shift_runner.h"
+#endif
+
 struct Row {
     int t_ms;
     int n2, n3, turbine, output;         // raw speed sensors
@@ -108,6 +112,9 @@ static void parse_int_list(const char* s, int16_t* dst, int n) {
 }
 
 int main(int argc, char** argv) {
+#ifdef NEW_ALGO
+    if (argc > 1 && !strcmp(argv[1], "--plant")) return run_closed_loop_shift(argc, argv);
+#endif
     if (argc < 3) {
         fprintf(stderr, "usage: %s <shift.txt> <out.txt> [--start-cycle N] [--spc-offsets a,b,..] [--prefill-offsets a,b,..] [--verbose] [--atf N]\n", argv[0]);
         return 1;
@@ -249,6 +256,9 @@ int main(int argc, char** argv) {
         .release_spring_on_clutch = pm->get_spring_pressure(applying), .release_spring_off_clutch = pm->get_spring_pressure(releasing),
         .prefill_info = prefill_data, .chars = chars, .ptr_r_clutch_speeds = &now_cs, .ptr_w_pressures = &p_now, .ptr_w_trq_req = &trd,
         .tcc = tcc, .adaptation_mgr = adapter, .manual_shift = false, .trq_req_en = true
+#ifdef NEW_ALGO
+        , .diff_ratio = VEHICLE_CONFIG.diff_ratio / 1000.0f
+#endif
     };
     sid.shift_flags = 0;
     ShiftHelpers::calc_shift_flags(&sid, &sd, true);

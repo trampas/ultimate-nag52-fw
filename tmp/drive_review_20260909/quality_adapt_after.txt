@@ -1,0 +1,34 @@
+nag52_20260909_175106.jsonl: 81 forward shifts
+
+78 shifts scored, 22 passed the gates
+reasons:
+  agility score too high   34
+  ATF temperature          19
+  harsh                    14
+  slow response            5
+  unscorable               3
+  output speed too low     3
+  slip energy over budget  2
+  flare                    1
+
+final offsets (mBar / cycles):
+  1-2  spc   +30  prefill  +2  (8 shifts)
+  2-3  spc   -30  prefill  +0  (10 shifts)
+  3-4  spc   -10  prefill  +0  (12 shifts)
+  4-5  spc   +30  prefill  +0  (10 shifts)
+  2-1  spc   +30  prefill  +0  (7 shifts)  (spc cell shared with the upshift, fill time only)
+  3-2  spc   -30  prefill  +5  (9 shifts)  (spc cell shared with the upshift, fill time only)
+  4-3  spc   -40  prefill  +0  (12 shifts)
+  5-4  spc   +30  prefill  +0  (10 shifts)  (spc cell shared with the upshift, fill time only)
+
+trajectories (value after each shift of that type):
+  pre 1-2    +0 +0 +0 +0 +0 +0 +2 +2
+  pre 3-2    +0 +0 +0 +1 +2 +3 +4 +4 +5
+  spc 1-2    +0 +0 +0 +0 +0 -10 +30 +30
+  spc 2-1    +0 +0 +0 +0 -10 +30 +30
+  spc 2-3    +0 +0 +0 +0 +0 -10 -20 -20 -20 -30
+  spc 3-2    +0 +0 +0 +0 -10 -20 -20 -20 -30
+  spc 3-4    +0 +0 +0 +0 +0 +0 +0 +0 +0 +0 +0 -10
+  spc 4-3    +0 +0 +0 +0 +0 +0 +0 +0 -10 -20 -30 -40
+  spc 4-5    +0 +0 +0 +0 +0 +0 +0 +40 +30 +30
+  spc 5-4    +0 +0 +0 +0 +0 +0 +0 +40 +30 +30

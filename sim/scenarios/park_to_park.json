@@ -1,0 +1,14 @@
+{
+  "seconds": 60,
+  "stages": [
+    {"at_s": 0, "name": "park_idle", "selector": 8, "brake_n": 5000, "pedal": 0},
+    {"at_s": 3, "name": "drive_braked", "selector": 5, "brake_n": 5000, "pedal": 0},
+    {"at_s": 7, "name": "creep", "selector": 5, "brake_n": 0, "pedal": 0},
+    {"at_s": 10, "name": "accelerate", "selector": 5, "brake_n": 0, "pedal": 0.38},
+    {"at_s": 27, "name": "cruise", "selector": 5, "brake_n": 0, "pedal": 0, "target_speed_kph": 50},
+    {"at_s": 35, "name": "coast", "selector": 5, "brake_n": 0, "pedal": 0},
+    {"at_s": 39, "name": "brake_to_stop", "selector": 5, "brake_n": 5000, "pedal": 0},
+    {"at_s": 52, "name": "drive_stopped", "selector": 5, "brake_n": 5000, "pedal": 0},
+    {"at_s": 56, "name": "park_return", "selector": 8, "brake_n": 5000, "pedal": 0}
+  ]
+}

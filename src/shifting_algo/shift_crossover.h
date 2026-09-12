@@ -21,6 +21,8 @@ private:
     uint8_t phase_fill();
     uint8_t phase_overlap();
     uint8_t phase_overlap2();
+    void update_feedback_limits();
+    bool near_sync = false;
 
     void fill_adapt();
     void overlap_adapt();

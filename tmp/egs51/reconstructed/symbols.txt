@@ -1,10 +1,12 @@
 # EGS51 A0215451432 - symbol map reconstructed 2026-09-09. Apply in Ghidra or read alongside the listing.
 # Format: bank:address  name  ; note.  Confidence: [C]onfirmed by data flow + board trace, [P]robable, [?] guess.
+# Pass 5: [V] means raw-ROM differential validation of semantic C, not hardware
+# validation. Unmarked historical [C] entries may still need review; see reconstructed/README.md.
 # --- MCU: Siemens SEC 51C810-N R7.0 ("SIECO 51"), custom 8051 ASIC. SFRs beyond the 8051 core are custom.
 SFR:0x98   WDT_SEQ        ; [C] sequence watchdog: tasks stamp 01/FD/04/F7/10/DF/40/7F at entry; FUN_403A feeds all eight
 SFR:0x9A   WDT_CTRL       ; [P] 0x41 then 0x20, polled for 0x20 (FUN_4020)
 SFR:0x91   XPAGE          ; [C] page select for paged input reads through 0x92
-SFR:0x92   PAGED_IN       ; [C] analog/switch input window; page 9 = ATF temperature -> XRAM 0x21
+SFR:0x92   PAGED_IN       ; [V] analog/switch input window; page9 -> XRAM21, pageF -> filtered XRAM17/76; page9 physical identity unconfirmed
 SFR:0x96   GPIO_A         ; [C] bit6 = bit-bang clock (EEPROM at init), bit5 = strobe (FUN_4465), bit4 = input
 SFR:0x9C   GPIO_B         ; [P] data lines for the init-time bit-bang
 SFR:0xB3   MOVX_PAGE      ; [C] high byte for MOVX @Ri block copies (FUN_0833)
@@ -58,7 +60,7 @@ I:0x36     TCC_DEMAND     ; [C] 0-238 PWM demand for OUT4 (TCC); below 14 = off,
 I:0x56     SHIFT_ACTIVE   ; [P]
 I:0xB9     CURRENT_GEAR   ; [C] 0 = N/P, 6 = R, 1-5 forward (bank1 FUN_2B80 maps it from XRAM 0x334)
 # --- code
-B0:0x02AC  ISR_TCC_ENGINE ; [C] vector 0x0024; TCC PWM: demand INTMEM 0x36 -> table 0x089D -> {F4:F3}; OUT4 nibble; period 0x1388
+B0:0x02AC  ISR_TCC_ENGINE ; [V] vector 0x0024; demand INTMEM36 -> table089D -> periodic compare EE/EF; subsequent SPI events use F4:F3; period5000 counter units
 B0:0x0521  ISR_T1         ; [C] sends an all-zero frame, reads status, restores; compare = {FB:FA}+500 if status bit1
 B0:0x068E  spi_exchange   ; [C] 16-bit full duplex with the L9341 via 0xC6/0xC7, CS on P0.7
 B0:0x0711  frame_compose  ; [C] on/off channels: inrush code ROM[0x088D]=0x0F for 3 cycles then ROM[0x087F+idx]=4/5/6
@@ -80,8 +82,8 @@ B0:0x675E  main_loop      ; [C] self-test steps at start (XRAM 0x196), then ever
 B0:0x6DE5  actuator_test  ; [C] KWP actuator test (XRAM 0x1B7 == 2): cycles Y3/Y5/Y4 bits, 50 ticks each, TCC demand 0xFE, then 0xED
 B0:0x7331  shift_state_machine_a ; [P] 5.3 KB, starts with WDT stamp 0xDF
 B0:0x9F23  tcc_np_pulse   ; [C] N/P: TCC demand = curve[7] (244) for ROM[0xFE79] ticks (= 0 here) then flag 0x1C0.5
-B0:0xB77B  tcc_shift_demand; [C] shift-time TCC demand: {0x4E:0x4F} via MDU, curve at 0xFE01 (8 x u16: 0,60,60,98,132,184,242,244), consts 0xFE62/64/66
-B0:0xB8FF  tcc_scheduler  ; [C] runs B77B only when 2 < gear < 6 and shift active; else demand 0 (lockup off in N/P/R/1st/2nd)
+B0:0xB77B  tcc_demand     ; [V] word IRAM4E -> curve descriptor EDEC, signed temperature correction FE63(word)/FE65(byte)/FE66(cap), adaptive X11E; writes X360/I36
+B0:0xB838  tcc_scheduler  ; [V] complete context load/control/adaptation/demand/store throughBA17; B8FF is operand of MOV DPTR,#0258, not a function entry
 B0:0xBD50  shift_decision ; [C] INC/DEC XRAM 0x334
 B1:0x2B80  gear_map       ; [C] XRAM 0x334 -> INTMEM 0xB9
 B1:0xD9A0  shift_state_machine_b ; [P] 3.7 KB, cross-bank entry
@@ -108,7 +110,7 @@ SFR:0xAD   MDU_MD3        ; [C] byte 3 (hi) of the 32-bit dividend / product
 SFR:0xAE   MDU_MD4        ; [C] second operand lo (multiplier / divisor)
 SFR:0xAF   MDU_MD5        ; [C] second operand hi; MD0,MD4,MD1,MD5 = 16x16 mul; MD0,MD1,MD4,MD5 = 16/16 div; MD0..MD5 = 32/16 div
 SFR:0xD9   PWM_MPC_DUTY   ; [C] 255-u from the PI regulator, demand INTMEM 0x37, feedback INTMEM 0x42 (page 1) -> MCU pin 4 -> RY stage -> MPC
-SFR:0xDA   PWM_SPC_DUTY   ; [C] 255-u, demand INTMEM 0x35, feedback INTMEM 0x43 (page 3) -> MCU pin 5 -> RY stage -> SPC
+SFR:0xDA   PWM_SPC_DUTY   ; [C] u (bank0 3F59; corrected pass 4), demand INTMEM 0x35, feedback INTMEM 0x43 (page 3) -> MCU pin 5 -> RY stage -> SPC
 SFR:0xEC   CMP_ISR_LO     ; [C] compare register of the current-loop ISR (0x01FD): next = {FB:FA} + ROM[0x0B3A:0x0B3B] = 1250 ticks
 SFR:0xED   CMP_ISR_HI     ; [C]
 SFR:0xEE   CMP_TCC_LO     ; [C] compare register written by the TCC PWM engine (0x02AC), not {F4:F3}
@@ -130,9 +132,9 @@ X:0x03CC   CAL_MAPS_3x2   ; [C] list of four 3x2 descriptors
 X:0x03D2   CAL_MAPS_6x8B  ; [C] list of four 6x8 descriptors (second family)
 X:0x0339   FILL_TERM      ; [P] output of FUN_6856
 # --- temperature
-X:0x0076   ATF_TEMP       ; [C] ATF temperature, encoding looks to be (degC + 50) - see README 13.6, not airtight: paged input page 0xF, 8-sample mean, linearised in FUN_2132 -> XRAM 0x17; substitute XRAM 0x97 (CAN object 0xA8 + 10; the object is an MS temperature byte, degC+40, but which one is unpinned; 0xE1 = fault) when XRAM 0x15 bit7
+X:0x0076   ATF_TEMP_RAW   ; [V] bank0 206E processes pageF -> XRAM17; X15.bit7 selects substitute X97, otherwise qualified filtered update. Physical Celsius/CAN encoding unconfirmed
 X:0x0017   ATF_TEMP_MEAS  ; [C] measured value before substitution
-X:0x0097   ATF_TEMP_SUBST ; [C] from CAN (FUN_47A0: MS T_MOT + 10), init ROM[0xFF01]
+X:0x0097   ATF_TEMP_SUBST ; [C] from CAN (FUN_47A0: unidentified object byte + 10; frame identity unconfirmed), init ROM[0xFF01]
 X:0x0021   TEMP2          ; [P] second temperature-shaped input (page 9), 8-bit, only used for the on/off solenoid hold-current index; NOT the ATF temperature (supersedes section 10)
 # --- pressure command path (all in internal RAM; the three words are overlaid per state machine)
 I:0x44     P_MPC          ; [C] 0x44:0x45 MPC pressure target, mbar
@@ -147,7 +149,7 @@ I:0x33     PI_INT_SPC     ; [C] 0x33:0x34
 I:0xB0     T_ENGAGE_0     ; [C] engagement timer (decremented every scheduler cycle by FUN_E48D)
 I:0xB1     T_ENGAGE_1     ; [C] also the lag divisor n of the pressure ramps (starts at ROM[0xFF78] = 10, counts down -> linear ramp)
 I:0xB2     T_ENGAGE_2     ; [C]
-I:0x72     T_LERP         ; [C] result of FUN_56A6 / FUN_56DE (time vs ATF temperature)
+I:0x72     T_LERP         ; [C] scratch result of FUN_56DE (56A6 returns R6:R7) (time vs ATF temperature)
 X:0x0273   P_SPC_MAX      ; [P] 0x273:0x274 = (x * shift_spc_gain[idx]) / 1000, clamp used by FUN_7093
 X:0x0329   P_LINE_BASE    ; [P] 0x329:0x32A working pressure used as floor / fallback by the pressure computations
 X:0x02EF   ENGINE_RPM     ; [P] 0x2EF:0x2F0, compared with ROM[0xFC3E] (FUN_913D, FUN_56DE)
@@ -159,31 +161,62 @@ B0:0x0C0C  mdu_mul16_32   ; [C] R6:R7 * R4:R5 -> R4:R5:R6:R7
 B0:0x0C7B  mdu_div32_ram75; [C] R4..R7 / INTMEM{0x75:0x76}
 B0:0x1061  lag_div        ; [C] R6:R7 += (R4:R5 - R6:R7) / R3 ; R3 == 0 -> R4:R5
 B0:0x1412  lerp1d_intmem  ; [C] desc @R7 in INTMEM: y0,y1,x0,x1,x (u16 each), clamped
-B0:0x14F3  map2d_rom      ; [C] desc @R6:R7 in ROM: {x_iaddr, nx, y_iaddr, ny, xax*, yax*, z*}, u8 axes, u16 z
-B0:0x1904  map2d_rom_u8   ; [P] same descriptor, u8 z (used by FUN_6856 on the 5x4 map)
+B0:0x14F3  map2d_rom      ; [C] desc @R6:R7 in ROM: {x_iaddr, nx, y_iaddr, ny, xax*, yax*, z*}, u16 axes, u16 z
+B0:0x1904  map2d_rom_u8   ; [V] byte axes and byte z; low input bytes only; x then y interpolation; also called in bank1
 B0:0x1CA2  dptr_add_a_mul_b ; [C] DPTR += A*B
 B0:0x1DCA  mdu_pad4       ; [C]
 B0:0x1DCB  mdu_pad8       ; [C]
 B0:0x01FD  ISR_current_loop ; [C] vector 11 (0x0021): feedback read, integrator reset, PI (via thunk 0x0B7B -> 3EEC), period 1250 ticks
 B0:0x3EEC  pi_regulators  ; [C] two PI loops -> D9 / DA; gains ROM[0x0B38] = 4 (Kp), [0x0B39] = 2 (Ki)
-B0:0x3F5C  pi_step        ; [C] one channel: I(16b) +/-= Ki*|e| sat, out = hi(I - 0x8000 +/- Kp*|e|) sat
+B0:0x3F5C  pi_step        ; [C] one channel: I(16b) +/-= Ki*|e| sat, out = sat16(I - 0x8000 +/- Kp*|e|); caller divides by 16, clamps to 255
 B0:0x5635  speed_b_calc   ; [C] period {8C:8D} -> speed {83:84}, prescaler range in 0xFD (was 'cap_range_a')
 B0:0x547F  speed_a_calc   ; [C] period {8A:8B} -> speed {81:82}, range in 0xFE
-B0:0x2132  atf_linearise  ; [C] 8-sample mean of page 0xF -> XRAM 0x17 = ((mean*177)>>8 - 52)*2 (degC+50); fault -> substitute
+B0:0x206E  analog_scan    ; [V] through2498; ordered ADC reads, raw fault bounds51/307, clamp76/238, startup/steady filter and debounce. 2132 is an operand, not a function entry
 # --- bank1 pressure / engagement
 B1:0x20BC  cal_select     ; [C] fills XRAM 0x3B2..0x3D5 from the coding nibbles; FFFF = unpopulated -> R7 |= 1
 B1:0xD76E  pressure_to_demand ; [C] mbar (R6:R7) -> current demand byte: line model (p_multi, lp_reg_spring), inlet map ROM 0xFFD6.., pcs_map 2-D (desc 0xEA82: x = pressure, y = ATF), /4.5
-B1:0x7093  spc_from_clutch ; [C] R6:R7 = shift_reg_spring + clamp((20*torque_term + R4:R5), P_SPC_MAX) * spc_gain[idx]/1000 (see egs51_pressure.c)
-B1:0x5480  mpc_line_and_flush ; [C] p_multi_1/other, lp_reg_spring, min_mpc (+0x4F), filter (+0x51), flush temp (+0x52), no_flush/flush times (+0x56/+0x58)
+B1:0x7093  spc_from_clutch ; [C] R6:R7 = shift_reg_spring + clamp((20*torque_term + R4:R5), P_SPC_MAX) * 1000/spc_gain[idx] (corrected pass 4; see egs51_pressure.c)
+B1:0x5480  mpc_line_and_flush ; [V] complete line target and minimum, flush state/timer, decrease-only weighted filter with 16-bit scaling wrap; through56A5
 B1:0x8200  spc_shift_pressure ; [C] overlap-circuit computation per shift index (ocf_spc/ocf_mpc/spring)
 B1:0x80BC  spc_shift_pressure_b ; [C]
 B1:0x7DDF  spc_shift_pressure_c ; [C]
 B1:0x6FEE  spc_overlap    ; [C]
 B1:0x8836  spc_shift_pressure_d ; [C]
-B1:0x2BB2  shift_setup    ; [C] P_SPC_MAX (0x273) from spc_gain[idx], 0x233 from cal 0x3C6+2
-B1:0x56A6  t_lerp_150_40  ; [C] INTMEM 0x72 = lerp(ROM 0xFF73=150 @ -30degC .. ROM 0xFF9E=40 @ +20degC) of ATF; axis ROM 0xFF91=20 / 0xFF92=70
-B1:0x56DE  t_lerp_40_7    ; [C] = ROM[0xFF9D] = 80 if (INTMEM 0x9A.3 && SPEED_W >= ROM16[0xFF9B]=60 && ENGINE_RPM <= bank1 ROM16[0xFC3E]=0, i.e. never on this cal) else lerp(ROM 0xFF76=40 @ -30degC .. ROM 0xFF71=7 @ +20degC)
-B1:0x6856  fill_term      ; [C] 5x4 map (desc via 0x3C8) x = R7 (gear idx), y = ATF -> + [0x16D + clutch] -> XRAM 0x339
+B1:0x2BB2  shift_setup    ; [V] complete both squared-speed terms, X233=max(IAD,cal3C6+2), gain2AB, X273=wrap16(X329-spring)*gain/1000
+B1:0x56A6  t_lerp_150_40  ; [V] INTMEM72=lerp(ROM FF73=150,FF9E=40) at raw axes FF91=20,FF92=70; physical units unresolved
+B1:0x56DE  t_lerp_40_7    ; [V] special80 if I9A.bit3 and speed2AC>=60 and engineRPM<=0; otherwise lerp40..7 at raw20..70. Engagement prologue clears special flag
+B1:0x6856  fill_term      ; [V] byte map via3C8, x=IRAM56,y=X76; correction X173 if IAC==8 else X16D+I56; wrap8 then positive signed clamp into X339
 B1:0x5C81  engage_state0  ; [C] jump table 0x5C66: 0=5C81 1=5CB7 2=5D3C 3=5EE0 4=5F3D 5=5FB7 6=6021 7=6048 8=60A1
 B0:0xE48D  timers_tick    ; [C] first scheduler task: decrements INTMEM 0xB0/0xB1/0xB2 and 0xB7:0xB8
 B0:0xCFB1  can_gs218_compose ; [C] writes XRAM 0x7E/0x83/0x90/0x92/0x93 that FUN_3FC3 transmits
+# --- complete semantic additions, pass5
+B0:0x7138  cal_select_bank0 ; [V] nine pointers, coding validation, 179.low=F selects0; through7330
+B0:0x5ACA  feedback_scale ; [V] signed-magnitude trim, signed saturation and asymmetric byte rounding
+B0:0x1838  curve8         ; [V] byte axes/z, low input byte; through1903
+B0:0x12BE  curve16        ; [V] word axes/z; through1411
+B0:0xA472  tcc_direction  ; [V] signed thresholds + hysteresis, updates I57 and X1C0 bits1/2
+B0:0xA7E6  tcc_target     ; [V] byte map via3B0+2A followed by sequential scaling
+B0:0xAB5B  tcc_slip_pi    ; [V] complete signed slip PI and acceleration corrections; throughAD0A
+B0:0xAD0B  tcc_feedforward ; [V] direction-selected curves/adaptive factors; writes I4A/I4C
+B0:0xAE33  tcc_regulate   ; [V] full regulator + callees; output and integrator clamps; throughAFE0
+B1:0x236A  shift_supervisor ; [V] full mode/phase/direction supervisor and callees; pressure phase execution is separate
+B1:0x2B80  gear_reset     ; [V] full reset including preceding helpers, through2BB1
+B1:0x642B  shift_factor   ; [V] complete factor calculation; through6567
+B1:0x6633  shift_threshold ; [V] complete threshold/bypasses/clamp; through6783
+X:0x03B0   TCC_CURVES     ; [V] bank0 ECB0 table indexed by coding179.low (F->0)
+X:0x03B8   TCC_PARAMS     ; [V] bank0 EC90 table indexed by coding179.low (F->0)
+X:0x03C2   SHIFT_MAP_PTR  ; [V] bank1 E9E2 table, distinct from E8E2 used by3B4
+# --- complete semantic additions, pass6
+B0:0xA04B  tcc_entry      ; [V] five entry phases, phase0 falls into1, fill timer adaptation; throughA471
+B0:0xA632  tcc_excess_slip ; [V] signed metric accumulator, adaptive factor and release; throughA7E5
+B0:0xA88B  tcc_supervisor ; [V] full operating modes0..3, gates and entry/exit; throughAB5A
+B0:0xAFE1  tcc_adapt      ; [V] three averaging regions plus low-demand signed bias; no EEPROM writes; throughB77A
+B1:0x43C5  speed_pressure ; [V] selector1=word22F squared,2=abs(word1EA) squared; staged truncation and temperature coefficient; through447F
+B1:0x6A50  shift_gain     ; [V] temperature lerp only for modeB6=1/indexAC=1; otherwise ROM FFD2; writesX2AB
+X:0x0252   TCC_CONTEXT    ; [V] 20 bytes copied to/from internal44..57 by bank0 B838
+X:0x0264   TCC_MODE_SAVED ; [V] saved internal56, also used for GS218 X93 bits; not selector position
+X:0x030D   TCC_ENTRY_PHASE ; [V] phase0..4, separate from operating mode56
+X:0x0309   TCC_PI_SUM     ; [V] signed32 through30C, factor adaptation average; countX2B4, regionX2E7
+X:0x011D   TCC_FILL_ADAPT ; [V] signed byte, wraps into entry timer; learned by A04B
+X:0x011E   TCC_BIAS_ADAPT ; [V] signed low-demand bias, learned by AFE1 and used by B77B
+X:0x011F   TCC_BASE_FACTOR ; [V] global feedforward factor, unsignedbyte; distinct from per-gear factors X121 onward

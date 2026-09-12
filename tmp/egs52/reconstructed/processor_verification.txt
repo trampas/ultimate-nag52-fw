@@ -1,0 +1,1 @@
+INFO  CheckEgs52Processor.java> PROCESSOR_REGRESSIONS_PASSED=49 (GhidraScript)  

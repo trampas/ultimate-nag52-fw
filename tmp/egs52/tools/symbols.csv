@@ -1,0 +1,137 @@
+address,name,evidence,confidence
+0805d0,egs52_reset_startup,Reset vector target; CP/DPP/bus/stack/watchdog initialization,observed
+082b50,egs52_boot_service_31,Callback in boot dispatch record at 0802bc; service byte 31,observed
+082f0c,egs52_boot_service_3b,Callback in boot dispatch record at 0802dc; service byte 3b,observed
+08302c,egs52_boot_service_ba,Callback in boot dispatch record at 08030c; service byte ba,observed
+083036,egs52_boot_service_bb,Callback in boot dispatch record at 080314; service byte bb,observed
+083132,egs52_boot_call_far_indirect,Byte-identical PUSH R5 PUSH R4 RETS trampoline to 092226,verified
+083138,egs52_boot_read_far_u32_registers,Byte-identical EXTS word-pair loader to 09222c,verified
+088024,egs52_boot_service_81,Callback in boot dispatch record at 0802f4; service byte 81,observed
+088072,egs52_boot_service_82,Callback in boot dispatch record at 0802fc; service byte 82,observed
+088092,egs52_boot_service_83,Callback in boot dispatch record at 080304; service byte 83,observed
+08836c,egs52_boot_service_20,Callback in boot dispatch record at 0802a4; service byte 20,observed
+0883e4,egs52_boot_service_3e,Callback in boot dispatch record at 0802ec; service byte 3e,observed
+088414,egs52_boot_service_27,Callback in boot dispatch record at 0802b4; service byte 27,observed
+0886c2,egs52_boot_service_10,Callback in boot dispatch record at 08028c; service byte 10,observed
+0888c8,egs52_boot_service_28,Callback in boot dispatch record at 08034c; service byte 28,observed
+0888f0,egs52_boot_service_29,Callback in boot dispatch record at 080354; service byte 29,observed
+088918,egs52_boot_service_34,Callback in boot dispatch record at 0802c4; service byte 34,observed
+0889d6,egs52_boot_service_36,Callback in boot dispatch record at 0802cc; service byte 36,observed
+088a42,egs52_boot_service_37,Callback in boot dispatch record at 0802d4; service byte 37,observed
+088a90,egs52_boot_service_3d,Callback in boot dispatch record at 0802e4; service byte 3d,observed
+088c12,egs52_boot_service_23,Callback in boot dispatch record at 0802ac; service byte 23,observed
+088cf8,egs52_boot_service_1a,Callback in boot dispatch record at 08029c; service byte 1a,observed
+088e40,egs52_boot_service_11,Callback in boot dispatch record at 080294; service byte 11,observed
+092118,egs52_near_to_far_registers,Select DPP from high two pointer bits and return R5:R4,verified
+09212e,egs52_multiply_u32_registers,R5:R4 times R11:R10 modulo 2^32,verified
+09214e,egs52_divide_s32_registers,Signed register-pair division and sign restoration,verified
+0921b4,egs52_divide_u32_registers,Unsigned register-pair division,verified
+0921ce,egs52_divide_u32_wide_divisor,Shared division tail for nonzero high divisor word,verified
+092226,egs52_call_far_indirect,Push R5/R4 onto hardware stack then RETS; an indirect call trampoline,verified
+09222c,egs52_read_far_u32_registers,EXTS reads two words into R10/R11; advances R5:R4 by two,verified
+09223a,egs52_abs_s16_bits,Signed compare and word NEG; 0x8000 preserved,verified
+092248,egs52_memcpy_near,Forward byte copy with zero-length guard,verified
+09226c,egs52_copy_bytes_registers,Compiler byte-copy loop using R3/R4/R10,verified
+09227c,egs52_copy_words_registers,Compiler word-copy loop using R3/R4/R10,verified
+093b00,egs52_application_reset_vector,Secondary vector zero jumps to 0x093d00,observed
+093d00,egs52_application_startup,Secondary reset-vector target,observed
+094188,egs52_forward_byte_to_0a08ee,Zero-extend low argument byte and call 0a08ee,observed
+094194,egs52_read_c34e_forwarder,CALLS to full-word C34E getter then RETS,observed
+09496c,egs52_initialize_operating_masks,Initialize C06C to 3 and C06E/C070 to 0x100,observed
+094980,egs52_update_operating_masks,Select mask C070 from per-client masks and C06E,inferred
+094dcc,egs52_get_operating_mask,Return RAM word C070,observed
+095124,egs52_latch_request_mask,OR argument into RAM word C086,observed
+095b6a,egs52_read_channel_table_word,Read word at F7C0 plus four times low-byte index,observed
+095f00,egs52_return_false_095f00,Return zero byte,observed
+095f98,egs52_copy_six_status_bytes,Copy six bytes from C0B2 to caller destination,observed
+0964a2,egs52_read_register_f052,Read word at F052,observed
+096988,egs52_return_fe,Return byte 0xFE,observed
+09699c,egs52_clear_status_c118,Clear byte C118,observed
+096e76,egs52_reset_receive_counters,Clear FDF2/FDF4 and C140,inferred
+096ece,egs52_increment_saturating_counters,Increment F45E and F572 only while below 0xFFFC,observed
+096f10,egs52_restart_serial_receive,Reset interrupt and receiver bits; configure PEC destination,inferred
+09704c,egs52_get_status_c160,Return byte C160,observed
+097166,egs52_clear_state_c164,Clear words C164/C166,observed
+097928,egs52_end_initialization,EINIT instruction,observed
+09792e,egs52_enable_interrupts,Atomic PSW.IEN set followed by two NOPs; original-instruction tests cover every initial PSW word and final flags,verified
+097938,egs52_disable_interrupts_save,Return previous PSW.IEN and atomically clear it; original-instruction tests cover every initial PSW word and final flags,verified
+09794e,egs52_software_reset,SRST instruction,observed
+097a1e,egs52_initialize_capture_compare,Constant writes to FF52..FF58 and FF22..FF28,observed
+097a7a,egs52_clear_capture_compare_controls,Clear words FF30 and FF32,observed
+097e9e,egs52_set_target_c174,Store argument to C174,observed
+097fe4,egs52_scale_c17a_to_u16,Scale C17A by 65535/24000,observed
+0993cc,egs52_set_watchdog_marker_96,Write 0x96 to F80A,inferred
+0993f6,egs52_clear_watchdog_markers,Clear F80A/FDFB,inferred
+0994c8,egs52_service_watchdog,Write watchdog control and execute SRVWDT; copy FDF2 byte to FDFC,observed
+09956a,egs52_get_status_c1aa,Return RAM word C1AA,observed
+09cb22,egs52_get_status_c31b,Return RAM byte C31B,observed
+09ed56,egs52_get_status_c32a,Return RAM byte C32A,observed
+09eede,egs52_get_status_c32c,Return RAM byte C32C,observed
+09efaa,egs52_crc16_a001_far,Reflected CRC using polynomial 0xA001 over far-addressed bytes,verified
+09f3f2,egs52_get_status_c3a2,Zero-extend RAM byte C3A2,observed
+09f7d8,egs52_test_fault_status_bit4,Test C3AC[index] bit 4,verified
+09f7ec,egs52_test_fault_status_bit3,Test C3AC[index] bit 3,verified
+09f800,egs52_test_fault_status_bit2,Test C3AC[index] bit 2,verified
+09f814,egs52_test_fault_status_bit7,Test C3AC[index] bit 7,verified
+09f828,egs52_test_fault_bitmap,Test indexed bit in word bitmap C42C,verified
+09f858,egs52_initialize_fault_status,Initialize 128 status bytes to 0x28 and F84C to 1,verified
+09fbc0,egs52_update_fault_status,Update per-event status and invoke descriptor callbacks,inferred
+0a097e,egs52_get_status_c34e,Return RAM word C34E,observed
+0a18c6,egs52_get_status_f84e,Return RAM word F84E,observed
+0a1b8c,egs52_match_fault_status_mask,Combine per-event status predicates according to mask,inferred
+0a1dd2,egs52_get_status_c44f,Return RAM byte C44F,observed
+0a3d8e,egs52_return_35,Return byte 0x35,observed
+0a40c6,egs52_free_small_heap_block,Coalesce neighbor blocks in 252-byte arena at E100,inferred
+0a58dc,egs52_get_status_fdfe,Return RAM word FDFE,observed
+0a59be,egs52_set_user_stack,Move argument into R0,observed
+0a6332,egs52_empty_interrupt_return,NOP followed by RETI,observed
+0a6708,egs52_return_zero_word,Return zero word,observed
+0a670c,egs52_return_zero_byte,Return zero byte,observed
+0a7d38,egs52_exchange_interrupt_priority,Clear PSW high nibble then OR entire requested word and return previous high nibble; original-instruction tests cover every initial PSW word and final flags,verified
+0d2008,egs52_clamp_d488_when_fd4e_bit5_set,Copy D48A into D488; conditionally clamp to unsigned D480 limit,verified
+0d282c,egs52_scale_d500_by_indexed_coefficient,Multiply D500 by word at F624 pointer plus 6 plus twice byte index; divide by 1000,observed
+0d2938,egs52_update_d7d8_from_byte_delta,Store base plus low-word product of byte weight and D579 minus byte reference,verified
+0d6c52,egs52_reset_state_d5b0,Clear three bytes D5B0..D5B2 and word D5A6,observed
+0d6c64,egs52_reset_state_d437,Clear D437/D566/D567,observed
+0d6e94,egs52_lookup_and_offset_d467,Read byte at F624 pointer plus A1 plus D579; add D468 and store D467,observed
+0d7b70,egs52_scale_and_store_d4ae,Unsigned word times byte weight divided by D46E; store quotient D4AE,verified
+0d7bc0,egs52_combine_percent_term_d402,D402 becomes D4AE plus unsigned D492 times byte D4DF divided by 100,verified
+0d7e64,egs52_offset_and_clamp_u16,Wrap input plus D54A; subtract D536 with zero floor; clamp to D552,verified
+0d8166,egs52_sum_pressure_terms,Return D4D2 plus D47C minus D490 minus D4B2; role provisional,inferred
+0de014,egs52_classify_negated_input,Return 2 when wrapped negated input exceeds signed D4C2; otherwise 1,verified
+0df1c6,egs52_weighted_average_s16,Signed weighted average using byte weight and divisor weight+1,verified
+0df1f8,egs52_weighted_average_u16,Unsigned weighted average using byte weight and divisor weight+1,verified
+0df222,egs52_blend_percent_u16,Unsigned percent blend with two separately truncated divisions,verified
+0df250,egs52_blend_percent_s16,Signed percent blend with two separately truncated divisions,verified
+0df27e,egs52_ramp_u16,Unsigned ramp with divisor-zero bypass,verified
+0df2b0,egs52_sqrt_estimate_u16,Three Newton iterations after piecewise initial guess,verified
+0df2ec,egs52_sqrt_estimate_u32,Three Newton iterations on 32-bit input; low-word return,verified
+0df36e,egs52_vector_length_estimate,Unsigned squares with 32-bit wrapping sum and three-step root estimate,verified
+0df3a4,egs52_lerp_unsigned_axis,Clamped interpolation with unsigned comparisons and signed differences,verified
+0df3f8,egs52_lerp_signed_axis,Clamped interpolation with signed comparisons,verified
+0df44c,egs52_curve_u16,Unsigned word-axis word-value curve interpolation,verified
+0df506,egs52_map_u16,Unsigned-axis word map; signed wrapped cell differences; three truncated divisions,verified
+0df72e,egs52_map_s16,Signed-axis two-dimensional word map,verified
+0df894,egs52_curve_u8,Unsigned byte-axis byte-value curve interpolation,verified
+0df980,egs52_map_u8,Byte-axis map; cell indices wrap modulo 256; three truncated divisions,verified
+0dfc18,egs52_curve_s16,Signed word-axis word-value curve interpolation,verified
+0dfcd6,egs52_pid_reset,Zero three context words,verified
+0dfce4,egs52_pid_step,Scaled PID with separately saturated integral state and output,verified
+0e0000,egs52_update_scaled_difference_d712,Scale wrapped D504 minus previous D790 by indexed gain over 300; conditionally filter into D710,verified
+0e3476,egs52_return_true_0e3476,Return byte one,observed
+0e347a,egs52_return_true_0e347a,Return byte one,observed
+0e347e,egs52_test_fd54_bit10_clear,Return Boolean inverse of FD54 bit 10,observed
+0e3520,egs52_test_flag_fd56_bit4,Return FD56 bit 4,observed
+0e813e,egs52_select_client3_operating_mask,Call 094980 with client 3 and mask 1 or 0800 according to FD62 bit 0,observed
+093f04,egs52_read_indexed_word_c044,All exits set RL4; caller 0966ca compares RL4; R12 receives two bytes from C044 indexed by C043,observed
+0a59c2,egs52_boot_request_65,Writes F3E6/F3E8 and request byte 65; invokes far callback at 080208; exits set RL4 to FDEE bit2,observed
+0a5a0e,egs52_boot_request_53,Writes four words at F3E6 and request byte 53; invokes far callback at 08020C; exits set RL4 to FDEE bit1,observed
+0e31ae,egs52_pack_scaled_status_fields,Implicit RAM inputs and scaled byte/word stores; both callers discard result before subsequent calls,observed
+0d30f2,egs52_lerp_signed_registers,Original-instruction comparison of signed interpolation; fifth operand at entry R0,verified
+0a626c,egs52_read_indexed_record_word,Every byte index/limit pair checked against original instructions; reads word in EE00/EF00 record arrays,verified
+0d728e,egs52_compute_d42e_byte,Common exit writes RL4 at 0d73dc; sole caller 0d4c1c stores RL4 to D5B1; byte mode copied from RL6,observed
+098164,egs52_test_fd02_bit0_clear,Bit inversion from FD02 into PSW bit6 and RL4; every initial PSW word instruction-tested,verified
+09eee4,egs52_stage_request_words,Instruction-tested C32A status gates and four-word request staging at C332; fourth word on R0 stack,verified
+0835f4,egs52_interrupt_010,Instruction-tested FDEE bit0 routing; ordered word I/O and watchdog/reset or application-vector transfer events,verified
+083600,egs52_interrupt_018,Instruction-tested FDEE bit0 routing; ordered word I/O and watchdog/reset or application-vector transfer events,verified
+08360c,egs52_interrupt_028,Instruction-tested FDEE bit0 routing; ordered word I/O and watchdog/reset or application-vector transfer events,verified

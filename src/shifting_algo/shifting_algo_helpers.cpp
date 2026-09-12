@@ -20,6 +20,13 @@ float ShiftHelpers::get_shift_intertia(uint8_t shift_idx) {
 void ShiftHelpers::calc_shift_flags(ShiftInterfaceData* sid, SensorData* sd, bool bleed_phase) {
     // Set to 0 at the start of the shift, so we just keep OR'ing it
     if ((uint8_t)sid->targ_g < (uint8_t)sid->curr_g) {
+        // A 3-2/2-1 started on overrun may become a power shift during fill.
+        // Clear its coast-only synchronization rules without restarting fill.
+        if (SBS_CURRENT_SETTINGS.feedback_guard && sd->pedal_pos > 30 &&
+            sd->converted_driver_torque > VEHICLE_CONFIG.engine_drag_torque / 10 &&
+            (sid->change == GearChange::_3_2 || sid->change == GearChange::_2_1)) {
+            sid->shift_flags &= ~(SHIFT_FLAG_COAST | SHIFT_FLAG_COAST_32_21);
+        }
         // Downshift detected
         if ((sid->shift_flags & SHIFT_FLAG_COAST_54_43) != 0) {
             // Check if pedal has jumped, and only then clear the 54_43 coast flag

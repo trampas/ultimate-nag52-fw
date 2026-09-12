@@ -1,5 +1,10 @@
 # Shift replay harness (host build)
 
+The `new` host build also supports `--plant`: see the
+[closed-loop physical simulator](../../sim/README.md) for scenarios, full-rate
+acceleration/jerk output, comparisons and its modeling assumptions. The replay
+mode below retains its logged-input behavior.
+
 Replays each gear change from `logger/logs/nag52_20260907_054611.jsonl` through the firmware's
 shift algorithms (`ShiftingAlgorithm` / `CrossoverShift` / `ReleasingShift` + `PressureManager`)
 compiled for the host, exactly as `Gearbox::elapse_shift` drives them, using the logged sensor

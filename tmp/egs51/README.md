@@ -1,5 +1,16 @@
 # EGS51 ROM reverse engineering (A0215451432)
 
+> **Current status:** See [the native port status](../../docs/egs51_downshift_port.md)
+> and [the executable reconstruction and correction report](reconstructed/README.md).
+> The C model now includes the full shift supervisor, current/TCC interrupt routines,
+> complete TCC scheduler/control/adaptation, analog scan/filter, calibration selectors,
+> timer service, MPC line/flush scheduling and shift setup. The native core also
+> covers the full pressure dispatcher, torque control and all three post-pressure
+> adaptation stages, with original-ROM differential tests.
+> Earlier sections below are a historical investigation log. The correction report
+> supersedes its formulas, function boundaries and confidence claims where noted.
+> Whole-ROM reconstruction remains incomplete; the report lists the remaining subsystems.
+
 Disassembly and analysis of the original Mercedes EGS51 transmission ECU firmware from the
 owner's own car, done 2026-09-08/09. The point of the exercise is interoperability: this repo
 reimplements the EGS, and the OEM ROM is the only authoritative source for what the factory
@@ -919,8 +930,12 @@ Every array after them matches exactly, so the first byte is a block id, not `gb
 3. Analog input path: closed (paged window; ATF = page 0xF → `XRAM 0x76`).
 4. Bank0 `0xFBF7` area: read by `FUN_7331` (24 cells, the big bank0 machine), `889C`,
    `9538`, `9B0A`, `A04B`… as scalar parameters (`egs51tool.py calrefs 0 f000`); the
-   **shift-point decision itself is in bank1** (`FUN_B9F3/BB02/C144` on block `0x3BC`) and
-   its target gear reaches bank0 as `XRAM 0x75` via `FUN_1DD0`. Not yet decoded.
+   earlier identification of bank1 `B9F3/BB02` as shift-point selection was wrong.
+   Complete native translation establishes that these are inside the B708
+   completed-shift adaptation stage. Bank1 `1DD0` qualifies signed torque and
+   returns a mode value; it does not write X75. Bank0 1DD0 produces physical
+   selector/range X75. Bank0 7331 automatic demand (IRAM AB) and the complete
+   normal scheduler are now translated; see the current port status linked above.
 
 Still not decoded: the shift-execution phase machine (`INTMEM 0xAA`, bank1 `2344`/`D9A0`
 and the `0x33D6/0x37CC` family that calls `spc_from_clutch`), the shift-point maps, the
@@ -967,3 +982,10 @@ halves; that is a processor-spec/loader job, not a script, and is the one piece 
 done. For an EGS52 image (a different MCU, C167-class) the descriptor/MDU parts do
 not transfer, but `egs51tool.py`'s calibration-matching and `calsets`/`desc` logic
 and the discipline of §7 do.
+
+### PCB clock observation (2026-09-10)
+
+The owner reports a **4 MHz crystal for the processor**. ROM bank0 0B3D sets
+10,000 counter ticks per main loop, and 0B3A sets 1,250 per current interrupt.
+The 8:1 cadence is established. The SIC810 counter divider is still required
+to derive physical periods; do not equate crystal cycles to counter ticks.

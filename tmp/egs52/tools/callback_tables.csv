@@ -1,0 +1,15 @@
+base,count,stride,evidence
+080200,11,4,Boot header far entry array including callbacks loaded at 0a59f6 and 0a5a4a
+089086,2,4,Boot far callback pair with adjacent return-entry routines
+090016,9,4,Application header startup and service callback array
+090072,16,4,Application header diagnostic callback array
+090a02,15,4,Far callback dispatch array for 0a48xx through 0a4bxx handlers
+090aae,29,4,Null-separated scheduler callback lists; loads at 0a7bb2 and 0a7e90 and 0a7cca
+090b66,26,8,Two diagnostic service tables with callback then packed service metadata; 14 and 12 records
+091d62,10,4,Far dispatch array with repeated default 0a474c callback
+088ff8,1,4,Boot configuration callback field; CALLS 082900 then RETS at target 0826ea
+08900a,1,4,Boot configuration callback field; CALLS 082900 then RETS at target 0826f0
+089020,1,4,Boot configuration callback field; CALLS 0829c6 then RETS at target 082724
+091c78,1,4,Application configuration callback field; CALLS 0a4582 then RETS at target 0a4542
+091c8c,1,4,Application configuration callback field; CALLS 0a4582 then RETS at target 0a4548
+091ca4,1,4,Application configuration callback field; CALLS 0a463e then RETS at target 0a457c

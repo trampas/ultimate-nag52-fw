@@ -1,0 +1,34 @@
+site,table,count,bank,evidence
+08315e,080416,16,08,Byte F57E selects one of sixteen near interrupt continuations
+0835c6,080436,2,08,Byte F408 selects one of two near interrupt continuations; next table word is FFFF
+095150,092718,9,09,Unsigned C0C0 guard <=8 at 095140
+09842c,09274e,6,09,Unsigned byte C187 guard <=5 at 09841c
+0a3872,09275a,6,0a,Unsigned byte record+9 guard <=5 at 0a3862
+0a3e54,092766,9,0a,Byte CAAA minus 2 guard <=8 at 0a3e44
+0d0758,091640,9,0d,Unsigned byte D577 guard <=8 at 0d0746
+0d204c,091698,7,0d,Unsigned byte D577 guard <=6 at 0d203c
+0d3946,0916b2,10,0d,Unsigned byte D566 guard <=9 at 0d3934
+0d44fa,0916c6,7,0d,Unsigned byte D566 guard <=6 at 0d44ea
+0d4956,0916d4,7,0d,Unsigned byte D566 guard <=6 at 0d4946
+0d4c12,0916e2,7,0d,Unsigned byte D567 guard <=6 at 0d4c02
+0d55fc,0916f0,10,0d,Unsigned byte D566 guard <=9 at 0d55ea
+0d5c56,091704,5,0d,Unsigned byte D566 guard <=4 at 0d5c46
+0d63d6,09170e,6,0d,Unsigned byte D566 guard <=5 at 0d63c6
+0d6886,09171a,5,0d,Unsigned byte D566 guard <=4 at 0d6876
+0d944a,091724,5,0d,Unsigned byte D566 guard <=4 at 0d943a
+0dab04,091736,5,0d,Unsigned byte D67D guard <=4 at 0daaf4
+0dae3c,091740,5,0d,Unsigned byte D67D guard <=4 at 0dae2c
+0de930,09174a,5,0d,Unsigned byte D577 guard <=4 at 0de920
+0def30,091754,6,0d,Byte D577 minus 1 guard <=5 at 0def20
+0e3d34,091a68,5,0e,Low three bits D2C6 minus 1 guard <=4 at 0e3d26
+0e5b0e,091a72,7,0e,Unsigned byte D577 guard <=6 at 0e5afe
+0954b4,09272a,6,09,Returned byte minus 1 guard <=5 at 0954a4
+0956b8,092736,6,09,Returned byte minus 1 guard <=5 at 0956a8
+0958bc,092742,6,09,Returned byte minus 1 guard <=5 at 0958ac
+0d09b6,091652,11,0d,Unsigned byte D437 guard <=10 at 0d09a4
+0d0a80,091668,13,0d,Unsigned byte D437 guard <=12 at 0d0a6e
+0d0b88,091682,6,0d,Unsigned byte D437 guard <=5 at 0d0b78
+0d0c00,09168e,5,0d,Unsigned byte D437 guard <=4 at 0d0bf2
+0d22e0,0916a6,6,0d,Unsigned byte D436 guard <=5 at 0d22d0
+0e5b46,091a80,8,0e,Byte D579 minus 1 guard <=7 at 0e5b36
+0e5d0e,091a90,7,0e,Byte D453 minus 1 guard <=6 at 0e5cfe

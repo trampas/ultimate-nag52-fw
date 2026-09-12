@@ -251,3 +251,20 @@ cd logger && python3 -m unittest discover -s tests
 The tests run against a fake TCU that emulates the firmware's UART framing,
 including interleaved log lines, corrupt frames, dropped requests and
 response‑pending, so protocol changes can be checked without hardware.
+
+### Downshift ladder diagnostics
+
+The default slow polling group includes `downshift_observer` (RLI `0x34`). It
+captures controller decision counters and the last 16 state transitions, so short
+inter-shift gaps can be attributed without faster polling. Older firmware logs an
+unsupported-record error and continues. To omit it, use `--slow sys_usage`.
+
+```sh
+python3 scripts/skip_downshift_report.py logger/logs/<drive>.jsonl
+python3 scripts/skip_downshift_report.py logger/logs/<drive>.jsonl --json
+```
+
+Run these from the repository root. Reports include individual rung durations,
+slip energy and gap causes. Missing history is `unknown`; `shifting` means the
+decision gate was closed, not that another downshift was requested. See the
+[review and protocol](../docs/skip_downshift_review.md) for interpretation.

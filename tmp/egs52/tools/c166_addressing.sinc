@@ -1,0 +1,27 @@
+# EGS52 dynamic memory-address semantics. Included by patch_c166_module.py.
+# DPP selection follows the SUM's top two bits; EXTP/EXTS use runtime values.
+AddressMode: is ExtsEn=0 & ExtpEn=0 { export 0:1; }
+AddressMode: is ExtsEn=1 { export 1:1; }
+AddressMode: is ExtsEn=0 & ExtpEn=1 { export 2:1; }
+
+macro egs52Address(result, offset, mode) {
+    local off:2 = offset;
+    local selectedPage:2 = DPP0;
+    if (mode == 1) goto <segment_override>;
+    if (mode == 2) goto <page_override>;
+    if ((off & 0xc000) == 0) goto <combine_page>;
+    selectedPage = DPP1;
+    if ((off & 0xc000) == 0x4000) goto <combine_page>;
+    selectedPage = DPP2;
+    if ((off & 0xc000) == 0x8000) goto <combine_page>;
+    selectedPage = DPP3;
+    goto <combine_page>;
+  <page_override>
+    selectedPage = ExtpValue;
+  <combine_page>
+    result = (zext(selectedPage & 0x3ff) << 14) | zext(off & 0x3fff);
+    goto <done>;
+  <segment_override>
+    result = (zext(ExtsValue) << 16) | zext(off);
+  <done>
+}

@@ -111,7 +111,10 @@ esp_err_t TCUIO::setup_io_layer() {
         ret = ESP_ERR_INVALID_STATE; 
     } else {
         // We have a CAN Layer, continue
-        Sensors::init_sensors();
+        ret = Sensors::init_sensors();
+    }
+    if (ESP_OK != ret) {
+        return ret;
     }
     init_smoothed_sensor(&smoothed_sensor_n2_rpm, 3, 0);
     init_smoothed_sensor(&smoothed_sensor_n3_rpm, 3, 0);

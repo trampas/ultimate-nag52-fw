@@ -1,0 +1,10 @@
+{
+  "reconstructed/egs52_reconstructed_clean.c": "601167bef1aa0faec0d68224c126b988f6d0f7b9f5e9d1b6113399b48299e324",
+  "reconstructed/egs52_math.h": "a7d9cd0db30bba1af0b81252a8bfffbc3f9d9d3644c320f1d9e697de9f697cc4",
+  "tests/boot_irq_oracle.py": "59aada2ec98c7ae4004f2ac594178602f210eb235c219a58b5718e22a5907e79",
+  "tests/c166_oracle.py": "4823869cf40d5094b594e282661497f0dd76116ccc640b01d173b2af9399d6da",
+  "tests/psw_oracle.py": "33c58ce562bcef83cbbc0b4ab81a5787c9b0b3fff2860f1c919af31b36f533ef",
+  "tests/verify_artifacts.py": "89e9dc7245adf23d2d7524cef3638c6b4ea5f66eec6fcb34277b3457423cb7eb",
+  "tests/verify_listing_checks.py": "2e57a5db5587603bd57bc31b18d2a3b1a13022ecb4c2359376bbf1882fd970f3",
+  "tests/verify_math.py": "49f27324a8fca7d08ea998f64a32a8d80d907dbfe2ab0a2ddce37476b5678b31"
+}

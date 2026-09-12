@@ -1,0 +1,12 @@
+{
+  "raw_sha256": "ebfcce5f29d80ef9d636872ac557a5ced7efc3619f7c842a31d8789f1c7e4099",
+  "decoded_sha256": "bace445d34ce1cff2971eb4f4fe4998b266998e2096c2f9e89dcc41a3d96bf83",
+  "functions_discovered": 1043,
+  "decompiler_c_files": 677,
+  "native_functions": 55,
+  "withheld_or_register_abi": 61,
+  "curated_names": 136,
+  "named_with_evidence": 1040,
+  "instruction_addresses": 67847,
+  "whole_firmware_semantically_verified": false
+}

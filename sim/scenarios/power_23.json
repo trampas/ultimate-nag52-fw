@@ -1,0 +1,10 @@
+{
+  "change": 2,
+  "speed_kph": 35,
+  "torque_nm": 120,
+  "pedal": 100,
+  "atf_c": 60,
+  "time_ms": 700,
+  "shift_at_s": 1,
+  "seconds": 5
+}

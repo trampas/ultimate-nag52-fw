@@ -35,6 +35,8 @@ class Egs51Can: public EgsBaseCan {
          uint8_t get_pedal_value(const uint32_t expire_time_ms) override;
         // Gets Torque information
         CanTorqueData get_torque_data(const uint32_t expire_time_ms) override;
+        int16_t get_torque_request_wire() const override;
+        int16_t get_engine_drag_torque(uint32_t expire_time_ms) override;
         // Gets the flappy paddle position
          PaddlePosition get_paddle_position(const uint32_t expire_time_ms) override;
         // Gets engine coolant temperature

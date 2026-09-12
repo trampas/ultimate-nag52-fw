@@ -1,6 +1,7 @@
 #include "shift_release.h"
 #include <egs_calibration/calibration_structs.h>
 #include "nvs/module_settings.h"
+#include "control_limits.h"
 
 const DRAM_ATTR uint8_t PHASE_BLEED = 0;
 const DRAM_ATTR uint8_t PHASE_FILL_AND_RELEASE = 1;
@@ -329,7 +330,18 @@ uint8_t ReleasingShift::phase_fill_release_mpc() {
         this->loss_torque_tmp += reduction/10.0;
         this->loss_torque = this->loss_torque_tmp / 2.0;
 
-        this->trq_at_release_clutch = (((int)this->abs_input_trq - (int)this->freeing_trq) + this->trq_adder) - (int)this->loss_torque;
+        const int requested = (((int)this->abs_input_trq - (int)this->freeing_trq) + this->trq_adder) - (int)this->loss_torque;
+        if (SBS_CURRENT_SETTINGS.feedback_guard && !this->upshifting &&
+            sd->pedal_pos > 30 && sd->output_rpm > 150) {
+            this->trq_at_release_clutch = (int)ShiftControl::releasing_torque(
+                this->trq_at_release_clutch, requested, this->minimum_mod_reduction_trq,
+                this->freeing_trq, sid->chars.target_shift_time, this->step_ms);
+            // Keep the subsequent feedback phase continuous with this command.
+            this->loss_torque = MAX(this->loss_torque,
+                (float)((int)abs_input_trq - (int)freeing_trq + trq_adder - trq_at_release_clutch));
+        } else {
+            this->trq_at_release_clutch = requested;
+        }
         int p = MAX(0, this->calc_release_clutch_p_signed(trq_at_release_clutch, CoefficientTy::Sliding) + (int)sid->release_spring_off_clutch - this->centrifugal_force_off_clutch);
         this->mod_sol_pressure = this->calc_mpc_sol_shift_ps(this->p_apply_clutch, p);
         if (

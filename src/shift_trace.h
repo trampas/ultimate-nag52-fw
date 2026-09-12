@@ -33,14 +33,13 @@
  */
 
 #define SHIFT_TRACE_MAGIC 0x43415254u  // 'TRAC'
-#define SHIFT_TRACE_VERSION 3u         // 2: ShiftStamp per event. 3: jerk and
-                                       // torque_hole taken over a 57 ms baseline
-                                       // instead of 19 ms - see shift_trace.cpp
+#define SHIFT_TRACE_VERSION 5u         // adds adaptive target-time offset metadata
 #define SHIFT_TRACE_CAPACITY 512u      // 512 * 20 ms = 10.2 s of history
 #define SHIFT_TRACE_EVENTS 4u
 
 struct ShiftTraceSample {
     uint32_t t_ms;          // GET_CLOCK_TIME() when sampled
+    uint32_t shift_id;      // executor generation, including back-to-back shifts
     uint16_t input_rpm;
     uint16_t output_rpm;
     uint16_t engine_rpm;
@@ -57,7 +56,9 @@ struct ShiftTraceSample {
     uint8_t  gear;          // actual << 4 | target
     int16_t  trq_req_amount;// absolute torque asked of the engine, INT16_MAX = no request
     int16_t  engine_torque; // what the engine reports it is making (CAN static torque)
-} __attribute__((packed));  // 30 bytes
+    int16_t  request_wire_nm; // actual CAN command after conversion/quantization, or INT16_MAX
+    int16_t  engine_drag_nm;  // fresh CAN drag, or INT16_MAX
+} __attribute__((packed));  // 38 bytes
 
 /**
  * @brief Objective shift quality, computed on the TCU as the shift happens.
@@ -120,6 +121,8 @@ struct ShiftQuality {
 #define SHIFT_FEAT_ALGO_ADAPT     0x20u  // the built-in fill/pressure adaptation was allowed to run
 #define SHIFT_FEAT_PROFILE_AGILITY 0x40u // the legacy swap had Agility in force when the shift started
 
+#define SHIFT_FEAT_FEEDBACK_GUARD 0x80u // bounded inertia/release feedback
+
 #define SHIFT_STAMP_FLARE         0x01u  // turbine ran away during the shift
 #define SHIFT_STAMP_ADAPTED       0x02u  // quality adaptation changed a cell after this shift
 #define SHIFT_STAMP_MANUAL        0x04u  // driver requested it (paddle / lever)
@@ -132,15 +135,20 @@ struct ShiftStamp {
     uint8_t  blend_pct;     // agility blend weight applied to this shift, 0-100
     uint8_t  flags;         // SHIFT_STAMP_* bits, filled as the shift runs and ends
     uint8_t  adapt_reason;  // QualityReason: why adaptation acted, or why it did not
-    uint8_t  _pad;
+    uint8_t  algorithm;     // 0 garage/unset, 1 crossover, 2 releasing
     uint16_t target_time_ms;// target shift time handed to the algorithm
     int16_t  spc_offset;    // adaptation SPC offset in force, mBar
     int16_t  prefill_offset;// adaptation prefill offset in force, 20 ms cycles
+    int16_t  shift_time_offset; // adaptation target-time offset in force, ms
     int16_t  spc_delta;     // change the quality adaptation made after the shift, mBar
     int16_t  prefill_delta; // ... and in cycles
-} __attribute__((packed));  // 16 bytes
+    int16_t  shift_time_delta; // ... and in ms
+} __attribute__((packed));  // 20 bytes
 
 struct ShiftTraceEvent {
+    uint32_t shift_id;
+    uint16_t output_rpm_start;
+    int16_t atf_temp_start;
     uint32_t seq_start;     // sample index at which the shift began
     uint32_t seq_end;       // sample index at which it ended (valid when done)
     uint8_t  gear_from;
@@ -149,7 +157,7 @@ struct ShiftTraceEvent {
     uint8_t  agility_score; // driver agility demand 0-100 when the shift started
     ShiftQuality quality;
     ShiftStamp stamp;
-} __attribute__((packed));  // 44 bytes
+} __attribute__((packed));  // 52 bytes
 
 struct ShiftTraceHeader {
     uint32_t magic;
@@ -167,11 +175,11 @@ struct ShiftTraceHeader {
 // The host decoder (logger/nag52logger/shift_trace.py) unpacks these by size, and
 // the header carries sample_size so a mismatch is reported rather than silently
 // mis-decoded. Pin them here so the two cannot drift apart unnoticed.
-static_assert(sizeof(ShiftTraceSample) == 30, "ShiftTraceSample must stay 30 bytes");
+static_assert(sizeof(ShiftTraceSample) == 38, "ShiftTraceSample must stay 38 bytes");
 static_assert(sizeof(ShiftQuality) == 16, "ShiftQuality must stay 16 bytes");
-static_assert(sizeof(ShiftStamp) == 16, "ShiftStamp must stay 16 bytes");
-static_assert(sizeof(ShiftTraceEvent) == 44, "ShiftTraceEvent must stay 44 bytes");
-static_assert(sizeof(ShiftTraceHeader) == 24 + (44 * SHIFT_TRACE_EVENTS), "ShiftTraceHeader layout changed");
+static_assert(sizeof(ShiftStamp) == 20, "ShiftStamp must stay 20 bytes");
+static_assert(sizeof(ShiftTraceEvent) == 56, "ShiftTraceEvent must stay 56 bytes");
+static_assert(sizeof(ShiftTraceHeader) == 24 + (56 * SHIFT_TRACE_EVENTS), "ShiftTraceHeader layout changed");
 
 namespace ShiftTrace {
     /// Allocate the ring. Safe to fail - tracing is then simply inactive.
@@ -184,23 +192,25 @@ namespace ShiftTrace {
     void sample(const SensorData* sd, const ShiftAlgoFeedback* algo, bool shifting,
                 uint8_t gear_actual, uint8_t gear_target, uint16_t spc, uint16_t mpc,
                 uint8_t circuit_flags, int16_t trq_req_amount, int16_t engine_torque,
-                uint8_t agility_score, uint16_t apply_capacity_nm);
+                uint8_t agility_score, uint16_t apply_capacity_nm, uint32_t shift_id, bool raw_kickdown,
+                int16_t request_wire_nm, int16_t engine_drag_nm);
     /// Header for the diagnostic readout, or nullptr if tracing is inactive.
     const ShiftTraceHeader* get_header(void);
 
     /// Called from elapse_shift once the shift's parameters are decided. Fills the
     /// stamp of the shift in progress, or holds it until the sampler opens the
     /// event if the shift thread got here first.
-    void annotate(const ShiftStamp* stamp);
+    void annotate(const ShiftStamp* stamp, uint32_t shift_id);
     /// OR SHIFT_STAMP_* bits into the shift in progress (flare, etc).
-    void mark(uint8_t stamp_flags);
+    void mark(uint8_t stamp_flags, uint32_t shift_id);
     /// Copy out the event finalised by the most recent sample(), once. Returns
     /// false when there is nothing new. This is how a consumer runs after every
     /// completed shift without being wired into the shift control path.
     bool take_completed(ShiftTraceEvent* out);
     /// Record what the quality adaptation did (or why it did nothing) on the
     /// event handed out by take_completed().
-    void record_adaptation(uint8_t reason, int16_t spc_delta, int16_t prefill_delta);
+    void record_adaptation(uint8_t reason, int16_t spc_delta, int16_t prefill_delta,
+                           int16_t shift_time_delta);
 }
 
 #endif

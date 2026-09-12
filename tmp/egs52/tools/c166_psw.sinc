@@ -1,0 +1,46 @@
+# C166 manual p35: explicit PSW destinations suppress normal flag updates.
+# Expose the architectural control write to the decompiler as an observable
+# operation. This userop reports the written mask and resulting bits; it does not
+# compute flags or replace instruction execution.
+define pcodeop __write_psw_bits;
+
+:bclr BitoffAddr^"."^bit_q_0407 is ExtCountDec & op0003=0xe & ExtrEn=0 & reg=0x88 & BitoffAddr & bit_q_0407 {
+    PSW = PSW & ~(1 << bit_q_0407);
+    local written:2 = 1 << bit_q_0407;
+    __write_psw_bits(written, PSW & written);
+}
+:bset BitoffAddr^"."^bit_q_0407 is ExtCountDec & op0003=0xf & ExtrEn=0 & reg=0x88 & BitoffAddr & bit_q_0407 {
+    PSW = PSW | (1 << bit_q_0407);
+    local written:2 = 1 << bit_q_0407;
+    __write_psw_bits(written, PSW & written);
+}
+:bmov BitoffAddrZ^"."^bit_z, BitoffAddr^"."^bit_q is ExtCountDec & ExtrEn=0 & op=0x4a & BitoffAddr; z=0x8 & z_2=0x8 & BitoffAddrZ & bit_z & bit_q {
+    local value:2 = (BitoffAddr >> bit_q) & 1;
+    SetBitValue(PSW, bit_z, value);
+    local written:2 = 1 << bit_z;
+    __write_psw_bits(written, PSW & written);
+}
+:bmovn BitoffAddrZ^"."^bit_z, BitoffAddr^"."^bit_q is ExtCountDec & ExtrEn=0 & op=0x3a & BitoffAddr; z=0x8 & z_2=0x8 & BitoffAddrZ & bit_z & bit_q {
+    local value:2 = ((BitoffAddr >> bit_q) & 1) ^ 1;
+    SetBitValue(PSW, bit_z, value);
+    local written:2 = 1 << bit_z;
+    __write_psw_bits(written, PSW & written);
+}
+:bfldh BitoffAddr, "#"^mask8, DataImmB is ExtCountDec & op=0x1a & ExtrEn=0 & reg=0x88 & BitoffAddr; DataImmB & mask8 {
+    PSW = (PSW & ~(zext(mask8:1) << 8)) | (zext(DataImmB) << 8);
+    local written:2 = (zext(mask8:1) | zext(DataImmB)) << 8;
+    __write_psw_bits(written, PSW & written);
+}
+:bfldl BitoffAddr, "#"^mask_low, "#"^data_high is ExtCountDec & op=0x0a & ExtrEn=0 & reg=0x88 & BitoffAddr; mask_low & data_high {
+    PSW = (PSW & ~zext(mask_low:1)) | zext(data_high:1);
+    local written:2 = zext(mask_low:1) | zext(data_high:1);
+    __write_psw_bits(written, PSW & written);
+}
+:mov LongMemAddrW, ShortMemAddrW is ExtCountDec & op=0xf6 & ShortMemAddrW; ExtsEn=0 & ExtpEn=0 & mem=0xff10 & LongMemAddrW {
+    PSW = ShortMemAddrW;
+    __write_psw_bits(0xffff:2, PSW);
+}
+:mov ShortMemAddrW, DataImmW is ExtCountDec & op=0xe6 & ExtrEn=0 & reg=0x88 & ShortMemAddrW; DataImmW {
+    PSW = DataImmW;
+    __write_psw_bits(0xffff:2, PSW);
+}

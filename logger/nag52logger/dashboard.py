@@ -160,6 +160,8 @@ class Dashboard:
                 adapt = st.get("adapt_reason", "-")
                 if st.get("spc_delta") or st.get("prefill_delta"):
                     adapt += " spc%+d pre%+d" % (st.get("spc_delta", 0), st.get("prefill_delta", 0))
+                if st.get("shift_time_delta"):
+                    adapt += " t%+dms" % st.get("shift_time_delta", 0)
                 if "flare" in (st.get("flags") or []):
                     adapt = "FLARE " + adapt
             lines.append("  %-11s %7s %7s %7s %7s %8s %7s %3s %5s %5s  %s" % (
